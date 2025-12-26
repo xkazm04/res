@@ -1,0 +1,136 @@
+{
+    "title": "Deep Research Actor Input",
+    "description": "Input schema for the Deep Research Actor",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "query": {
+            "title": "Research Query",
+            "description": "The research question or topic to investigate",
+            "type": "string",
+            "editor": "textarea",
+            "prefill": ""
+        },
+        "template": {
+            "title": "Research Template",
+            "description": "Type of research template to use",
+            "type": "string",
+            "enum": ["investigative", "financial", "competitive", "legal"],
+            "default": "investigative",
+            "editor": "select"
+        },
+        "granularity": {
+            "title": "Research Depth",
+            "description": "How deep the research should go",
+            "type": "string",
+            "enum": ["quick", "standard", "deep"],
+            "default": "standard",
+            "editor": "select"
+        },
+        "perspectives": {
+            "title": "Analysis Perspectives",
+            "description": "Override default perspectives for multi-perspective analysis",
+            "type": "array",
+            "editor": "stringList",
+            "items": {
+                "type": "string"
+            }
+        },
+        "input_file_url": {
+            "title": "Input File URL",
+            "description": "URL to a PDF or text file to include as context",
+            "type": "string",
+            "editor": "textfield"
+        },
+        "input_text": {
+            "title": "Input Text",
+            "description": "Direct text context to include in research",
+            "type": "string",
+            "editor": "textarea"
+        },
+        "generate_report": {
+            "title": "Generate Report",
+            "description": "Whether to generate a formatted report",
+            "type": "boolean",
+            "default": false
+        },
+        "report_variant": {
+            "title": "Report Variant",
+            "description": "Type of report to generate",
+            "type": "string",
+            "enum": ["executive_summary", "full_report", "investment_thesis"],
+            "default": "full_report",
+            "editor": "select"
+        },
+        "report_format": {
+            "title": "Report Format",
+            "description": "Output format for the report",
+            "type": "string",
+            "enum": ["markdown", "html", "json"],
+            "default": "markdown",
+            "editor": "select"
+        },
+        "report_title": {
+            "title": "Report Title",
+            "description": "Custom title for the report",
+            "type": "string",
+            "editor": "textfield"
+        },
+        "save_to_supabase": {
+            "title": "Save to Supabase",
+            "description": "Whether to save results to Supabase database",
+            "type": "boolean",
+            "default": true
+        },
+        "workspace_id": {
+            "title": "Workspace ID",
+            "description": "Workspace identifier for database storage",
+            "type": "string",
+            "default": "apify"
+        },
+        "max_searches": {
+            "title": "Maximum Searches",
+            "description": "Maximum number of web searches to execute",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 15,
+            "default": 5
+        },
+        "max_sources_per_search": {
+            "title": "Max Sources Per Search",
+            "description": "Maximum sources to collect per search",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 10
+        },
+        "google_api_key": {
+            "title": "Google API Key",
+            "description": "Google API key for Gemini (uses env var if not provided)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true
+        },
+        "openrouter_api_key": {
+            "title": "OpenRouter API Key",
+            "description": "OpenRouter API key for OCR (uses env var if not provided)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true
+        },
+        "supabase_url": {
+            "title": "Supabase URL",
+            "description": "Supabase project URL (uses env var if not provided)",
+            "type": "string",
+            "editor": "textfield"
+        },
+        "supabase_key": {
+            "title": "Supabase Key",
+            "description": "Supabase anon key (uses env var if not provided)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true
+        }
+    },
+    "required": ["query"]
+}

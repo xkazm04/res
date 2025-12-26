@@ -1,0 +1,21 @@
+{
+    "actorSpecification": 1,
+    "name": "deep-research",
+    "title": "Deep Research Actor",
+    "description": "AI-powered deep research with Gemini and Google Search grounding",
+    "version": "1.0.0",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "python-playwright"
+    },
+    "input": "./INPUT_SCHEMA.json",
+    "dockerfile": "../Dockerfile",
+    "readme": "../README.md",
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "title": "Research Findings",
+            "description": "Individual findings extracted from research"
+        }
+    }
+}

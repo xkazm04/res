@@ -1,0 +1,15 @@
+{
+  "record_type": "summary",
+  "session_id": "5e388b93-e671-4430-9d5d-9256548e0fa5",
+  "query": "Is Temu legitimate safe to buy from scam check",
+  "template": "reputation",
+  "status": "completed",
+  "total_findings": 8,
+  "total_perspectives": 4,
+  "total_sources": 58,
+  "execution_time_seconds": 287.36,
+  "total_cost_usd": 0.001672,
+  "report_available": true,
+  "high_confidence_findings": 8,
+  "high_credibility_sources": 6
+}

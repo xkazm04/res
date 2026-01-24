@@ -1,8 +1,11 @@
 """Competitive analysis research template."""
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from .base import BaseTemplate
+from ..services.report_components import (
+    ComponentType, ComponentConfig, ReportHints, get_report_hints
+)
 
 
 class CompetitiveTemplate(BaseTemplate):
@@ -11,6 +14,33 @@ class CompetitiveTemplate(BaseTemplate):
     template_id = "competitive"
     template_name = "Competitive Analysis"
     description = "Deep competitive intelligence, market positioning, and strategic analysis"
+
+    # Report hints for component-based rendering
+    report_hints = ReportHints(
+        template_type="competitive",
+        structure="balanced",
+        findings_grouping="category",
+        tone="analytical",
+        decision_format="matrix",
+        emphasis=["market_position", "competitive_advantages", "strategic_gaps"],
+        required_components=[
+            ComponentType.COMPETITOR_MATRIX,
+            ComponentType.COMPARISON_TABLE,
+            ComponentType.METRIC_CARDS,
+        ],
+        optional_components=[
+            ComponentType.FINDINGS_TABLE,
+            ComponentType.PROS_CONS,
+            ComponentType.KEY_INSIGHTS,
+            ComponentType.ACTION_ITEMS,
+        ],
+        visualization_preference=["competitor_matrix", "market_share_chart", "swot_grid"],
+        custom_sections={
+            "show_market_share": True,
+            "highlight_leader": True,
+            "show_strategic_gaps": True,
+        }
+    )
 
     # Expert perspectives for competitive intelligence
     default_perspectives = [
@@ -21,6 +51,15 @@ class CompetitiveTemplate(BaseTemplate):
     ]
 
     default_max_searches = 10
+
+    # Competitive analysis is rife with vendor marketing and inflated claims
+    # Market share numbers vary wildly, need to detect promotional content
+    verification_config = {
+        "cross_reference": "standard",      # Market data varies by methodology
+        "bias_detection": "thorough",       # Vendors inflate their position
+        "expert_sanity_check": "standard",  # Flag unrealistic market claims
+        "source_quality": "standard",       # Mix of analyst and vendor sources
+    }
 
     async def generate_search_queries(
         self,
@@ -219,3 +258,163 @@ Return as JSON array.
                     })
 
         return findings
+
+    # ========== COMPETITIVE-SPECIFIC REPORT GENERATION ==========
+
+    def get_supported_report_variants(self) -> List[str]:
+        """Competitive template supports competitor_matrix variant."""
+        return ["full_report", "executive_summary", "competitor_matrix"]
+
+    def generate_competitor_matrix(
+        self,
+        result: Dict[str, Any],
+        title: Optional[str] = None,
+    ) -> str:
+        """Generate competitor matrix report - competitive-specific variant."""
+        from datetime import datetime
+
+        query = result.get("query", "Unknown")
+        report_title = title or f"Competitive Matrix: {query[:40]}"
+
+        sections = []
+        sections.append(f"# {report_title}")
+        sections.append("")
+        sections.append(f"**Market/Subject:** {query}")
+        sections.append(f"**Date:** {datetime.now().strftime('%B %d, %Y')}")
+        sections.append("")
+        sections.append("---")
+        sections.append("")
+
+        findings = result.get("findings", [])
+
+        # Market Overview
+        market_data = [f for f in findings if f.get("finding_type") == "fact"]
+        if market_data:
+            sections.append("## Market Overview")
+            sections.append("")
+            for m in market_data[:4]:
+                sections.append(f"- {m.get('summary') or m.get('content', '')[:100]}")
+            sections.append("")
+
+        # Competitor Profiles
+        competitors = [f for f in findings if f.get("finding_type") == "actor"]
+        if competitors:
+            sections.append("## Competitor Profiles")
+            sections.append("")
+            for comp in competitors:
+                extracted = comp.get("extracted_data", {})
+                if extracted and isinstance(extracted, dict):
+                    company = extracted.get("company", "Unknown")
+                    segment = extracted.get("segment", "")
+                    revenue = extracted.get("revenue", "")
+                    market_share = extracted.get("market_share", "")
+                    sections.append(f"### {company}")
+                    sections.append("")
+                    if segment:
+                        sections.append(f"- **Segment:** {segment}")
+                    if revenue:
+                        sections.append(f"- **Revenue:** {revenue}")
+                    if market_share:
+                        sections.append(f"- **Market Share:** {market_share}")
+                    sections.append(f"- {comp.get('content', '')[:200]}")
+                    sections.append("")
+                else:
+                    sections.append(f"- {comp.get('summary') or comp.get('content', '')[:100]}")
+            sections.append("")
+
+        # Competitive Dynamics
+        relationships = [f for f in findings if f.get("finding_type") == "relationship"]
+        if relationships:
+            sections.append("## Competitive Dynamics")
+            sections.append("")
+            for rel in relationships[:6]:
+                sections.append(f"- {rel.get('summary') or rel.get('content', '')[:100]}")
+            sections.append("")
+
+        # Market Share Data
+        evidence = [f for f in findings if f.get("finding_type") == "evidence"]
+        if evidence:
+            sections.append("## Market Share & Metrics")
+            sections.append("")
+            for e in evidence[:6]:
+                sections.append(f"- {e.get('summary') or e.get('content', '')[:100]}")
+            sections.append("")
+
+        # Strategic Moves
+        patterns = [f for f in findings if f.get("finding_type") == "pattern"]
+        if patterns:
+            sections.append("## Recent Strategic Moves")
+            sections.append("")
+            for p in patterns[:5]:
+                sections.append(f"- {p.get('summary') or p.get('content', '')[:100]}")
+            sections.append("")
+
+        # Threats and Opportunities
+        predictions = [f for f in findings if f.get("finding_type") == "prediction"]
+        if predictions:
+            sections.append("## Threats & Opportunities")
+            sections.append("")
+            for pred in predictions[:5]:
+                sections.append(f"- {pred.get('summary') or pred.get('content', '')[:100]}")
+            sections.append("")
+
+        return "\n".join(sections)
+
+    def _get_priority_findings(self, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Competitive template prioritizes actors (competitors) and evidence."""
+        priority_types = ["actor", "evidence", "fact", "relationship", "pattern"]
+        prioritized = []
+
+        for ftype in priority_types:
+            type_findings = [f for f in findings if f.get("finding_type") == ftype]
+            prioritized.extend(sorted(
+                type_findings,
+                key=lambda x: x.get("confidence_score", 0),
+                reverse=True
+            ))
+
+        remaining = [f for f in findings if f not in prioritized]
+        prioritized.extend(sorted(remaining, key=lambda x: x.get("confidence_score", 0), reverse=True))
+
+        return prioritized
+
+    def _generate_key_sections(self, result: Dict[str, Any]) -> str:
+        """Generate competitive-specific key sections: Market Position, Key Competitors."""
+        findings = result.get("findings", [])
+        sections = []
+
+        # Market Position Summary
+        evidence = [f for f in findings if f.get("finding_type") == "evidence"]
+        if evidence:
+            sections.append("## Market Position Summary")
+            sections.append("")
+            for e in evidence[:4]:
+                sections.append(f"- {e.get('summary') or e.get('content', '')[:100]}")
+            sections.append("")
+
+        # Key Competitors
+        competitors = [f for f in findings if f.get("finding_type") == "actor"]
+        if competitors:
+            sections.append("## Key Competitors")
+            sections.append("")
+            for comp in competitors[:5]:
+                sections.append(f"- {comp.get('summary') or comp.get('content', '')[:100]}")
+            sections.append("")
+
+        return "\n".join(sections)
+
+    def _generate_executive_highlights(self, result: Dict[str, Any]) -> str:
+        """Generate competitive-specific executive highlights."""
+        findings = result.get("findings", [])
+        sections = []
+
+        # Top competitors highlight
+        competitors = [f for f in findings if f.get("finding_type") == "actor"]
+        if competitors:
+            sections.append("## Top Competitors")
+            sections.append("")
+            for comp in competitors[:3]:
+                sections.append(f"- {comp.get('summary') or comp.get('content', '')[:80]}")
+            sections.append("")
+
+        return "\n".join(sections)

@@ -1,0 +1,411 @@
+{
+    "title": "Deep Research Output",
+    "description": "Research results with findings, perspectives, sources, and metrics. Dataset contains multiple record types for flexible querying.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "record_type": {
+            "title": "Record Type",
+            "description": "Type of record in the dataset. Filter by this field to get specific data.",
+            "type": "string",
+            "enum": ["summary", "finding", "perspective", "source", "metrics"],
+            "enumDescriptions": [
+                "summary - Overview with totals, top findings, and key metrics (1 per run)",
+                "finding - Individual research finding with sources and confidence (N per run)",
+                "perspective - Expert analysis with insights and recommendations (N per run)",
+                "source - Web source with credibility score (N per run)",
+                "metrics - Cost and performance metrics (1 per run)"
+            ]
+        },
+        "session_id": {
+            "title": "Session ID",
+            "description": "Unique identifier for this research session. Use to correlate records.",
+            "type": "string",
+            "format": "uuid"
+        },
+
+        "finding_id": {
+            "title": "Finding ID",
+            "description": "Unique identifier for findings (f1, f2, f3...). Use for referencing.",
+            "type": "string",
+            "pattern": "^f[0-9]+$"
+        },
+        "finding_type": {
+            "title": "Finding Type",
+            "description": "Category of finding. Types vary by template.",
+            "type": "string",
+            "examples": [
+                "adoption_trend",
+                "prediction",
+                "product_launch",
+                "funding_round",
+                "market_metric",
+                "earnings_metric",
+                "risk_factor",
+                "red_flag",
+                "relationship",
+                "gap"
+            ]
+        },
+        "content": {
+            "title": "Content",
+            "description": "Full content of the finding with specific facts, numbers, and dates.",
+            "type": "string"
+        },
+        "summary": {
+            "title": "Summary",
+            "description": "One-sentence summary of the finding for quick scanning.",
+            "type": "string",
+            "maxLength": 200
+        },
+        "confidence_score": {
+            "title": "Confidence Score",
+            "description": "Confidence level from 0.0 to 1.0. Based on source quality and cross-referencing.",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "adjusted_confidence": {
+            "title": "Adjusted Confidence",
+            "description": "Confidence after bias detection and verification. May be lower than raw score.",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "temporal_context": {
+            "title": "Temporal Context",
+            "description": "Time context of the finding. 'predicted' indicates future forecasts.",
+            "type": "string",
+            "enum": ["past", "present", "ongoing", "predicted"]
+        },
+        "date_referenced": {
+            "title": "Date Referenced",
+            "description": "Specific date mentioned in the finding (e.g., 'December 2024', 'Q4 2025').",
+            "type": "string"
+        },
+        "date_range": {
+            "title": "Date Range",
+            "description": "Date range if applicable (e.g., '2024-2025', 'Q1-Q2 2026').",
+            "type": "string"
+        },
+        "extracted_data": {
+            "title": "Extracted Data",
+            "description": "Structured data specific to finding type. Contains metrics, entities, amounts.",
+            "type": "object",
+            "examples": [
+                {"technology": "GitHub Copilot", "adoption_rate": "77%", "growth_percentage": "180%"},
+                {"prediction": "Market consolidation", "timeframe": "Q2 2026", "confidence": "high"},
+                {"company": "NVIDIA", "revenue": "$35B", "growth": "94%", "segment": "Data Center"}
+            ]
+        },
+        "supporting_sources": {
+            "title": "Supporting Sources",
+            "description": "Sources that support this finding. Array of {url, title} objects.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "format": "uri"},
+                    "title": {"type": "string"}
+                }
+            }
+        },
+        "verification": {
+            "title": "Verification",
+            "description": "Verification status from bias detection and expert validation.",
+            "type": "object",
+            "properties": {
+                "bias_detected": {
+                    "type": "boolean",
+                    "description": "Whether vendor bias or conflict of interest was detected"
+                },
+                "bias_type": {
+                    "type": "string",
+                    "description": "Type of bias if detected (e.g., 'vendor_marketing', 'analyst_conflict')"
+                },
+                "expert_validated": {
+                    "type": "boolean",
+                    "description": "Whether an expert perspective validated this finding"
+                },
+                "cross_referenced": {
+                    "type": "boolean",
+                    "description": "Whether finding appears in multiple independent sources"
+                },
+                "sanity_check_passed": {
+                    "type": "boolean",
+                    "description": "Whether finding passed plausibility checks"
+                }
+            }
+        },
+
+        "perspective_type": {
+            "title": "Perspective Type",
+            "description": "Expert type providing the analysis.",
+            "type": "string",
+            "examples": [
+                "venture_capitalist",
+                "senior_engineer",
+                "institutional_investor",
+                "short_seller",
+                "forensic_financial",
+                "legal_liability"
+            ]
+        },
+        "analysis_text": {
+            "title": "Analysis",
+            "description": "Full expert analysis text with domain-specific insights.",
+            "type": "string"
+        },
+        "key_insights": {
+            "title": "Key Insights",
+            "description": "List of key insights from this perspective.",
+            "type": "array",
+            "items": {"type": "string"}
+        },
+        "recommendations": {
+            "title": "Recommendations",
+            "description": "Actionable recommendations from this perspective.",
+            "type": "array",
+            "items": {"type": "string"}
+        },
+        "predictions": {
+            "title": "Predictions",
+            "description": "Structured predictions with rationale, confidence, and timeline.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "prediction": {"type": "string", "description": "What is predicted to happen"},
+                    "rationale": {"type": "string", "description": "Evidence-based reasoning"},
+                    "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+                    "timeline": {"type": "string", "description": "When expected (e.g., 'Q1 2026')"},
+                    "supporting_sources": {"type": "array", "items": {"type": "string"}}
+                }
+            }
+        },
+        "warnings": {
+            "title": "Warnings",
+            "description": "Risk factors, concerns, or red flags from this perspective.",
+            "type": "array",
+            "items": {"type": "string"}
+        },
+        "confidence": {
+            "title": "Perspective Confidence",
+            "description": "Confidence level of the perspective analysis (0.0-1.0).",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+
+        "url": {
+            "title": "Source URL",
+            "description": "Full URL of the source.",
+            "type": "string",
+            "format": "uri"
+        },
+        "title": {
+            "title": "Source Title",
+            "description": "Title of the source article or page.",
+            "type": "string"
+        },
+        "domain": {
+            "title": "Domain",
+            "description": "Source domain (e.g., 'github.blog', 'reuters.com').",
+            "type": "string"
+        },
+        "snippet": {
+            "title": "Snippet",
+            "description": "Relevant excerpt from the source.",
+            "type": "string"
+        },
+        "credibility_score": {
+            "title": "Credibility Score",
+            "description": "Source credibility from 0.0 to 1.0. Based on domain authority and source type.",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "credibility_label": {
+            "title": "Credibility Label",
+            "description": "Human-readable credibility rating.",
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+        },
+        "source_type": {
+            "title": "Source Type",
+            "description": "Type of source for credibility assessment.",
+            "type": "string",
+            "enum": ["primary", "secondary", "news", "blog", "social", "academic", "government"]
+        },
+
+        "query": {
+            "title": "Query",
+            "description": "Original research query.",
+            "type": "string"
+        },
+        "template": {
+            "title": "Template",
+            "description": "Research template used.",
+            "type": "string"
+        },
+        "status": {
+            "title": "Status",
+            "description": "Research completion status.",
+            "type": "string",
+            "enum": ["completed", "partial", "failed"]
+        },
+        "total_findings": {
+            "title": "Total Findings",
+            "description": "Number of findings extracted.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "high_confidence_findings": {
+            "title": "High Confidence Findings",
+            "description": "Number of findings with confidence >= 0.8.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "total_perspectives": {
+            "title": "Total Perspectives",
+            "description": "Number of expert perspectives analyzed.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "total_sources": {
+            "title": "Total Sources",
+            "description": "Number of unique sources used.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "high_credibility_sources": {
+            "title": "High Credibility Sources",
+            "description": "Number of sources with credibility >= 0.8.",
+            "type": "integer",
+            "minimum": 0
+        },
+
+        "total_tokens": {
+            "title": "Total Tokens",
+            "description": "Total tokens consumed (input + output).",
+            "type": "integer"
+        },
+        "input_tokens": {
+            "title": "Input Tokens",
+            "description": "Tokens used for prompts.",
+            "type": "integer"
+        },
+        "output_tokens": {
+            "title": "Output Tokens",
+            "description": "Tokens generated in responses.",
+            "type": "integer"
+        },
+        "total_cost_usd": {
+            "title": "Total Cost (USD)",
+            "description": "Total API cost in USD.",
+            "type": "number",
+            "minimum": 0
+        },
+        "execution_time_seconds": {
+            "title": "Execution Time",
+            "description": "Total execution time in seconds.",
+            "type": "number",
+            "minimum": 0
+        },
+        "search_queries_executed": {
+            "title": "Search Queries",
+            "description": "Number of search queries executed.",
+            "type": "integer",
+            "minimum": 0
+        },
+
+        "cache_hit": {
+            "title": "Cache Hit",
+            "description": "Whether results were returned from cache.",
+            "type": "boolean"
+        },
+        "cache_extended": {
+            "title": "Cache Extended",
+            "description": "Whether new findings were added to cached results.",
+            "type": "boolean"
+        },
+        "original_cached_at": {
+            "title": "Original Cache Time",
+            "description": "When the cached result was originally created.",
+            "type": "string",
+            "format": "date-time"
+        },
+
+        "export_format": {
+            "title": "Export Format",
+            "description": "Format used for report export.",
+            "type": "string",
+            "enum": ["markdown", "html", "pdf", "docx", "json_ld", "obsidian", "slack"]
+        },
+        "export_filename": {
+            "title": "Export Filename",
+            "description": "Suggested filename for the exported report.",
+            "type": "string"
+        },
+        "export_mime_type": {
+            "title": "Export MIME Type",
+            "description": "MIME type for the exported content.",
+            "type": "string"
+        },
+        "report_available": {
+            "title": "Report Available",
+            "description": "Whether a formatted report was generated.",
+            "type": "boolean"
+        },
+        "report_variant": {
+            "title": "Report Variant",
+            "description": "Type of report generated.",
+            "type": "string",
+            "enum": ["full_report", "executive_summary", "investment_thesis", "decision_brief"]
+        }
+    },
+    "recordTypes": {
+        "summary": {
+            "description": "Overview record with totals and key metrics",
+            "fields": ["record_type", "session_id", "query", "template", "status", "total_findings", "high_confidence_findings", "total_sources", "high_credibility_sources", "total_perspectives", "execution_time_seconds", "total_cost_usd", "report_available", "cache_hit"]
+        },
+        "finding": {
+            "description": "Individual research finding",
+            "fields": ["record_type", "session_id", "finding_id", "finding_type", "content", "summary", "confidence_score", "adjusted_confidence", "temporal_context", "date_referenced", "date_range", "extracted_data", "supporting_sources", "verification"]
+        },
+        "perspective": {
+            "description": "Expert perspective analysis",
+            "fields": ["record_type", "session_id", "perspective_type", "analysis_text", "key_insights", "recommendations", "predictions", "warnings", "confidence"]
+        },
+        "source": {
+            "description": "Web source used in research",
+            "fields": ["record_type", "session_id", "url", "title", "domain", "snippet", "credibility_score", "credibility_label", "source_type"]
+        },
+        "metrics": {
+            "description": "Cost and performance metrics",
+            "fields": ["record_type", "session_id", "total_tokens", "input_tokens", "output_tokens", "total_cost_usd", "execution_time_seconds", "search_queries_executed", "cache_hit", "cache_extended"]
+        }
+    },
+    "keyValueStoreKeys": {
+        "OUTPUT": {
+            "description": "Complete research output with all findings, perspectives, sources, and report",
+            "type": "application/json"
+        },
+        "EXECUTIVE_SUMMARY": {
+            "description": "Condensed summary with top findings and key metrics",
+            "type": "application/json"
+        },
+        "REPORT.md": {
+            "description": "Formatted report in Markdown format",
+            "type": "text/markdown"
+        },
+        "REPORT.html": {
+            "description": "Interactive HTML report with visualizations (if report_format='html')",
+            "type": "text/html"
+        },
+        "PROGRESS": {
+            "description": "Real-time progress tracking (poll this key for updates)",
+            "type": "application/json"
+        }
+    }
+}

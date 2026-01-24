@@ -1,0 +1,11 @@
+{
+  "query": "Is Temu legitimate safe to buy from scam check",
+  "template": "reputation",
+  "granularity": "quick",
+  "generate_report": true,
+  "report_format": "html",
+  "use_cache": false,
+  "use_cloud_run": false,
+  "send_email": true,
+  "email_to": "kazdanm@gmail.com"
+}

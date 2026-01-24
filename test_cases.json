@@ -1,0 +1,144 @@
+{
+  "test_cases": [
+    {
+      "id": 1,
+      "topic": "AI coding assistants enterprise adoption 2025",
+      "template": "tech_market",
+      "granularity": "quick",
+      "report_variant": "executive_summary"
+    },
+    {
+      "id": 2,
+      "topic": "Kubernetes alternatives gaining traction 2025",
+      "template": "tech_market",
+      "granularity": "standard",
+      "report_variant": "full_report"
+    },
+    {
+      "id": 3,
+      "topic": "Developer productivity tools market outlook 2026",
+      "template": "tech_market",
+      "granularity": "deep",
+      "report_variant": "investment_thesis"
+    },
+    {
+      "id": 4,
+      "topic": "Apple Q4 2024 earnings and 2025 outlook",
+      "template": "financial",
+      "granularity": "quick",
+      "report_variant": "executive_summary"
+    },
+    {
+      "id": 5,
+      "topic": "NVIDIA stock valuation and AI chip market 2025",
+      "template": "financial",
+      "granularity": "standard",
+      "report_variant": "full_report"
+    },
+    {
+      "id": 6,
+      "topic": "Microsoft AI investments ROI analysis",
+      "template": "financial",
+      "granularity": "deep",
+      "report_variant": "investment_thesis"
+    },
+    {
+      "id": 7,
+      "topic": "Stripe vs Square vs Adyen payment processing comparison",
+      "template": "competitive",
+      "granularity": "quick",
+      "report_variant": "executive_summary"
+    },
+    {
+      "id": 8,
+      "topic": "AWS vs Azure vs GCP cloud market share 2025",
+      "template": "competitive",
+      "granularity": "standard",
+      "report_variant": "full_report"
+    },
+    {
+      "id": 9,
+      "topic": "Notion vs Confluence enterprise collaboration market",
+      "template": "competitive",
+      "granularity": "deep",
+      "report_variant": "investment_thesis"
+    },
+    {
+      "id": 10,
+      "topic": "OpenAI leadership and governance changes 2023-2024",
+      "template": "investigative",
+      "granularity": "quick",
+      "report_variant": "executive_summary"
+    },
+    {
+      "id": 11,
+      "topic": "FTX collapse timeline and key actors involved",
+      "template": "investigative",
+      "granularity": "standard",
+      "report_variant": "full_report"
+    },
+    {
+      "id": 12,
+      "topic": "Theranos fraud investigation and key findings",
+      "template": "investigative",
+      "granularity": "deep",
+      "report_variant": "full_report"
+    },
+    {
+      "id": 13,
+      "topic": "AI copyright and intellectual property lawsuits 2024-2025",
+      "template": "legal",
+      "granularity": "quick",
+      "report_variant": "executive_summary"
+    },
+    {
+      "id": 14,
+      "topic": "GDPR enforcement actions against tech companies 2024",
+      "template": "legal",
+      "granularity": "standard",
+      "report_variant": "full_report"
+    },
+    {
+      "id": 15,
+      "topic": "SEC cryptocurrency regulations and enforcement 2024-2025",
+      "template": "legal",
+      "granularity": "deep",
+      "report_variant": "full_report"
+    },
+    {
+      "id": 16,
+      "topic": "React vs Vue vs Svelte framework adoption trends 2025",
+      "template": "tech_market",
+      "granularity": "standard",
+      "report_variant": "executive_summary"
+    },
+    {
+      "id": 17,
+      "topic": "GitHub Actions vs GitLab CI adoption enterprise 2025",
+      "template": "tech_market",
+      "granularity": "quick",
+      "report_variant": "full_report"
+    },
+    {
+      "id": 18,
+      "topic": "Anthropic valuation funding rounds and competitive position",
+      "template": "financial",
+      "granularity": "standard",
+      "report_variant": "investment_thesis"
+    },
+    {
+      "id": 19,
+      "topic": "Vercel vs Netlify vs Cloudflare Pages deployment platforms",
+      "template": "competitive",
+      "granularity": "standard",
+      "report_variant": "executive_summary"
+    },
+    {
+      "id": 20,
+      "topic": "LLM infrastructure and vector database market 2025-2026",
+      "template": "tech_market",
+      "granularity": "deep",
+      "report_variant": "full_report"
+    }
+  ]
+}

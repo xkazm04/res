@@ -4,7 +4,7 @@
 
 import { Source } from './gemini-client';
 
-export type TemplateType = 'investigative' | 'financial' | 'competitive' | 'legal';
+export type TemplateType = 'investigative' | 'financial' | 'competitive' | 'legal' | 'tech_market';
 
 export interface TemplateConfig {
   id: string;
@@ -131,6 +131,72 @@ Assess the litigation landscape, case strengths/weaknesses, and likely outcomes.
 - Penalty frameworks and settlement dynamics
 
 What is the regulatory risk landscape and how might enforcement proceed?`,
+
+  // Tech Market perspectives (VC & Startup)
+  venture_capitalist: `You are a PARTNER at a top-tier VC firm (Sequoia/a16z/Benchmark level) specializing in developer tools, infrastructure, and enterprise software. You have deployed $500M+ and seen 3 unicorn exits. Your focus is:
+- Total addressable market (TAM) and market timing
+- Product-market fit signals and developer adoption curves
+- Competitive moats: network effects, switching costs, data advantages
+- Exit potential: IPO readiness, strategic acquirer universe
+
+Provide your VC analysis covering market opportunity, competitive dynamics, adoption signals, business model, investment thesis, and key risks.`,
+
+  startup_founder: `You are a SERIAL FOUNDER who has built and exited two developer tools companies. You understand the developer market intimately. Your focus is:
+- Developer experience (DX) and reducing friction
+- Open-source dynamics and community building
+- Navigating from individual developers to enterprise sales
+- Documentation, tutorials, and onboarding importance
+
+Provide analysis of DX, go-to-market strategy, community approach, enterprise readiness, competitive positioning, and execution risks.`,
+
+  product_manager: `You are a SENIOR PRODUCT MANAGER at a leading developer platform (GitHub, GitLab, Atlassian level). You've shipped products used by millions of developers. Your focus is:
+- User personas and jobs-to-be-done
+- Feature prioritization based on developer impact
+- Developer workflows and pain points
+- Balancing developer wants with enterprise buyer needs
+
+Provide analysis of user needs, feature priorities, UX, platform potential, 2026 roadmap opportunities, and success metrics.`,
+
+  developer_advocate: `You are a SENIOR DEVELOPER ADVOCATE who has built communities around developer tools. You speak at conferences and create content. Your focus is:
+- Developer experience perspective
+- What creates buzz vs. lasting value
+- Documentation quality and learning curves
+- Community dynamics and influencer networks
+
+Provide analysis of developer appeal, learning curve, documentation, community health, content strategy, and hype vs reality.`,
+
+  // Tech Market perspectives (Developer Community)
+  open_source_maintainer: `You are a PRINCIPAL OSS MAINTAINER who has led projects with 50K+ GitHub stars. You understand sustainable open source. Your focus is:
+- Project health: contributors, commit frequency, issue responsiveness
+- Governance models and long-term sustainability
+- Licensing implications and corporate backing
+- Fork risks and community fragmentation
+
+Provide analysis of project health, sustainability, community, code quality, ecosystem fit, and long-term viability.`,
+
+  devrel_engineer: `You are a DEVREL ENGINEER who bridges product teams and developer community. You build SDKs and gather developer feedback. Your focus is:
+- API design and SDK quality
+- Time-to-first-success for new developers
+- Integration patterns with existing tools
+- Developer support channels and responsiveness
+
+Provide analysis of API/SDK quality, onboarding experience, integration, support, feedback loops, and competitive DX comparison.`,
+
+  senior_engineer: `You are a STAFF/PRINCIPAL ENGINEER at a FAANG company who has built systems handling millions of requests per second. Your focus is:
+- Architectural soundness and scalability
+- Operational complexity and maintenance burden
+- Performance and resource efficiency
+- Security posture and compliance readiness
+
+Provide analysis of architecture, scalability, operations, security, team fit, and technical debt implications.`,
+
+  platform_engineer: `You are a PLATFORM ENGINEER who builds internal developer platforms (IDPs). You enable other developers to ship faster. Your focus is:
+- Fit within broader platform architecture
+- Self-service capabilities and automation potential
+- Standardization and golden path implications
+- Observability, debugging, and troubleshooting
+
+Provide analysis of platform fit, self-service, standardization, observability, security/compliance, and migration path.`,
 };
 
 export const TEMPLATE_CONFIGS: Record<TemplateType, TemplateConfig> = {
@@ -160,6 +226,22 @@ export const TEMPLATE_CONFIGS: Record<TemplateType, TemplateConfig> = {
     name: 'Legal Research',
     description: 'Legal case research, regulatory analysis, and compliance',
     perspectives: ['litigation_strategist', 'regulatory_expert', 'legal_liability', 'forensic_financial'],
+    perspectivePrompts: PERSPECTIVE_PROMPTS,
+  },
+  tech_market: {
+    id: 'tech_market',
+    name: 'Tech Market Analysis',
+    description: 'Technology market trends, 2025 developments, and 2026 predictions',
+    perspectives: [
+      'venture_capitalist',
+      'startup_founder',
+      'product_manager',
+      'developer_advocate',
+      'open_source_maintainer',
+      'devrel_engineer',
+      'senior_engineer',
+      'platform_engineer',
+    ],
     perspectivePrompts: PERSPECTIVE_PROMPTS,
   },
 };
@@ -211,6 +293,16 @@ export function generateSearchQueries(
 6. COMPLIANCE: Requirements, best practices, deadlines
 7. LEGAL COMMENTARY: Law review articles, expert analysis
 8. FILINGS: SEC filings, patent applications, lobbying disclosures`,
+
+    tech_market: `
+1. SOFTWARE DEVELOPMENT: Programming languages, frameworks, IDEs, testing tools
+2. AI/ML INFRASTRUCTURE: LLM platforms, AI coding assistants, MLOps, vector databases
+3. CLOUD & DEVOPS: Cloud platforms, Kubernetes, CI/CD, platform engineering
+4. ENTERPRISE STACK: Security, databases, APIs, data engineering, microservices
+5. MARKET DYNAMICS: Funding rounds, M&A, developer surveys, adoption metrics
+6. 2025 DEVELOPMENTS: Current year product launches, announcements, trends
+7. 2026 PREDICTIONS: Analyst forecasts, roadmaps, market projections
+8. ADOPTION TRENDS: Enterprise adoption, developer sentiment, community health`,
   };
 
   return `You are a research analyst planning a comprehensive research investigation.
@@ -292,6 +384,18 @@ export function extractFindings(
 - "relationship": Case relationships, precedent (include: citing_case, cited_case, relationship)
 - "prediction": Legal outcome predictions (include: case, predicted_outcome, confidence)
 - "gap": Missing legal research (include: what_research_needed, priority)`,
+
+    tech_market: `
+- "product_launch": New products, features, versions (include: product_name, company, launch_date, category, key_features)
+- "funding_round": VC investments, growth rounds (include: company, amount, round_type, investors, valuation, date)
+- "adoption_trend": Technology adoption patterns (include: technology, adoption_rate, growth_percentage, timeframe, segment)
+- "market_metric": Market size, growth data (include: metric_name, value, period, source, methodology)
+- "acquisition": M&A activity (include: acquirer, target, amount, date, strategic_rationale)
+- "prediction": 2026 forecasts and predictions (include: prediction, timeframe, confidence, source_type, prediction_basis, risk_factors)
+- "developer_sentiment": Community feedback, surveys (include: topic, sentiment, sample_size, source, key_findings)
+- "open_source_event": OSS releases, governance (include: project, event_type, date, impact, maintainers)
+- "enterprise_adoption": Enterprise case studies (include: company, technology, use_case, scale, outcome)
+- "gap": Missing research areas (include: topic, importance, suggested_research)`,
   };
 
   return `You are a research analyst extracting structured findings from research.

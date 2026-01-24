@@ -7,6 +7,12 @@ from .investigative import InvestigativeTemplate
 from .financial import FinancialTemplate
 from .competitive import CompetitiveTemplate
 from .legal import LegalTemplate
+from .tech_market import TechMarketTemplate
+from .contract import ContractTemplate
+from .understanding import UnderstandingTemplate
+from .due_diligence import DueDiligenceTemplate
+from .purchase_decision import PurchaseDecisionTemplate
+from .reputation import ReputationTemplate
 
 # Template registry
 TEMPLATES: Dict[str, Type[BaseTemplate]] = {
@@ -14,6 +20,12 @@ TEMPLATES: Dict[str, Type[BaseTemplate]] = {
     "financial": FinancialTemplate,
     "competitive": CompetitiveTemplate,
     "legal": LegalTemplate,
+    "tech_market": TechMarketTemplate,
+    "contract": ContractTemplate,
+    "understanding": UnderstandingTemplate,
+    "due_diligence": DueDiligenceTemplate,
+    "purchase_decision": PurchaseDecisionTemplate,
+    "reputation": ReputationTemplate,
 }
 
 
@@ -29,6 +41,12 @@ __all__ = [
     "FinancialTemplate",
     "CompetitiveTemplate",
     "LegalTemplate",
+    "TechMarketTemplate",
+    "ContractTemplate",
+    "UnderstandingTemplate",
+    "DueDiligenceTemplate",
+    "PurchaseDecisionTemplate",
+    "ReputationTemplate",
     "get_template",
     "TEMPLATES",
 ]

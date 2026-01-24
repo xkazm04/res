@@ -1,0 +1,39 @@
+{
+  "record_type": "finding",
+  "session_id": "5e388b93-e671-4430-9d5d-9256548e0fa5",
+  "finding_id": "f7",
+  "finding_type": "sentiment_trend",
+  "content": "While Temu remains popular for low prices, public sentiment is declining due to 2025 regulatory actions and 'spyware' allegations. Users are increasingly reporting 'credit hostage' situations where store balances are frozen for 'unusual activity.'",
+  "summary": "Consumer trust is declining as legal scrutiny and reports of frozen account balances increase.",
+  "confidence_score": 0.85,
+  "temporal_context": "ongoing",
+  "extracted_data": {
+    "direction": "declining",
+    "timeframe": "2024-2026",
+    "key_events": [
+      "FTC Settlement",
+      "State Spyware Lawsuits",
+      "EU DSA Non-compliance"
+    ],
+    "current_sentiment": "mixed"
+  },
+  "supporting_sources": [
+    {
+      "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHHdmNW4lND4GzjfdCE3DWzshOGVkMouVGpxsmcQBQIQV2gI2PDVXcGdEoac-RTB7gJZ_q6oIYbsDpIiENSmVu3t-vka2rARoMtBVcX1zXsAz5UoH7P77bxCp8osgeRn2vRmFSGrvYW3CLeDlqWgvKuyev1HNEX7UcT7jRCc_Sq0IXq8Gy_rCZ_SRXf7kV5SRW0q9NSQ6LqB2q3kh7cUnLBHSeAez3dVPAG7PmyO6rlzijL-P29",
+      "title": "fashionnetwork.com"
+    },
+    {
+      "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQH4CL4ciSfHRXz9IStUvW_4M5eHW0_aU38B5nITTI-vh34WLCVVY6I9p2D5Rr4nMQYV_4mWOrxRhrmVFg6WXGOnhiyfvx16Yf9YIMPI_4ToQ1wcQb3ezXLj20wOTVc91Rd-ImESxKNaKcrPK-hUuZI=",
+      "title": "consumershield.com"
+    },
+    {
+      "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHFPF5G6tvESpIqTEJgQYCmMiiSSk_scAxPjZFXHdkSwDkc1MBHTAsDbE8fa9v5eeM9R-Y-uDNd-3-qvOG6PDp3VuVaPYkRQ7a1ccJv6TjNvhqDMZl_hHlimO58596bBB_eIp5IrWBMhE08w42O00fxdZNAtf1iEocJgWDuReXtiG0xCHVzQno43CF98ZeDyvAy7p3vOOgBVpXd7PIO65H9Gq8ti1qYvMA4JMWTt1FxCsw=",
+      "title": "medium.com"
+    }
+  ],
+  "date_referenced": null,
+  "date_range": null,
+  "adjusted_confidence": null,
+  "confidence_explanation": null,
+  "confidence_narrative": null
+}

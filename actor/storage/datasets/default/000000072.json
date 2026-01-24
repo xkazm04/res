@@ -1,0 +1,12 @@
+{
+  "record_type": "metrics",
+  "session_id": "5e388b93-e671-4430-9d5d-9256548e0fa5",
+  "total_tokens": 6186,
+  "input_tokens": 818,
+  "output_tokens": 5368,
+  "gemini_cost_usd": 0.001672,
+  "openrouter_cost_usd": 0.0,
+  "total_cost_usd": 0.001672,
+  "execution_time_seconds": 287.36,
+  "search_queries_executed": 6
+}

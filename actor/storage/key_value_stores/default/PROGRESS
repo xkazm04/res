@@ -1,0 +1,17 @@
+{
+  "session_id": "session_unknown",
+  "stage": "completed",
+  "phase": "completed",
+  "percent": 100,
+  "message": "Complete: 8 findings, 58 sources ($0.0017, 287s)",
+  "searches_completed": 6,
+  "searches_total": 6,
+  "findings_count": 0,
+  "sources_count": 58,
+  "updated_at": "2026-01-04T21:37:21.968026",
+  "elapsed_seconds": 290.097155,
+  "final_findings_count": 8,
+  "final_sources_count": 58,
+  "total_cost_usd": 0.001672,
+  "execution_time_seconds": 287.36
+}

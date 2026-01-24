@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test #17: WeWork company vetting and red flags analysis...</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; background: #f1f5f9; min-height: 100vh; }
+        .app { display: flex; min-height: 100vh; }
+        .sidebar { width: 240px; background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); color: white; padding: 1.5rem 1rem; position: fixed; height: 100vh; overflow-y: auto; }
+        .main { flex: 1; margin-left: 240px; padding: 1.5rem 2rem; }
+        .logo { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .logo svg { width: 24px; height: 24px; }
+        .query-preview { font-size: 0.75rem; color: #94a3b8; margin-bottom: 1.5rem; line-height: 1.4; }
+        .nav-section { margin-bottom: 1.5rem; }
+        .nav-label { font-size: 0.65rem; text-transform: uppercase; color: #64748b; margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+        .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem; border-radius: 6px; cursor: pointer; transition: all 0.15s; font-size: 0.85rem; color: #cbd5e1; }
+        .nav-item:hover { background: rgba(255,255,255,0.1); color: white; }
+        .nav-item.active { background: #3b82f6; color: white; }
+        .nav-item svg { width: 18px; height: 18px; opacity: 0.7; }
+        .nav-count { margin-left: auto; background: rgba(255,255,255,0.15); padding: 0.1rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: white; padding: 1rem 1.25rem; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .stat-value { font-size: 1.75rem; font-weight: 700; color: #1e293b; }
+        .stat-label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+        .stat-card.alert { background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fecaca; }
+        .stat-card.alert .stat-value { color: #dc2626; }
+        .toolbar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+        .search-box { flex: 1; min-width: 200px; position: relative; }
+        .search-box input { width: 100%; padding: 0.6rem 1rem 0.6rem 2.5rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.875rem; background: white; }
+        .search-box input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .search-box svg { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #94a3b8; }
+        .filter-select { padding: 0.6rem 2rem 0.6rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.8rem; background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.75rem center; appearance: none; cursor: pointer; }
+        .sort-btn { padding: 0.6rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.8rem; background: white; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
+        .sort-btn:hover { background: #f8fafc; }
+        .section { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 1.5rem; overflow: hidden; }
+        .section-header { padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .section-title { font-size: 1rem; font-weight: 600; color: #1e293b; }
+        .section-count { background: #f1f5f9; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; color: #64748b; }
+        .section-body { padding: 1rem 1.25rem; }
+        .finding-item { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }
+        .finding-header { padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; background: #fafafa; }
+        .finding-header:hover { background: #f1f5f9; }
+        .finding-expand { width: 20px; height: 20px; color: #94a3b8; transition: transform 0.2s; }
+        .finding-expand.open { transform: rotate(90deg); }
+        .finding-type-badge { padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.65rem; text-transform: uppercase; font-weight: 600; background: #e2e8f0; color: #475569; }
+        .finding-summary { flex: 1; font-size: 0.875rem; color: #1e293b; }
+        .conf-badge { padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.65rem; font-weight: 600; }
+        .conf-high { background: #d1fae5; color: #065f46; }
+        .conf-medium { background: #fef3c7; color: #92400e; }
+        .conf-low { background: #f1f5f9; color: #64748b; }
+        .finding-body { padding: 1rem; border-top: 1px solid #e2e8f0; background: white; }
+        .finding-content { color: #475569; font-size: 0.875rem; line-height: 1.7; margin-bottom: 0.75rem; }
+        .finding-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.75rem; color: #64748b; }
+        .finding-sources { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #f1f5f9; }
+        .finding-sources a { color: #3b82f6; text-decoration: none; font-size: 0.75rem; }
+        .finding-sources a:hover { text-decoration: underline; }
+        .perspective-card { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 0.75rem; }
+        .perspective-header { padding: 0.75rem 1rem; background: linear-gradient(135deg, #f8fafc, #f1f5f9); cursor: pointer; display: flex; align-items: center; gap: 0.75rem; }
+        .perspective-type { font-weight: 600; color: #6366f1; flex: 1; text-transform: capitalize; }
+        .perspective-body { padding: 1rem; }
+        .perspective-analysis { color: #475569; font-size: 0.875rem; margin-bottom: 1rem; line-height: 1.7; }
+        .perspective-section { margin-bottom: 0.75rem; }
+        .perspective-section-title { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .insight-item { padding: 0.4rem 0; padding-left: 1rem; border-left: 2px solid #10b981; font-size: 0.85rem; color: #475569; margin-bottom: 0.25rem; }
+        .warning-item { padding: 0.4rem 0.75rem; background: #fef3c7; border-radius: 4px; font-size: 0.85rem; color: #92400e; margin-bottom: 0.25rem; }
+        .prediction-item { padding: 0.5rem 0.75rem; background: #f0f9ff; border-radius: 4px; margin-bottom: 0.25rem; }
+        .prediction-text { font-size: 0.85rem; color: #1e293b; font-weight: 500; }
+        .prediction-meta { font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; }
+        .sources-table { width: 100%; border-collapse: collapse; }
+        .sources-table th { text-align: left; padding: 0.75rem 1rem; background: #f8fafc; font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+        .sources-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
+        .sources-table tr:hover { background: #fafafa; }
+        .source-link { color: #3b82f6; text-decoration: none; font-weight: 500; }
+        .source-link:hover { text-decoration: underline; }
+        .source-domain { color: #64748b; font-size: 0.75rem; }
+        .predictions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+        .prediction-card { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 1px solid #bae6fd; border-radius: 8px; padding: 1rem; }
+        .prediction-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; gap: 0.5rem; }
+        .prediction-card-text { font-weight: 600; color: #1e293b; font-size: 0.9rem; flex: 1; }
+        .prediction-card-rationale { color: #475569; font-size: 0.8rem; margin-top: 0.5rem; line-height: 1.5; }
+        .prediction-card-footer { display: flex; gap: 0.75rem; margin-top: 0.75rem; font-size: 0.7rem; color: #64748b; }
+        .alert-banner { background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+        .alert-title { color: #dc2626; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .alert-title svg { width: 18px; height: 18px; }
+        .alert-list { list-style: none; color: #7f1d1d; font-size: 0.85rem; }
+        .alert-list li { padding: 0.25rem 0; }
+        .empty-state { text-align: center; padding: 3rem 1rem; color: #94a3b8; }
+        .evidence-drawer { background: #f8fafc; border-radius: 6px; padding: 0.75rem; margin-top: 0.75rem; border-left: 3px solid #6366f1; }
+        .evidence-drawer-title { font-size: 0.7rem; font-weight: 600; color: #6366f1; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .evidence-quote { font-style: italic; color: #475569; font-size: 0.8rem; padding: 0.5rem; background: white; border-radius: 4px; margin: 0.25rem 0; border-left: 2px solid #e2e8f0; }
+        .evidence-meta { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; }
+        .evidence-meta-item { font-size: 0.7rem; padding: 0.2rem 0.5rem; background: #e2e8f0; border-radius: 4px; color: #475569; }
+        .evidence-meta-item strong { color: #1e293b; }
+        .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: 0.5rem; }
+        .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+        .progress-fill.high { background: linear-gradient(90deg, #10b981, #059669); }
+        .progress-fill.medium { background: linear-gradient(90deg, #f59e0b, #d97706); }
+        .progress-fill.low { background: linear-gradient(90deg, #ef4444, #dc2626); }
+        .stat-card .progress-bar { margin-top: 0.75rem; }
+        .stat-card .stat-subtitle { font-size: 0.65rem; color: #94a3b8; margin-top: 0.25rem; }
+        .stat-mini-chart { display: flex; gap: 2px; margin-top: 0.5rem; height: 20px; align-items: flex-end; }
+        .stat-mini-bar { flex: 1; background: #3b82f6; border-radius: 2px 2px 0 0; min-width: 4px; }
+        .contradiction-banner { background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 1px solid #fed7aa; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+        .contradiction-title { color: #c2410c; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .contradiction-title svg { width: 18px; height: 18px; }
+        .contradiction-item { background: white; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; border-left: 3px solid #f97316; }
+        .contradiction-findings { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+        .contradiction-finding { flex: 1; min-width: 200px; background: #f8fafc; border-radius: 4px; padding: 0.5rem; font-size: 0.8rem; }
+        .contradiction-finding-id { font-size: 0.65rem; color: #f97316; font-weight: 600; margin-bottom: 0.25rem; }
+        .contradiction-vs { display: flex; align-items: center; justify-content: center; font-weight: 700; color: #c2410c; font-size: 0.75rem; }
+        .contradiction-desc { font-size: 0.8rem; color: #9a3412; margin-top: 0.5rem; padding: 0.5rem; background: #fff7ed; border-radius: 4px; }
+        .contradiction-hint { font-size: 0.75rem; color: #6b7280; font-style: italic; margin-top: 0.25rem; }
+        .role-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+        .role-summary-card { background: white; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; }
+        .role-summary-header { padding: 0.75rem 1rem; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 0.75rem; }
+        .role-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.85rem; }
+        .role-icon.cto { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+        .role-icon.cfo { background: linear-gradient(135deg, #10b981, #059669); }
+        .role-icon.ceo { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .role-title { font-weight: 600; color: #1e293b; font-size: 0.9rem; }
+        .role-headline { font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; }
+        .role-summary-body { padding: 1rem; }
+        .role-section { margin-bottom: 0.75rem; }
+        .role-section-title { font-size: 0.7rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 0.4rem; }
+        .role-point { font-size: 0.8rem; color: #475569; padding: 0.3rem 0; padding-left: 0.75rem; border-left: 2px solid #e2e8f0; margin-bottom: 0.25rem; }
+        .role-action { font-size: 0.8rem; color: #1e293b; padding: 0.3rem 0.5rem; background: #f0fdf4; border-radius: 4px; margin-bottom: 0.25rem; }
+        .role-risk { font-size: 0.8rem; color: #92400e; padding: 0.3rem 0.5rem; background: #fef3c7; border-radius: 4px; margin-bottom: 0.25rem; }
+        .role-confidence { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 9999px; font-size: 0.65rem; font-weight: 600; margin-top: 0.5rem; }
+        .footer { background: #1e293b; color: white; padding: 1.25rem 1.5rem; border-radius: 12px; margin-top: 1rem; }
+        .footer-content { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+        .footer-stats { display: flex; gap: 2rem; font-size: 0.8rem; color: #94a3b8; }
+        .footer-brand { font-size: 0.75rem; color: #64748b; }
+        @media (max-width: 1024px) { .sidebar { display: none; } .main { margin-left: 0; } .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 640px) { .main { padding: 1rem; } .stats-grid { grid-template-columns: repeat(2, 1fr); } .toolbar { flex-direction: column; } .search-box { min-width: 100%; } }
+        @media print { body { background: white; } .sidebar { display: none; } .main { margin-left: 0; } .section, .stat-card { box-shadow: none; border: 1px solid #e2e8f0; break-inside: avoid; } .toolbar { display: none; } }
+        [x-cloak] { display: none !important; }
+        .slide-enter { animation: slideIn 0.2s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div class="app" x-data="reportApp()">
+        <aside class="sidebar">
+            <div class="logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                Deep Research
+            </div>
+            <div class="query-preview">WeWork company vetting and red flags analysis</div>
+            <div class="nav-section">
+                <div class="nav-label">Views</div>
+                <div class="nav-item" :class="{ 'active': activeTab === 'overview' }" @click="activeTab = 'overview'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    Overview
+                </div>
+                <div class="nav-item" :class="{ 'active': activeTab === 'findings' }" @click="activeTab = 'findings'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14,2 14,8 20,8"/></svg>
+                    Findings<span class="nav-count">13</span>
+                </div>
+                <div class="nav-item" :class="{ 'active': activeTab === 'predictions' }" @click="activeTab = 'predictions'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    Predictions<span class="nav-count">7</span>
+                </div>
+                <div class="nav-item" :class="{ 'active': activeTab === 'perspectives' }" @click="activeTab = 'perspectives'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"/></svg>
+                    Perspectives<span class="nav-count">4</span>
+                </div>
+                <div class="nav-item" :class="{ 'active': activeTab === 'sources' }" @click="activeTab = 'sources'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Sources<span class="nav-count">15</span>
+                </div>
+                <div class="nav-item" :class="{ 'active': activeTab === 'intelligence' }" @click="activeTab = 'intelligence'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/><path d="M12 16v.01M12 8v4"/></svg>Intelligence<span class="nav-count">2</span></div>
+            </div>
+            <div class="nav-section">
+                <div class="nav-label">Metadata</div>
+                <div style="font-size: 0.75rem; color: #94a3b8; padding: 0.5rem 0.75rem;">
+                    <div style="margin-bottom: 0.3rem;"><strong style="color:#cbd5e1;">Template:</strong> Due_Diligence</div>
+                    <div style="margin-bottom: 0.3rem;"><strong style="color:#cbd5e1;">Status:</strong> Completed</div>
+                    <div style="margin-bottom: 0.3rem;"><strong style="color:#cbd5e1;">Time:</strong> 89.1s</div>
+                    <div style="margin-bottom: 0.3rem;"><strong style="color:#cbd5e1;">Cost:</strong> $0.1640</div>
+                    <div><strong style="color:#cbd5e1;">Session:</strong> test_653...</div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">13</div>
+                    <div class="stat-label">Total Findings</div>
+                    <div class="stat-mini-chart">
+                        <div class="stat-mini-bar" style="height:0%;background:#ef4444;"></div><div class="stat-mini-bar" style="height:0%;background:#ef4444;"></div><div class="stat-mini-bar" style="height:0%;background:#ef4444;"></div><div class="stat-mini-bar" style="height:100%;background:#f59e0b;"></div><div class="stat-mini-bar" style="height:30%;background:#10b981;"></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">74%</div>
+                    <div class="stat-label">Avg Confidence</div>
+                    <div class="progress-bar"><div class="progress-fill medium" style="width:74%;"></div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">15</div>
+                    <div class="stat-label">Sources</div>
+                    <div class="stat-subtitle">10 high credibility</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">3</div>
+                    <div class="stat-label">High Confidence</div>
+                    <div class="stat-subtitle">10 medium, 0 low</div>
+                </div>
+                <div class="stat-card alert">
+                    <div class="stat-value">4</div>
+                    <div class="stat-label">Red Flags</div>
+                </div>
+            </div>
+
+            <div class="alert-banner"><div class="alert-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Critical Findings Detected</div><ul class="alert-list"><li>Due diligence: Red Flag</li><li>Due diligence: Red Flag</li><li>Due diligence: Red Flag</li><li>Due diligence: Red Flag</li></ul></div>
+
+            
+
+            <div class="toolbar" x-show="activeTab !== 'overview' && activeTab !== 'intelligence'">
+                <div class="search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    <input type="text" placeholder="Search..." x-model="searchQuery">
+                </div>
+                <select class="filter-select" x-model="filterType" x-show="activeTab === 'findings'">
+                    <option value="all">All Types</option>
+                    <template x-for="type in findingTypes" :key="type"><option :value="type" x-text="type.replace('_', ' ')"></option></template>
+                </select>
+                <select class="filter-select" x-model="filterConfidence" x-show="activeTab === 'findings' || activeTab === 'sources'">
+                    <option value="all">All Confidence</option>
+                    <option value="high">High Only</option>
+                    <option value="medium">Medium+</option>
+                </select>
+                <button class="sort-btn" @click="toggleSort()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4"/></svg>
+                    <span x-text="sortOrder === 'desc' ? 'Highest First' : 'Lowest First'"></span>
+                </button>
+            </div>
+
+            <!-- Overview Tab -->
+            <div x-show="activeTab === 'overview'" x-cloak class="slide-enter">
+                <div class="section">
+                    <div class="section-header"><span class="section-title">Key Findings</span><span class="section-count" x-text="findings.length + ' total'"></span></div>
+                    <div class="section-body">
+                        <template x-for="finding in findings.slice(0, 5)" :key="finding.id">
+                            <div class="finding-item">
+                                <div class="finding-header" @click="finding.expanded = !finding.expanded">
+                                    <svg class="finding-expand" :class="{ 'open': finding.expanded }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                                    <span class="finding-type-badge" x-text="finding.type.replace('_', ' ')"></span>
+                                    <span class="finding-summary" x-text="finding.summary"></span>
+                                    <span class="conf-badge" :class="'conf-' + finding.conf_label" x-text="Math.round(finding.confidence * 100) + '%'"></span>
+                                </div>
+                                <div class="finding-body" x-show="finding.expanded">
+                                    <p class="finding-content" x-text="finding.content"></p>
+                                    <div class="finding-meta"><span x-show="finding.date">Date: <span x-text="finding.date"></span></span></div>
+                                </div>
+                            </div>
+                        </template>
+                        <div style="text-align: center; padding-top: 0.75rem;" x-show="findings.length > 5">
+                            <button @click="activeTab = 'findings'" style="color: #3b82f6; background: none; border: none; cursor: pointer; font-size: 0.85rem;">View all <span x-text="findings.length"></span> findings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section" x-show="predictions.length > 0">
+                    <div class="section-header"><span class="section-title">Predictions & Forecasts</span><span class="section-count" x-text="predictions.length + ' total'"></span></div>
+                    <div class="section-body">
+                        <div class="predictions-grid">
+                            <template x-for="pred in predictions.slice(0, 4)" :key="pred.id">
+                                <div class="prediction-card">
+                                    <div class="prediction-card-header"><span class="prediction-card-text" x-text="pred.prediction"></span><span class="conf-badge" :class="'conf-' + pred.confidence" x-text="pred.confidence"></span></div>
+                                    <div class="prediction-card-rationale" x-show="pred.rationale" x-text="pred.rationale"></div>
+                                    <div class="prediction-card-footer"><span x-show="pred.timeline">Timeline: <span x-text="pred.timeline"></span></span></div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section" x-show="perspectives.length > 0">
+                    <div class="section-header"><span class="section-title">Expert Perspectives</span><span class="section-count" x-text="perspectives.length + ' perspectives'"></span></div>
+                    <div class="section-body">
+                        <template x-for="persp in perspectives.slice(0, 3)" :key="persp.id">
+                            <div class="perspective-card">
+                                <div class="perspective-header" @click="persp.expanded = !persp.expanded">
+                                    <svg class="finding-expand" :class="{ 'open': persp.expanded }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                                    <span class="perspective-type" x-text="persp.type.replace('_', ' ')"></span>
+                                </div>
+                                <div class="perspective-body" x-show="persp.expanded">
+                                    <p class="perspective-analysis" x-text="persp.analysis.substring(0, 400) + (persp.analysis.length > 400 ? '...' : '')"></p>
+                                    <div class="perspective-section" x-show="persp.insights.length > 0">
+                                        <div class="perspective-section-title">Key Insights</div>
+                                        <template x-for="insight in persp.insights" :key="insight"><div class="insight-item" x-text="insight"></div></template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Findings Tab -->
+            <div x-show="activeTab === 'findings'" x-cloak class="slide-enter">
+                <div class="section">
+                    <div class="section-header"><span class="section-title">All Findings</span><span class="section-count" x-text="filteredFindings.length + ' shown'"></span></div>
+                    <div class="section-body">
+                        <template x-for="finding in filteredFindings" :key="finding.id">
+                            <div class="finding-item">
+                                <div class="finding-header" @click="finding.expanded = !finding.expanded">
+                                    <svg class="finding-expand" :class="{ 'open': finding.expanded }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                                    <span class="finding-type-badge" x-text="finding.type.replace('_', ' ')"></span>
+                                    <span class="finding-summary" x-text="finding.summary"></span>
+                                    <span class="conf-badge" :class="'conf-' + finding.conf_label" x-text="Math.round(finding.confidence * 100) + '%'"></span>
+                                </div>
+                                <div class="finding-body" x-show="finding.expanded">
+                                    <p class="finding-content" x-text="finding.content"></p>
+                                    <div class="finding-meta"><span x-show="finding.date">Date: <span x-text="finding.date"></span></span></div>
+                                    <div class="finding-sources" x-show="finding.sources.length > 0">
+                                        Sources: <template x-for="(src, idx) in finding.sources" :key="src.url || idx"><span><a :href="src.url" target="_blank" x-text="src.title || 'Source'"></a><span x-show="idx < finding.sources.length - 1">, </span></span></template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        <div class="empty-state" x-show="filteredFindings.length === 0"><p>No findings match your filters</p></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Predictions Tab -->
+            <div x-show="activeTab === 'predictions'" x-cloak class="slide-enter">
+                <div class="section">
+                    <div class="section-header"><span class="section-title">All Predictions</span><span class="section-count" x-text="filteredPredictions.length + ' shown'"></span></div>
+                    <div class="section-body">
+                        <div class="predictions-grid">
+                            <template x-for="pred in filteredPredictions" :key="pred.id">
+                                <div class="prediction-card">
+                                    <div class="prediction-card-header"><span class="prediction-card-text" x-text="pred.prediction"></span><span class="conf-badge" :class="'conf-' + pred.confidence" x-text="pred.confidence"></span></div>
+                                    <div class="prediction-card-rationale" x-show="pred.rationale" x-text="pred.rationale"></div>
+                                    <div class="prediction-card-footer"><span x-show="pred.timeline">Timeline: <span x-text="pred.timeline"></span></span></div>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="empty-state" x-show="filteredPredictions.length === 0"><p>No predictions match your search</p></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Perspectives Tab -->
+            <div x-show="activeTab === 'perspectives'" x-cloak class="slide-enter">
+                <div class="section">
+                    <div class="section-header"><span class="section-title">Expert Perspectives</span><span class="section-count" x-text="filteredPerspectives.length + ' shown'"></span></div>
+                    <div class="section-body">
+                        <template x-for="persp in filteredPerspectives" :key="persp.id">
+                            <div class="perspective-card">
+                                <div class="perspective-header" @click="persp.expanded = !persp.expanded">
+                                    <svg class="finding-expand" :class="{ 'open': persp.expanded }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                                    <span class="perspective-type" x-text="persp.type.replace('_', ' ')"></span>
+                                    <span class="conf-badge" :class="persp.confidence >= 0.7 ? 'conf-high' : 'conf-medium'" x-text="Math.round(persp.confidence * 100) + '%'"></span>
+                                </div>
+                                <div class="perspective-body" x-show="persp.expanded">
+                                    <p class="perspective-analysis" x-text="persp.analysis"></p>
+                                    <div class="perspective-section" x-show="persp.insights.length > 0">
+                                        <div class="perspective-section-title">Key Insights</div>
+                                        <template x-for="insight in persp.insights" :key="insight"><div class="insight-item" x-text="insight"></div></template>
+                                    </div>
+                                    <div class="perspective-section" x-show="persp.predictions.length > 0">
+                                        <div class="perspective-section-title">Predictions</div>
+                                        <template x-for="pred in persp.predictions" :key="pred.prediction || pred">
+                                            <div class="prediction-item"><div class="prediction-text" x-text="pred.prediction || pred"></div><div class="prediction-meta" x-show="pred.rationale" x-text="pred.rationale"></div></div>
+                                        </template>
+                                    </div>
+                                    <div class="perspective-section" x-show="persp.warnings.length > 0">
+                                        <div class="perspective-section-title">Warnings</div>
+                                        <template x-for="warn in persp.warnings" :key="warn"><div class="warning-item" x-text="warn"></div></template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sources Tab -->
+            <div x-show="activeTab === 'sources'" x-cloak class="slide-enter">
+                <div class="section">
+                    <div class="section-header"><span class="section-title">All Sources</span><span class="section-count" x-text="filteredSources.length + ' shown'"></span></div>
+                    <div class="section-body" style="padding: 0;">
+                        <table class="sources-table">
+                            <thead><tr><th>Source</th><th>Domain</th><th>Type</th><th>Credibility</th></tr></thead>
+                            <tbody>
+                                <template x-for="source in filteredSources" :key="source.id">
+                                    <tr>
+                                        <td><a :href="source.url" target="_blank" class="source-link" x-text="source.title"></a><div class="source-domain" x-text="source.snippet" x-show="source.snippet"></div></td>
+                                        <td><span class="source-domain" x-text="source.domain"></span></td>
+                                        <td><span x-text="source.type"></span></td>
+                                        <td><span class="conf-badge" :class="'conf-' + source.cred_label" x-text="Math.round(source.credibility * 100) + '%'"></span></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                        <div class="empty-state" x-show="filteredSources.length === 0" style="padding: 2rem;"><p>No sources match your filters</p></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Intelligence Tab -->
+            <div x-show="activeTab === 'intelligence'" x-cloak class="slide-enter"><div class="section"><div class="section-header"><span class="section-title">Executive Role Summaries</span><span class="section-count">2 views</span></div><div class="section-body"><div class="role-summary-grid"><div class="role-summary-card">
+                <div class="role-summary-header">
+                    <div class="role-icon cto">CTO</div>
+                    <div>
+                        <div class="role-title">Chief Technology Officer</div>
+                        <div class="role-headline">Technical implementation considerations and architecture decisions</div>
+                    </div>
+                </div>
+                <div class="role-summary-body">
+                    <div class="role-section">
+                        <div class="role-section-title">Key Points</div>
+                        <div class="role-point">Technology stack alignment with existing infrastructure</div><div class="role-point">Integration complexity assessment</div><div class="role-point">Scalability requirements analysis</div>
+                    </div>
+                    <div class="role-section">
+                        <div class="role-section-title">Recommended Actions</div>
+                        <div class="role-action">Conduct technical proof of concept</div><div class="role-action">Evaluate security compliance requirements</div><div class="role-action">Assess team training needs</div>
+                    </div>
+                    <div class="role-section">
+                        <div class="role-section-title">Risks to Watch</div>
+                        <div class="role-risk">Vendor lock-in potential</div><div class="role-risk">Technical debt accumulation</div>
+                    </div>
+                    <span class="role-confidence conf-high">high confidence</span>
+                </div>
+            </div><div class="role-summary-card">
+                <div class="role-summary-header">
+                    <div class="role-icon cfo">CFO</div>
+                    <div>
+                        <div class="role-title">Chief Financial Officer</div>
+                        <div class="role-headline">Financial implications and ROI assessment</div>
+                    </div>
+                </div>
+                <div class="role-summary-body">
+                    <div class="role-section">
+                        <div class="role-section-title">Key Points</div>
+                        <div class="role-point">Total cost of ownership analysis</div><div class="role-point">Budget impact assessment</div><div class="role-point">ROI timeline expectations</div>
+                    </div>
+                    <div class="role-section">
+                        <div class="role-section-title">Recommended Actions</div>
+                        <div class="role-action">Model 3-year financial projections</div><div class="role-action">Negotiate enterprise pricing</div><div class="role-action">Establish budget allocation</div>
+                    </div>
+                    <div class="role-section">
+                        <div class="role-section-title">Risks to Watch</div>
+                        <div class="role-risk">Hidden implementation costs</div><div class="role-risk">Currency exposure</div>
+                    </div>
+                    <span class="role-confidence conf-medium">medium confidence</span>
+                </div>
+            </div></div></div></div></div>
+
+            <footer class="footer">
+                <div class="footer-content">
+                    <div class="footer-stats"><span>Execution: 89.1s</span><span>Cost: $0.1640</span><span>Tokens: 54,669</span><span>Searches: 8</span></div>
+                    <div class="footer-brand">Generated by Deep Research Actor - January 07, 2026 at 15:04</div>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        function reportApp() {
+            return {
+                activeTab: 'overview', searchQuery: '', filterType: 'all', filterConfidence: 'all', sortOrder: 'desc',
+                findings: [{"id": 0, "type": "company_profile", "summary": "Due diligence: Company Profile", "content": "Company founded in 2017, headquartered in San Francisco, 1,200 employees, Series D funded.", "confidence": 0.75, "conf_label": "medium", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-0", "title": "Company Data #0"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 1, "type": "red_flag", "summary": "Due diligence: Red Flag", "content": "RED FLAG: High executive turnover - 4 C-suite departures in 24 months.", "confidence": 0.83, "conf_label": "high", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-1", "title": "Company Data #1"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 2, "type": "company_profile", "summary": "Due diligence: Company Profile", "content": "Company founded in 2017, headquartered in San Francisco, 1,200 employees, Series D funded.", "confidence": 0.69, "conf_label": "medium", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-2", "title": "Company Data #2"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 3, "type": "company_profile", "summary": "Due diligence: Company Profile", "content": "Company founded in 2017, headquartered in San Francisco, 1,200 employees, Series D funded.", "confidence": 0.65, "conf_label": "medium", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-3", "title": "Company Data #3"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 4, "type": "key_person", "summary": "Due diligence: Key Person", "content": "CEO has successful prior exit ($200M acquisition). Strong industry reputation.", "confidence": 0.89, "conf_label": "high", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-4", "title": "Company Data #4"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 5, "type": "reputation_signal", "summary": "Due diligence: Reputation Signal", "content": "Glassdoor rating: 3.2/5. Common complaints: work-life balance, management.", "confidence": 0.78, "conf_label": "medium", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-5", "title": "Company Data #5"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 6, "type": "company_profile", "summary": "Due diligence: Company Profile", "content": "Company founded in 2017, headquartered in San Francisco, 1,200 employees, Series D funded.", "confidence": 0.71, "conf_label": "medium", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-6", "title": "Company Data #6"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 7, "type": "red_flag", "summary": "Due diligence: Red Flag", "content": "RED FLAG: High executive turnover - 4 C-suite departures in 24 months.", "confidence": 0.67, "conf_label": "medium", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-7", "title": "Company Data #7"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 8, "type": "red_flag", "summary": "Due diligence: Red Flag", "content": "RED FLAG: High executive turnover - 4 C-suite departures in 24 months.", "confidence": 0.69, "conf_label": "medium", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-8", "title": "Company Data #8"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 9, "type": "red_flag", "summary": "Due diligence: Red Flag", "content": "RED FLAG: High executive turnover - 4 C-suite departures in 24 months.", "confidence": 0.7, "conf_label": "medium", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-9", "title": "Company Data #9"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 10, "type": "financial_health", "summary": "Due diligence: Financial Health", "content": "Revenue grew 40% YoY but burn rate exceeds $50M/quarter. Runway: 18 months.", "confidence": 0.7, "conf_label": "medium", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-10", "title": "Company Data #10"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 11, "type": "key_person", "summary": "Due diligence: Key Person", "content": "CEO has successful prior exit ($200M acquisition). Strong industry reputation.", "confidence": 0.78, "conf_label": "medium", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-11", "title": "Company Data #11"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}, {"id": 12, "type": "financial_health", "summary": "Due diligence: Financial Health", "content": "Revenue grew 40% YoY but burn rate exceeds $50M/quarter. Runway: 18 months.", "confidence": 0.81, "conf_label": "high", "date": "December 2024", "sources": [{"url": "https://crunchbase.com/org-12", "title": "Company Data #12"}], "evidence": [], "extracted": {"amount": "", "entity": "", "location": "", "metric": ""}}].map(f => ({ ...f, expanded: false })),
+                sources: [{"id": 0, "url": "https://statista.com/article-1-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "statista.com", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.86, "cred_label": "high", "type": "Statistics"}, {"id": 1, "url": "https://reddit.com/article-2-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "reddit.com", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.41, "cred_label": "low", "type": "Social Discussion"}, {"id": 2, "url": "https://hbr.org/article-3-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "hbr.org", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.76, "cred_label": "medium", "type": "Business Research"}, {"id": 3, "url": "https://reuters.com/article-4-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "reuters.com", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.88, "cred_label": "high", "type": "News Agency"}, {"id": 4, "url": "https://sec.gov/article-5-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "sec.gov", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.97, "cred_label": "high", "type": "Regulatory Filing"}, {"id": 5, "url": "https://reuters.com/article-6-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "reuters.com", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 1.0, "cred_label": "high", "type": "News Agency"}, {"id": 6, "url": "https://sec.gov/article-7-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "sec.gov", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 1.0, "cred_label": "high", "type": "Regulatory Filing"}, {"id": 7, "url": "https://bloomberg.com/article-8-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "bloomberg.com", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.95, "cred_label": "high", "type": "Financial News"}, {"id": 8, "url": "https://nature.com/article-9-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "nature.com", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.88, "cred_label": "high", "type": "Scientific Journal"}, {"id": 9, "url": "https://stackoverflow.com/article-10-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "stackoverflow.com", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.71, "cred_label": "medium", "type": "Developer Q&A"}, {"id": 10, "url": "https://sec.gov/article-11-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "sec.gov", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.87, "cred_label": "high", "type": "Regulatory Filing"}, {"id": 11, "url": "https://gartner.com/article-12-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "gartner.com", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.85, "cred_label": "high", "type": "Analyst Reports"}, {"id": 12, "url": "https://stackoverflow.com/article-13-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "stackoverflow.com", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.75, "cred_label": "medium", "type": "Developer Q&A"}, {"id": 13, "url": "https://github.com/article-14-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "github.com", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.98, "cred_label": "high", "type": "Developer Platform"}, {"id": 14, "url": "https://hbr.org/article-15-WeWork-company-vetti", "title": "Analysis: WeWork company vetting and red flags ana... - Sour", "domain": "hbr.org", "snippet": "This article provides comprehensive analysis of WeWork company vetting and red flags analysis...", "credibility": 0.77, "cred_label": "medium", "type": "Business Research"}],
+                perspectives: [{"id": 0, "type": "due_diligence_analyst", "analysis": "From a due diligence analyst perspective, this research reveals several key dynamics. The findings suggest significant market movement and strategic opportunities. Based on 13 key findings, we can identify clear patterns in market behavior, competitive positioning, and potential risks. The data points to both immediate action items and longer-term strategic considerations that stakeholders should carefully evaluate.", "insights": ["Market dynamics favor first-movers with strong technical execution", "Regulatory environment increasingly shapes competitive landscape", "Customer acquisition costs rising across the sector", "Integration capabilities becoming key differentiator", "Network effects creating winner-take-most dynamics"], "predictions": [{"prediction": "Market consolidation expected through M&A activity", "rationale": "Smaller players struggling with unit economics while larger players have strong balance sheets", "confidence": "high", "timeline": "Q2-Q3 2025", "supporting_sources": ["Industry analysis", "M&A trends data"]}, {"prediction": "Enterprise adoption will accelerate following regulatory clarity", "rationale": "Current adoption held back by compliance uncertainty", "confidence": "medium", "timeline": "H2 2025", "supporting_sources": ["Enterprise survey data"]}], "warnings": ["Execution risk remains elevated given market volatility", "Regulatory changes could impact business model viability"], "confidence": 0.77}, {"id": 1, "type": "forensic_financial", "analysis": "From a forensic financial perspective, this research reveals several key dynamics. The findings suggest significant market movement and strategic opportunities. Based on 13 key findings, we can identify clear patterns in market behavior, competitive positioning, and potential risks. The data points to both immediate action items and longer-term strategic considerations that stakeholders should carefully evaluate.", "insights": ["Market dynamics favor first-movers with strong technical execution", "Regulatory environment increasingly shapes competitive landscape", "Customer acquisition costs rising across the sector"], "predictions": [{"prediction": "Market consolidation expected through M&A activity", "rationale": "Smaller players struggling with unit economics while larger players have strong balance sheets", "confidence": "medium", "timeline": "Q2-Q3 2025", "supporting_sources": ["Industry analysis", "M&A trends data"]}, {"prediction": "Enterprise adoption will accelerate following regulatory clarity", "rationale": "Current adoption held back by compliance uncertainty", "confidence": "medium", "timeline": "H2 2025", "supporting_sources": ["Enterprise survey data"]}], "warnings": ["Execution risk remains elevated given market volatility"], "confidence": 0.83}, {"id": 2, "type": "legal_liability", "analysis": "From a legal liability perspective, this research reveals several key dynamics. The findings suggest significant market movement and strategic opportunities. Based on 13 key findings, we can identify clear patterns in market behavior, competitive positioning, and potential risks. The data points to both immediate action items and longer-term strategic considerations that stakeholders should carefully evaluate.", "insights": ["Market dynamics favor first-movers with strong technical execution", "Regulatory environment increasingly shapes competitive landscape", "Customer acquisition costs rising across the sector", "Integration capabilities becoming key differentiator"], "predictions": [{"prediction": "Market consolidation expected through M&A activity", "rationale": "Smaller players struggling with unit economics while larger players have strong balance sheets", "confidence": "high", "timeline": "Q2-Q3 2025", "supporting_sources": ["Industry analysis", "M&A trends data"]}, {"prediction": "Enterprise adoption will accelerate following regulatory clarity", "rationale": "Current adoption held back by compliance uncertainty", "confidence": "medium", "timeline": "H2 2025", "supporting_sources": ["Enterprise survey data"]}], "warnings": ["Execution risk remains elevated given market volatility", "Regulatory changes could impact business model viability"], "confidence": 0.9}, {"id": 3, "type": "industry_insider", "analysis": "From a industry insider perspective, this research reveals several key dynamics. The findings suggest significant market movement and strategic opportunities. Based on 13 key findings, we can identify clear patterns in market behavior, competitive positioning, and potential risks. The data points to both immediate action items and longer-term strategic considerations that stakeholders should carefully evaluate.", "insights": ["Market dynamics favor first-movers with strong technical execution", "Regulatory environment increasingly shapes competitive landscape", "Customer acquisition costs rising across the sector", "Integration capabilities becoming key differentiator"], "predictions": [{"prediction": "Market consolidation expected through M&A activity", "rationale": "Smaller players struggling with unit economics while larger players have strong balance sheets", "confidence": "high", "timeline": "Q2-Q3 2025", "supporting_sources": ["Industry analysis", "M&A trends data"]}], "warnings": ["Execution risk remains elevated given market volatility", "Regulatory changes could impact business model viability", "Competitive moats may be weaker than assumed"], "confidence": 0.74}].map(p => ({ ...p, expanded: true })),
+                predictions: [{"id": 0, "prediction": "Market consolidation expected through M&A activity", "rationale": "Smaller players struggling with unit economics while larger players have strong balance sheets", "confidence": "high", "timeline": "Q2-Q3 2025"}, {"id": 1, "prediction": "Enterprise adoption will accelerate following regulatory clarity", "rationale": "Current adoption held back by compliance uncertainty", "confidence": "medium", "timeline": "H2 2025"}, {"id": 2, "prediction": "Market consolidation expected through M&A activity", "rationale": "Smaller players struggling with unit economics while larger players have strong balance sheets", "confidence": "medium", "timeline": "Q2-Q3 2025"}, {"id": 3, "prediction": "Enterprise adoption will accelerate following regulatory clarity", "rationale": "Current adoption held back by compliance uncertainty", "confidence": "medium", "timeline": "H2 2025"}, {"id": 4, "prediction": "Market consolidation expected through M&A activity", "rationale": "Smaller players struggling with unit economics while larger players have strong balance sheets", "confidence": "high", "timeline": "Q2-Q3 2025"}, {"id": 5, "prediction": "Enterprise adoption will accelerate following regulatory clarity", "rationale": "Current adoption held back by compliance uncertainty", "confidence": "medium", "timeline": "H2 2025"}, {"id": 6, "prediction": "Market consolidation expected through M&A activity", "rationale": "Smaller players struggling with unit economics while larger players have strong balance sheets", "confidence": "high", "timeline": "Q2-Q3 2025"}],
+                findingTypes: ["company_profile", "financial_health", "key_person", "red_flag", "reputation_signal"],
+
+                get filteredFindings() {
+                    let filtered = this.findings.filter(f => {
+                        const matchesSearch = !this.searchQuery || f.summary.toLowerCase().includes(this.searchQuery.toLowerCase()) || f.content.toLowerCase().includes(this.searchQuery.toLowerCase());
+                        const matchesType = this.filterType === 'all' || f.type === this.filterType;
+                        const matchesConf = this.filterConfidence === 'all' || (this.filterConfidence === 'high' && f.confidence >= 0.8) || (this.filterConfidence === 'medium' && f.confidence >= 0.6);
+                        return matchesSearch && matchesType && matchesConf;
+                    });
+                    return filtered.sort((a, b) => this.sortOrder === 'desc' ? b.confidence - a.confidence : a.confidence - b.confidence);
+                },
+
+                get filteredSources() {
+                    let filtered = this.sources.filter(s => {
+                        const matchesSearch = !this.searchQuery || s.title.toLowerCase().includes(this.searchQuery.toLowerCase()) || s.domain.toLowerCase().includes(this.searchQuery.toLowerCase());
+                        const matchesConf = this.filterConfidence === 'all' || (this.filterConfidence === 'high' && s.credibility >= 0.8) || (this.filterConfidence === 'medium' && s.credibility >= 0.6);
+                        return matchesSearch && matchesConf;
+                    });
+                    return filtered.sort((a, b) => this.sortOrder === 'desc' ? b.credibility - a.credibility : a.credibility - b.credibility);
+                },
+
+                get filteredPerspectives() { return this.perspectives.filter(p => !this.searchQuery || p.type.toLowerCase().includes(this.searchQuery.toLowerCase()) || p.analysis.toLowerCase().includes(this.searchQuery.toLowerCase())); },
+                get filteredPredictions() { return this.predictions.filter(p => !this.searchQuery || p.prediction.toLowerCase().includes(this.searchQuery.toLowerCase()) || p.rationale.toLowerCase().includes(this.searchQuery.toLowerCase())); },
+                toggleSort() { this.sortOrder = this.sortOrder === 'desc' ? 'asc' : 'desc'; }
+            }
+        }
+    </script>
+</body>
+</html>

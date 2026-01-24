@@ -1,8 +1,11 @@
 """Investigative journalism research template."""
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from .base import BaseTemplate
+from ..services.report_components import (
+    ComponentType, ComponentConfig, ReportHints, get_report_hints
+)
 
 
 class InvestigativeTemplate(BaseTemplate):
@@ -11,6 +14,33 @@ class InvestigativeTemplate(BaseTemplate):
     template_id = "investigative"
     template_name = "Investigative Research"
     description = "Deep investigative journalism with actor and relationship analysis"
+
+    # Report hints for component-based rendering
+    report_hints = ReportHints(
+        template_type="investigative",
+        structure="narrative_first",
+        findings_grouping="chronological",
+        tone="investigative",
+        decision_format="recommendation",
+        emphasis=["evidence", "timeline", "key_actors", "implications"],
+        required_components=[
+            ComponentType.INVESTIGATION_TIMELINE,
+            ComponentType.FINDINGS_TABLE,
+            ComponentType.QUOTE_CAROUSEL,
+        ],
+        optional_components=[
+            ComponentType.KEY_INSIGHTS,
+            ComponentType.RISK_MATRIX,
+            ComponentType.CHECKLIST,
+            ComponentType.SOURCE_LIST,
+        ],
+        visualization_preference=["investigation_timeline", "evidence_network", "actor_map"],
+        custom_sections={
+            "show_financial_trail": True,
+            "highlight_actors": True,
+            "evidence_strength_indicators": True,
+        }
+    )
 
     # Expert perspectives for deep investigative analysis
     default_perspectives = [
@@ -22,6 +52,15 @@ class InvestigativeTemplate(BaseTemplate):
     ]
 
     default_max_searches = 8
+
+    # Investigative requires thorough verification on all dimensions
+    # Critical to verify claims, detect cover-ups, and identify spin
+    verification_config = {
+        "cross_reference": "thorough",      # Must corroborate claims
+        "bias_detection": "thorough",       # Detect PR spin, cover-ups
+        "expert_sanity_check": "thorough",  # Flag implausible claims
+        "source_quality": "thorough",       # Primary sources critical
+    }
 
     async def generate_search_queries(
         self,
@@ -162,3 +201,200 @@ Return as JSON array. Prioritize extracting ALL financial transactions with spec
                     })
 
         return findings
+
+    # ========== INVESTIGATIVE-SPECIFIC REPORT GENERATION ==========
+
+    def get_supported_report_variants(self) -> List[str]:
+        """Investigative template supports risk_assessment variant."""
+        return ["full_report", "executive_summary", "risk_assessment"]
+
+    def generate_risk_assessment(
+        self,
+        result: Dict[str, Any],
+        title: Optional[str] = None,
+    ) -> str:
+        """Generate risk assessment report - investigative-specific variant."""
+        from datetime import datetime
+
+        query = result.get("query", "Unknown")
+        report_title = title or f"Risk Assessment: {query[:40]}"
+
+        sections = []
+        sections.append(f"# {report_title}")
+        sections.append("")
+        sections.append(f"**Subject:** {query}")
+        sections.append(f"**Date:** {datetime.now().strftime('%B %d, %Y')}")
+        sections.append("")
+        sections.append("---")
+        sections.append("")
+
+        findings = result.get("findings", [])
+
+        # Critical findings (high risk)
+        high_risk = [f for f in findings if f.get("finding_type") in ["financial", "evidence"]
+                     and f.get("confidence_score", 0) >= 0.7]
+        sections.append("## Critical Findings")
+        sections.append("")
+        if high_risk:
+            for f in high_risk[:6]:
+                sections.append(f"- **{f.get('finding_type', 'fact').upper()}**: {f.get('summary') or f.get('content', '')[:100]}")
+        else:
+            sections.append("No critical findings identified.")
+        sections.append("")
+
+        # Key actors
+        actors = [f for f in findings if f.get("finding_type") == "actor"]
+        if actors:
+            sections.append("## Key Actors")
+            sections.append("")
+            for actor in actors[:8]:
+                extracted = actor.get("extracted_data", {})
+                if extracted and isinstance(extracted, dict):
+                    name = extracted.get("name", "")
+                    role = extracted.get("role", "")
+                    if name:
+                        sections.append(f"- **{name}**: {role}")
+                else:
+                    sections.append(f"- {actor.get('summary') or actor.get('content', '')[:80]}")
+            sections.append("")
+
+        # Financial transactions
+        financial = [f for f in findings if f.get("finding_type") == "financial"]
+        if financial:
+            sections.append("## Financial Trail")
+            sections.append("")
+            for txn in financial[:6]:
+                extracted = txn.get("extracted_data", {})
+                if extracted and isinstance(extracted, dict):
+                    amount = extracted.get("amount", "")
+                    payer = extracted.get("payer", "")
+                    payee = extracted.get("payee", "")
+                    if amount:
+                        sections.append(f"- **${amount:,}** from {payer} to {payee}")
+                else:
+                    sections.append(f"- {txn.get('summary') or txn.get('content', '')[:80]}")
+            sections.append("")
+
+        # Relationships map
+        relationships = [f for f in findings if f.get("finding_type") == "relationship"]
+        if relationships:
+            sections.append("## Key Relationships")
+            sections.append("")
+            for rel in relationships[:6]:
+                sections.append(f"- {rel.get('summary') or rel.get('content', '')[:100]}")
+            sections.append("")
+
+        # Patterns
+        patterns = [f for f in findings if f.get("finding_type") == "pattern"]
+        if patterns:
+            sections.append("## Identified Patterns")
+            sections.append("")
+            for p in patterns[:5]:
+                sections.append(f"- {p.get('summary') or p.get('content', '')[:100]}")
+            sections.append("")
+
+        # Knowledge gaps
+        gaps = [f for f in findings if f.get("finding_type") == "gap"]
+        if gaps:
+            sections.append("## Investigation Gaps")
+            sections.append("")
+            for g in gaps[:5]:
+                sections.append(f"- {g.get('summary') or g.get('content', '')[:100]}")
+            sections.append("")
+
+        # Warnings from perspectives
+        perspectives = result.get("perspectives", [])
+        all_warnings = []
+        for p in perspectives:
+            all_warnings.extend(p.get("warnings", []))
+        if all_warnings:
+            sections.append("## Risk Warnings")
+            sections.append("")
+            for warning in all_warnings[:6]:
+                sections.append(f"- {warning}")
+            sections.append("")
+
+        return "\n".join(sections)
+
+    def _get_priority_findings(self, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Investigative template prioritizes actors, financial, and evidence."""
+        # Priority order for investigative findings
+        priority_types = ["financial", "evidence", "actor", "relationship", "pattern"]
+        prioritized = []
+
+        for ftype in priority_types:
+            type_findings = [f for f in findings if f.get("finding_type") == ftype]
+            prioritized.extend(sorted(
+                type_findings,
+                key=lambda x: x.get("confidence_score", 0),
+                reverse=True
+            ))
+
+        # Add remaining
+        remaining = [f for f in findings if f not in prioritized]
+        prioritized.extend(sorted(remaining, key=lambda x: x.get("confidence_score", 0), reverse=True))
+
+        return prioritized
+
+    def _group_findings(self, findings: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Group findings with investigative priority order."""
+        # Custom order for investigative reports
+        order = ["financial", "actor", "relationship", "evidence", "event", "pattern", "gap", "other"]
+        grouped: Dict[str, List[Dict[str, Any]]] = {}
+
+        for ftype in order:
+            type_findings = [f for f in findings if f.get("finding_type") == ftype]
+            if type_findings:
+                grouped[ftype] = type_findings
+
+        # Add any remaining types not in order
+        for f in findings:
+            ftype = f.get("finding_type", "other")
+            if ftype not in grouped:
+                grouped[ftype] = []
+            if f not in grouped.get(ftype, []):
+                grouped.setdefault(ftype, []).append(f)
+
+        return grouped
+
+    def _generate_key_sections(self, result: Dict[str, Any]) -> str:
+        """Generate investigative-specific key sections: Actor map, Financial trail."""
+        findings = result.get("findings", [])
+        sections = []
+
+        # Key Actors Summary
+        actors = [f for f in findings if f.get("finding_type") == "actor"]
+        if actors:
+            sections.append("## Key Actors Summary")
+            sections.append("")
+            for actor in actors[:5]:
+                sections.append(f"- {actor.get('summary') or actor.get('content', '')[:100]}")
+            sections.append("")
+
+        # Financial Trail Summary
+        financial = [f for f in findings if f.get("finding_type") == "financial"]
+        if financial:
+            sections.append("## Financial Trail Summary")
+            sections.append("")
+            for txn in financial[:5]:
+                sections.append(f"- {txn.get('summary') or txn.get('content', '')[:100]}")
+            sections.append("")
+
+        return "\n".join(sections)
+
+    def _generate_executive_highlights(self, result: Dict[str, Any]) -> str:
+        """Generate investigative-specific executive highlights."""
+        findings = result.get("findings", [])
+        sections = []
+
+        # Critical evidence highlight
+        evidence = [f for f in findings if f.get("finding_type") == "evidence"
+                    and f.get("confidence_score", 0) >= 0.7]
+        if evidence:
+            sections.append("## Critical Evidence")
+            sections.append("")
+            for e in evidence[:3]:
+                sections.append(f"- {e.get('summary') or e.get('content', '')[:100]}")
+            sections.append("")
+
+        return "\n".join(sections)

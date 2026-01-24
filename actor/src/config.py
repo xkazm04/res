@@ -22,10 +22,23 @@ class Settings(BaseModel):
     supabase_url: str = ""
     supabase_key: str = ""
 
+    # Resend for email delivery
+    resend_api_key: str = ""
+
     # Langsmith for monitoring
     langsmith_api_key: str = ""
     langsmith_project: str = "deep-research-actor"
     langsmith_enabled: bool = True
+
+    # Cloud Run for cost optimization
+    cloud_run_url: str = ""
+
+    # Cloudflare R2 for report storage
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket_name: str = "deep-research-reports"
+    r2_public_url: str = ""  # Custom domain or leave empty for r2.dev
 
     # Cost rates per 1M tokens
     gemini_input_rate: float = 0.15
@@ -49,7 +62,15 @@ def get_settings() -> Settings:
         supabase_key=os.getenv("SUPABASE_KEY", "") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", ""),
         langsmith_api_key=os.getenv("LANGSMITH_API_KEY", "") or os.getenv("LANGCHAIN_API_KEY", ""),
         langsmith_project=os.getenv("LANGSMITH_PROJECT", "deep-research-actor"),
+        resend_api_key=os.getenv("RESEND_API_KEY", ""),
         langsmith_enabled=os.getenv("LANGSMITH_ENABLED", "true").lower() == "true",
+        cloud_run_url=os.getenv("CLOUD_RUN_URL", ""),
+        # Cloudflare R2
+        r2_account_id=os.getenv("R2_ACCOUNT_ID", ""),
+        r2_access_key_id=os.getenv("R2_ACCESS_KEY_ID", ""),
+        r2_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY", ""),
+        r2_bucket_name=os.getenv("R2_BUCKET_NAME", "deep-research-reports"),
+        r2_public_url=os.getenv("R2_PUBLIC_URL", ""),
     )
 
 
@@ -58,6 +79,8 @@ def override_settings(
     openrouter_api_key: Optional[str] = None,
     supabase_url: Optional[str] = None,
     supabase_key: Optional[str] = None,
+    resend_api_key: Optional[str] = None,
+    cloud_run_url: Optional[str] = None,
 ) -> Settings:
     """Create settings with optional overrides from actor input."""
     base = get_settings()
@@ -69,7 +92,9 @@ def override_settings(
         openrouter_ocr_model=base.openrouter_ocr_model,
         supabase_url=supabase_url or base.supabase_url,
         supabase_key=supabase_key or base.supabase_key,
+        resend_api_key=resend_api_key or base.resend_api_key,
         langsmith_api_key=base.langsmith_api_key,
         langsmith_project=base.langsmith_project,
         langsmith_enabled=base.langsmith_enabled,
+        cloud_run_url=cloud_run_url or base.cloud_run_url,
     )

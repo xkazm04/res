@@ -1,11 +1,151 @@
 """Report generation service."""
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
+
+from .report_interactive import generate_interactive_html
+from .exporters import get_exporter, get_supported_formats, ExportResult
+from ..templates import get_template, BaseTemplate
 
 
 class ReportService:
-    """Generates markdown and HTML reports from research results."""
+    """Generates markdown and HTML reports from research results.
+
+    Report generation is delegated to template classes, which have domain-specific
+    knowledge about how to render findings for their particular research type.
+    For example, FinancialTemplate knows how to render an investment thesis,
+    while ContractTemplate knows how to render a red flags summary.
+
+    Supported formats:
+    - markdown: Standard markdown format
+    - html: Rich interactive HTML
+    - pdf: Print-optimized HTML for PDF conversion
+    - docx: DOCX structure as JSON (use with python-docx)
+    - json_ld: JSON-LD structured data for SEO/knowledge graphs
+    - obsidian: Obsidian markdown with wiki-links and frontmatter
+    - slack: Slack Block Kit message JSON
+    """
+
+    @staticmethod
+    def get_supported_formats() -> List[str]:
+        """Get list of all supported export formats."""
+        return ["markdown", "html"] + get_supported_formats()
+
+    def export(
+        self,
+        research_result: Dict[str, Any],
+        format: str = "markdown",
+        variant: str = "full_report",
+        title: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Export research results to specified format.
+
+        Args:
+            research_result: Dict from ResearchService.execute_research()
+            format: Export format (markdown, html, pdf, docx, json_ld, obsidian, slack)
+            variant: Report variant for markdown/html (executive_summary, full_report, investment_thesis)
+            title: Optional custom title
+            options: Format-specific options
+
+        Returns:
+            Dict with keys:
+                - content: The exported content (str or bytes)
+                - filename: Suggested filename
+                - mime_type: MIME type for the content
+                - format: Format name
+                - metadata: Additional format-specific metadata
+        """
+        options = options or {}
+
+        # Handle legacy formats
+        if format == "markdown":
+            content = self.generate_markdown(research_result, variant, title)
+            query = research_result.get("query", "research")[:40]
+            filename = f"research_{query.replace(' ', '_')}.md"
+            return {
+                "content": content,
+                "filename": filename,
+                "mime_type": "text/markdown",
+                "format": "markdown",
+                "metadata": {"variant": variant},
+            }
+
+        if format == "html":
+            markdown_content = self.generate_markdown(research_result, variant, title)
+            content = self.generate_html(markdown_content, title or "Research Report", research_result)
+            query = research_result.get("query", "research")[:40]
+            filename = f"research_{query.replace(' ', '_')}.html"
+            return {
+                "content": content,
+                "filename": filename,
+                "mime_type": "text/html",
+                "format": "html",
+                "metadata": {"variant": variant, "interactive": bool(research_result)},
+            }
+
+        # Use extended format exporters
+        try:
+            exporter = get_exporter(format)
+            result = exporter.export(research_result, title, options)
+            return {
+                "content": result.content,
+                "filename": result.filename,
+                "mime_type": result.mime_type,
+                "format": result.format,
+                "metadata": result.metadata,
+            }
+        except ValueError as e:
+            supported = ", ".join(self.get_supported_formats())
+            raise ValueError(f"Unsupported format: {format}. Supported formats: {supported}")
+
+    def export_multiple(
+        self,
+        research_result: Dict[str, Any],
+        formats: List[str],
+        variant: str = "full_report",
+        title: Optional[str] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        """Export research results to multiple formats at once.
+
+        Args:
+            research_result: Dict from ResearchService.execute_research()
+            formats: List of format names to export
+            variant: Report variant for markdown/html
+            title: Optional custom title
+            options: Format-specific options (applied to all formats)
+
+        Returns:
+            Dict mapping format name to export result
+        """
+        results = {}
+        for fmt in formats:
+            try:
+                results[fmt] = self.export(research_result, fmt, variant, title, options)
+            except ValueError as e:
+                results[fmt] = {"error": str(e)}
+        return results
+
+    def get_supported_variants(
+        self,
+        research_result: Dict[str, Any],
+    ) -> List[str]:
+        """Get list of report variants supported for this research result.
+
+        The available variants depend on the template used for research.
+        For example, FinancialTemplate supports "investment_thesis",
+        while ContractTemplate supports "red_flags_summary".
+
+        Args:
+            research_result: Dict from ResearchService.execute_research()
+
+        Returns:
+            List of supported variant names
+        """
+        template_type = research_result.get("template", "investigative")
+        template = get_template(template_type)
+        return template.get_supported_report_variants()
 
     def generate_markdown(
         self,
@@ -16,37 +156,49 @@ class ReportService:
         """
         Generate markdown report from research results.
 
+        Report generation is delegated to the template class that matches
+        the research type. Each template has domain-specific knowledge about
+        how to render findings and supports different report variants.
+
         Args:
             research_result: Dict from ResearchService.execute_research()
-            variant: "executive_summary", "full_report", or "investment_thesis"
+            variant: Report variant (depends on template):
+                - All templates: "full_report", "executive_summary"
+                - financial: "investment_thesis"
+                - investigative: "risk_assessment"
+                - contract: "red_flags_summary", "pricing_analysis"
+                - competitive: "competitor_matrix"
+                - legal: "legal_brief", "compliance_assessment"
+                - tech_market: "trend_forecast", "vc_briefing"
             title: Optional custom title
 
         Returns:
             Formatted markdown string
         """
-        if variant == "executive_summary":
-            return self._generate_executive_summary(research_result, title)
-        elif variant == "investment_thesis":
-            return self._generate_investment_thesis(research_result, title)
-        else:
-            return self._generate_full_report(research_result, title)
+        # Get the template that was used for this research
+        template_type = research_result.get("template", "investigative")
+        template = get_template(template_type)
+
+        # Delegate report generation to the template
+        return template.generate_report(research_result, variant, title)
 
     def generate_html(
         self,
         markdown_content: str,
         title: str = "Research Report",
+        research_result: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
-        Convert markdown to styled HTML.
+        Generate styled HTML report.
 
-        Args:
-            markdown_content: Markdown string
-            title: HTML page title
-
-        Returns:
-            Complete HTML document
+        If research_result is provided, generates rich visual HTML.
+        Otherwise, converts markdown to basic styled HTML.
         """
-        # Simple markdown to HTML conversion
+        # Use interactive HTML if research result is available
+        if research_result:
+            return generate_interactive_html(research_result, title)
+
+        # Fallback to markdown conversion
         html_body = self._markdown_to_html(markdown_content)
 
         return f"""<!DOCTYPE html>
@@ -87,264 +239,18 @@ class ReportService:
 </body>
 </html>"""
 
-    def _generate_full_report(
-        self,
-        result: Dict[str, Any],
-        title: Optional[str],
-    ) -> str:
-        """Generate full detailed report."""
-        query = result.get("query", "Unknown Query")
-        template = result.get("template", "unknown")
-        report_title = title or f"Research Report: {query[:50]}"
-
-        sections = []
-
-        # Header
-        sections.append(f"# {report_title}")
-        sections.append("")
-        sections.append(f"**Research Query:** {query}")
-        sections.append(f"**Template:** {template.title()} Research")
-        sections.append(f"**Generated:** {datetime.now().strftime('%B %d, %Y at %H:%M')}")
-        sections.append(f"**Status:** {result.get('status', 'unknown').title()}")
-        sections.append("")
-        sections.append("---")
-        sections.append("")
-
-        # Executive Summary
-        sections.append("## Executive Summary")
-        sections.append("")
-        findings = result.get("findings", [])
-        if findings:
-            high_conf = [f for f in findings if f.get("confidence_score", 0) >= 0.7]
-            sections.append(f"This research identified **{len(findings)}** key findings across multiple categories.")
-            sections.append(f"**{len(high_conf)}** findings have high confidence (>70%).")
-            sections.append("")
-
-            # Key findings summary
-            for finding in findings[:5]:
-                ftype = finding.get("finding_type", "fact").upper()
-                summary = finding.get("summary") or finding.get("content", "")[:100]
-                sections.append(f"- **[{ftype}]** {summary}")
-            sections.append("")
-        else:
-            sections.append("No significant findings were extracted.")
-            sections.append("")
-
-        sections.append("---")
-        sections.append("")
-
-        # Detailed Findings
-        sections.append("## Detailed Findings")
-        sections.append("")
-
-        # Group by type
-        finding_types = {}
-        for f in findings:
-            ftype = f.get("finding_type", "other")
-            if ftype not in finding_types:
-                finding_types[ftype] = []
-            finding_types[ftype].append(f)
-
-        for ftype, type_findings in finding_types.items():
-            sections.append(f"### {ftype.title()} ({len(type_findings)})")
-            sections.append("")
-
-            for finding in type_findings:
-                conf = finding.get("confidence_score", 0.5)
-                conf_label = "High" if conf >= 0.8 else "Medium" if conf >= 0.6 else "Low"
-                sections.append(f"#### {finding.get('summary', finding.get('content', '')[:60])}")
-                sections.append("")
-                sections.append(finding.get("content", ""))
-                sections.append("")
-                sections.append(f"*Confidence: {conf_label} ({conf:.0%})*")
-                sections.append("")
-
-        sections.append("---")
-        sections.append("")
-
-        # Perspectives
-        perspectives = result.get("perspectives", [])
-        if perspectives:
-            sections.append("## Multi-Perspective Analysis")
-            sections.append("")
-
-            for perspective in perspectives:
-                ptype = perspective.get("perspective_type", "unknown").title()
-                sections.append(f"### {ptype} Perspective")
-                sections.append("")
-                sections.append(perspective.get("analysis_text", ""))
-                sections.append("")
-
-                insights = perspective.get("key_insights", [])
-                if insights:
-                    sections.append("**Key Insights:**")
-                    for insight in insights:
-                        sections.append(f"- {insight}")
-                    sections.append("")
-
-                recs = perspective.get("recommendations", [])
-                if recs:
-                    sections.append("**Recommendations:**")
-                    for rec in recs:
-                        sections.append(f"- {rec}")
-                    sections.append("")
-
-                warnings = perspective.get("warnings", [])
-                if warnings:
-                    sections.append("**Warnings:**")
-                    for warning in warnings:
-                        sections.append(f"- {warning}")
-                    sections.append("")
-
-            sections.append("---")
-            sections.append("")
-
-        # Sources
-        sources = result.get("sources", [])
-        if sources:
-            sections.append("## Sources")
-            sections.append("")
-
-            for source in sources[:20]:
-                title_text = source.get("title", source.get("url", "Unknown"))
-                url = source.get("url", "#")
-                cred = source.get("credibility_score", 0.5)
-                sections.append(f"- [{title_text}]({url}) - Credibility: {cred:.0%}")
-
-            sections.append("")
-            sections.append("---")
-            sections.append("")
-
-        # Metadata
-        sections.append("## Research Metadata")
-        sections.append("")
-        sections.append(f"- **Session ID:** {result.get('session_id', 'N/A')}")
-        sections.append(f"- **Execution Time:** {result.get('execution_time_seconds', 0):.1f} seconds")
-
-        cost = result.get("cost_summary", {})
-        if cost:
-            sections.append(f"- **Total Tokens:** {cost.get('total_tokens', 0):,}")
-            sections.append(f"- **Total Cost:** ${cost.get('total_cost_usd', 0):.4f}")
-
-        queries = result.get("search_queries_executed", [])
-        if queries:
-            sections.append(f"- **Searches Executed:** {len(queries)}")
-
-        return "\n".join(sections)
-
-    def _generate_executive_summary(
-        self,
-        result: Dict[str, Any],
-        title: Optional[str],
-    ) -> str:
-        """Generate brief executive summary."""
-        query = result.get("query", "Unknown Query")
-        report_title = title or f"Executive Summary: {query[:40]}"
-
-        sections = []
-        sections.append(f"# {report_title}")
-        sections.append("")
-        sections.append(f"**Research Query:** {query}")
-        sections.append(f"**Generated:** {datetime.now().strftime('%B %d, %Y')}")
-        sections.append("")
-        sections.append("---")
-        sections.append("")
-
-        # Key findings
-        sections.append("## Key Findings")
-        sections.append("")
-
-        findings = result.get("findings", [])
-        high_conf = sorted(
-            [f for f in findings if f.get("confidence_score", 0) >= 0.6],
-            key=lambda x: x.get("confidence_score", 0),
-            reverse=True
-        )
-
-        for finding in high_conf[:7]:
-            ftype = finding.get("finding_type", "fact").upper()
-            summary = finding.get("summary") or finding.get("content", "")[:150]
-            sections.append(f"- **[{ftype}]** {summary}")
-
-        sections.append("")
-
-        # Key perspectives
-        perspectives = result.get("perspectives", [])
-        if perspectives:
-            sections.append("## Expert Perspectives")
-            sections.append("")
-
-            for p in perspectives:
-                ptype = p.get("perspective_type", "").title()
-                insights = p.get("key_insights", [])
-                if insights:
-                    sections.append(f"**{ptype}:** {insights[0]}")
-
-            sections.append("")
-
-        sections.append("---")
-        sections.append("")
-        sections.append(f"*Full report contains {len(findings)} findings from {len(result.get('sources', []))} sources.*")
-
-        return "\n".join(sections)
-
-    def _generate_investment_thesis(
-        self,
-        result: Dict[str, Any],
-        title: Optional[str],
-    ) -> str:
-        """Generate investment thesis report."""
-        query = result.get("query", "Unknown")
-        report_title = title or f"Investment Thesis: {query[:40]}"
-
-        sections = []
-        sections.append(f"# {report_title}")
-        sections.append("")
-        sections.append(f"**Subject:** {query}")
-        sections.append(f"**Date:** {datetime.now().strftime('%B %d, %Y')}")
-        sections.append("")
-        sections.append("---")
-        sections.append("")
-
-        # Thesis summary
-        sections.append("## Investment Thesis")
-        sections.append("")
-
-        # Extract valuation perspective
-        perspectives = result.get("perspectives", [])
-        valuation = next((p for p in perspectives if "valuation" in p.get("perspective_type", "").lower()), None)
-
-        if valuation:
-            sections.append(valuation.get("analysis_text", ""))
-            sections.append("")
-
-        # Bull case
-        sections.append("## Bull Case")
-        sections.append("")
-        findings = result.get("findings", [])
-        positive = [f for f in findings if f.get("confidence_score", 0) >= 0.7]
-        for f in positive[:5]:
-            sections.append(f"- {f.get('summary') or f.get('content', '')[:100]}")
-        sections.append("")
-
-        # Bear case
-        sections.append("## Bear Case / Risks")
-        sections.append("")
-        risks = [f for f in findings if f.get("finding_type") in ["pattern", "gap"]]
-        for f in risks[:5]:
-            sections.append(f"- {f.get('summary') or f.get('content', '')[:100]}")
-        sections.append("")
-
-        # Recommendations
-        sections.append("## Recommendations")
-        sections.append("")
-        for p in perspectives:
-            recs = p.get("recommendations", [])
-            for rec in recs[:2]:
-                sections.append(f"- {rec}")
-        sections.append("")
-
-        return "\n".join(sections)
+    # NOTE: Report variant generation methods (_generate_full_report, _generate_executive_summary,
+    # _generate_investment_thesis, etc.) have been moved to template classes.
+    # Each template now has domain-specific knowledge about how to render its findings.
+    # See:
+    #   - BaseTemplate.generate_full_report() - default implementation
+    #   - BaseTemplate.generate_executive_summary() - default implementation
+    #   - FinancialTemplate.generate_investment_thesis() - financial-specific
+    #   - InvestigativeTemplate.generate_risk_assessment() - investigative-specific
+    #   - ContractTemplate.generate_red_flags_summary() - contract-specific
+    #   - CompetitiveTemplate.generate_competitor_matrix() - competitive-specific
+    #   - LegalTemplate.generate_legal_brief() - legal-specific
+    #   - TechMarketTemplate.generate_trend_forecast() - tech market-specific
 
     def _markdown_to_html(self, markdown: str) -> str:
         """Simple markdown to HTML conversion."""

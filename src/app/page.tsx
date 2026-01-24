@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/src/lib/utils';
 import { getMockSessionData, getMockEntities } from '@/src/lib/mockData';
-import { Search, TrendingUp, Target } from 'lucide-react';
+import { Search, TrendingUp, Target, Cpu } from 'lucide-react';
 
 // Investigation components
 import { useInvestigationStore } from '@/src/stores/investigationStore';
@@ -21,7 +21,12 @@ import { FinancialDashboard } from '@/src/components/financial/FinancialDashboar
 import { useResearchStore } from '@/src/stores/researchStore';
 import { ResearchDashboard } from '@/src/components/market-research/ResearchDashboard';
 
-type TemplateType = 'investigation' | 'financial' | 'market';
+// Tech Market components
+import { useTechMarketStore } from '@/src/stores/techMarketStore';
+import { TechMarketDashboard } from '@/src/components/tech-market/TechMarketDashboard';
+import { mockTechMarketSessionWithDetails } from '@/src/lib/techMarketMockData';
+
+type TemplateType = 'investigation' | 'financial' | 'market' | 'techmarket';
 
 const templates = [
   {
@@ -51,6 +56,15 @@ const templates = [
     activeClass: 'bg-violet-600 text-white',
     hoverClass: 'hover:bg-violet-600/20',
   },
+  {
+    id: 'techmarket' as TemplateType,
+    title: 'Tech Market',
+    subtitle: '2025-2026 Predictions',
+    icon: Cpu,
+    bgClass: 'bg-[#06060a]',
+    activeClass: 'bg-fuchsia-600 text-white',
+    hoverClass: 'hover:bg-fuchsia-600/20',
+  },
 ];
 
 export default function Home() {
@@ -74,6 +88,9 @@ export default function Home() {
   // Market Research store
   const { setSession: setMktSession } = useResearchStore();
 
+  // Tech Market store
+  const { setSession: setTechSession } = useTechMarketStore();
+
   // Load mock data on mount
   useEffect(() => {
     // Load investigation data
@@ -89,8 +106,11 @@ export default function Home() {
     const mktData = getMockSessionData('market');
     setMktSession(mktData);
 
+    // Load tech market data
+    setTechSession(mockTechMarketSessionWithDetails);
+
     setIsLoaded(true);
-  }, [setInvSession, initializeCardPositions, setFinSession, setMktSession]);
+  }, [setInvSession, initializeCardPositions, setFinSession, setMktSession, setTechSession]);
 
   const currentTemplate = templates.find((t) => t.id === activeTemplate)!;
 
@@ -139,6 +159,7 @@ export default function Home() {
         {activeTemplate === 'investigation' && <InvestigationView />}
         {activeTemplate === 'financial' && <FinancialView />}
         {activeTemplate === 'market' && <MarketView />}
+        {activeTemplate === 'techmarket' && <TechMarketView />}
       </div>
     </div>
   );
@@ -231,6 +252,10 @@ function FinancialView() {
 
 function MarketView() {
   return <ResearchDashboard />;
+}
+
+function TechMarketView() {
+  return <TechMarketDashboard />;
 }
 
 function ToggleButton({

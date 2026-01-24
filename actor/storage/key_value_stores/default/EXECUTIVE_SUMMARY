@@ -1,0 +1,41 @@
+{
+  "session_id": "5e388b93-e671-4430-9d5d-9256548e0fa5",
+  "query": "Is Temu legitimate safe to buy from scam check",
+  "template": "reputation",
+  "status": "completed",
+  "findings_count": 8,
+  "high_confidence_findings": 8,
+  "sources_count": 58,
+  "high_credibility_sources": 6,
+  "perspectives_count": 4,
+  "top_findings": [
+    "The FTC fined Temu $2 million for lack of transparency regarding third-party sellers and fraud reporting.",
+    "Temu is a legally registered, multi-billion dollar business entity with a formal buyer protection program.",
+    "Temu has a B- rating but is not BBB accredited due to a high volume of consumer complaints.",
+    "Temu faces multiple state lawsuits alleging the app acts as spyware to harvest sensitive user data.",
+    "International regulators have found toxic substances in Temu products and cited the platform for selling unsafe goods."
+  ],
+  "expert_recommendations": [
+    "Avoid installing the mobile app; if you must shop, use a hardened web browser with tracking protection to limit data harvesting.",
+    "Use a virtual credit card service (like Privacy.com) or a one-time use digital card to prevent the platform from having access to your primary banking details.",
+    "Avoid installing the mobile app; access Temu exclusively through a hardened web browser to limit the platform's ability to bypass device security and harvest biometrics.",
+    "Never purchase safety-critical items, such as children's toys, cosmetics, or electronics, due to documented failures in toxic substance screening and safety certifications.",
+    "Avoid installing the Temu mobile app; if you must shop, use a privacy-focused web browser (like Brave or Firefox with tracking protection) to limit data harvesting."
+  ],
+  "expert_warnings": [
+    "The app has been legally accused of functioning as malware/spyware to harvest biometric data.",
+    "The app has been alleged in state lawsuits to function as malware, capable of bypassing device security to harvest biometrics and browsing history.",
+    "High risk of biometric and contact data harvesting via the mobile application."
+  ],
+  "key_insights": [
+    "The $2M FTC fine confirms a systemic failure to vet third-party sellers, which is a primary facilitator for organized retail fraud.",
+    "State-level 'spyware' lawsuits indicate the app's code may contain permissions that exceed standard e-commerce requirements, specifically targeting biometrics and contacts.",
+    "The 'Credit Hostage' phenomenon: Temu's practice of freezing store balances for 'unusual activity' suggests a liquidity-retention tactic that severely damages long-term user trust.",
+    "Bifurcated Risk: Consumers face a dual-threat model consisting of digital risk (spyware/biometric harvesting) and physical risk (toxic substances in products).",
+    "The 2025 FTC fine specifically targeted violations of the INFORM Consumers Act, proving that Temu intentionally obscured the identities of high-volume third-party sellers."
+  ],
+  "report_preview": "# Research Report: Is Temu legitimate safe to buy from scam check\n\n**Research Query:** Is Temu legitimate safe to buy from scam check\n**Template:** Reputation Research\n**Generated:** January 04, 2026 at 22:37\n**Status:** Completed\n\n---\n\n## Executive Summary\n\nThis research identified **8** key findings across multiple categories.\n**8** findings have high confidence (>70%).\n\n- **[WARNING_SIGN]** The FTC fined Temu $2 million for lack of transparency regarding third-party sellers and fraud reportin...",
+  "total_cost_usd": 0.001672,
+  "execution_time_seconds": 287.36,
+  "completed_at": "2026-01-04 21:37:20.331585"
+}

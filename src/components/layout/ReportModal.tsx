@@ -48,14 +48,14 @@ export function ReportModal() {
       {/* Modal */}
       <div className="modal-content animate-slide-in-right">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b border-[var(--border-color)] px-4 py-3 flex items-center gap-3">
+        <div className="sticky top-0 z-10 bg-[var(--bg-elevated)] border-b border-[var(--border-default)] px-4 py-3 flex items-center gap-3">
           <SwissIconButton
             icon={<ArrowLeft className="w-5 h-5" />}
             onClick={closeReportModal}
             aria-label="Close report"
             variant="ghost"
           />
-          <span className="text-sm text-[var(--warm-gray-500)]">Back to map</span>
+          <span className="text-sm text-[var(--text-muted)]">Back to map</span>
 
           <div className="ml-auto">
             <SwissIconButton

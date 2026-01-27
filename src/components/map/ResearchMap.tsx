@@ -53,7 +53,7 @@ export function ResearchMap({ className }: ResearchMapProps) {
   return (
     <div className={className}>
       {/* Header */}
-      <div className="px-6 py-4 border-b border-[var(--border-color)] bg-white/80 backdrop-blur-sm z-10">
+      <div className="px-6 py-4 border-b border-[var(--border-default)] bg-[var(--bg-elevated)]/80 backdrop-blur-sm z-10">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-headline text-2xl">Research Map</h1>
@@ -72,7 +72,7 @@ export function ResearchMap({ className }: ResearchMapProps) {
 
       {/* Canvas Map - placeholder for future implementation */}
       <div className="flex-1 relative">
-        <div className="absolute inset-0 flex items-center justify-center bg-[var(--warm-gray-50)]">
+        <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-secondary)]">
           <div className="text-center text-secondary">
             <p className="text-lg font-medium">Topic Map Coming Soon</p>
             <p className="text-sm mt-1">{sessions.length} sessions ready to visualize</p>
@@ -81,7 +81,7 @@ export function ResearchMap({ className }: ResearchMapProps) {
       </div>
 
       {/* Legend */}
-      <div className="px-6 py-3 border-t border-[var(--border-color)] bg-white/80 backdrop-blur-sm">
+      <div className="px-6 py-3 border-t border-[var(--border-default)] bg-[var(--bg-elevated)]/80 backdrop-blur-sm">
         <MapLegend items={templateCounts} />
       </div>
     </div>

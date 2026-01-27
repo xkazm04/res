@@ -122,8 +122,8 @@ html {
 }
 
 body {
-  background: var(--white);
-  color: var(--warm-gray-700);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
   font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: var(--leading-normal);
@@ -133,7 +133,7 @@ body {
 /* Selection */
 ::selection {
   background: rgba(34, 139, 230, 0.2);
-  color: var(--charcoal);
+  color: var(--text-primary);
 }
 
 /* ============================================
@@ -146,16 +146,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--warm-gray-50);
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--warm-gray-300);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--warm-gray-500);
+  background: var(--border-strong);
 }
 
 /* ============================================
@@ -163,7 +163,7 @@ body {
    ============================================ */
 
 :focus-visible {
-  outline: 2px solid var(--blue-primary);
+  outline: 2px solid var(--border-focus);
   outline-offset: 2px;
 }
 

@@ -1,13 +1,12 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useAppStore, getTemplateDisplayName, getTemplateColor } from '@/src/stores/appStore';
+import { useAppStore } from '@/src/stores/appStore';
+import { useThemeStore } from '@/src/stores/themeStore';
 import { useSessions } from '@/src/hooks/useSessions';
-import { useMapData } from '@/src/hooks/useMapData';
-import { MapBreadcrumb } from './MapBreadcrumb';
-import { MapLegend } from './MapLegend';
 import { MapEmptyState, MapLoadingState, MapErrorState } from './MapEmptyState';
 import { ThemeSwitcher } from '@/src/components/swiss/ThemeSwitcher';
+import { RadarView, SwissView, OrganicView } from '@/src/components/visualizations';
 import type { ResearchSession } from '@/src/types/research';
 
 interface ResearchMapProps {
@@ -16,139 +15,70 @@ interface ResearchMapProps {
 
 export function ResearchMap({ className }: ResearchMapProps) {
   const { sessions, isLoading, error, refetch } = useSessions();
-  const { templateCounts, totalStats } = useMapData(sessions);
+  const { openReportModal } = useAppStore();
+  const theme = useThemeStore((s) => s.theme);
 
-  const { mapZoomPath, setMapZoomPath } = useAppStore();
+  const handleSessionSelect = useCallback((session: ResearchSession) => {
+    openReportModal(session.id);
+  }, [openReportModal]);
 
-  // Handle breadcrumb navigation
-  const handleBreadcrumbNavigate = useCallback((path: string[]) => {
-    setMapZoomPath(path);
-  }, [setMapZoomPath]);
-
-  // Render content based on state
-  const renderContent = () => {
-    if (isLoading) {
-      return <MapLoadingState />;
+  // Render the appropriate visualization based on theme
+  const renderVisualization = () => {
+    switch (theme) {
+      case 'radar':
+        return <RadarView sessions={sessions} onSessionSelect={handleSessionSelect} />;
+      case 'swiss':
+        return <SwissView sessions={sessions} onSessionSelect={handleSessionSelect} />;
+      case 'organic':
+        return <OrganicView sessions={sessions} onSessionSelect={handleSessionSelect} />;
+      default:
+        return <SwissView sessions={sessions} onSessionSelect={handleSessionSelect} />;
     }
-
-    if (error) {
-      return <MapErrorState error={error} onRetry={refetch} />;
-    }
-
-    if (sessions.length === 0) {
-      return <MapEmptyState onRefresh={refetch} isLoading={isLoading} />;
-    }
-
-    return (
-      <>
-        {/* Session Cards Grid */}
-        <div className="flex-1 overflow-auto bg-[var(--bg-secondary)] p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {sessions.map((session) => (
-              <SessionCard key={session.id} session={session} />
-            ))}
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="px-6 py-3 border-t border-[var(--border-default)] bg-[var(--bg-elevated)]/80 backdrop-blur-sm">
-          <MapLegend items={templateCounts} />
-        </div>
-      </>
-    );
   };
 
-  return (
-    <div className={className}>
-      {/* Header - always visible */}
-      <div className="px-6 py-4 border-b border-[var(--border-default)] bg-[var(--bg-elevated)]/80 backdrop-blur-sm z-10">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-headline text-2xl">Research Map</h1>
-            <p className="text-secondary mt-0.5">
-              {!isLoading && !error && sessions.length > 0
-                ? `${totalStats.totalSessions} sessions | ${totalStats.totalFindings} findings | ${totalStats.totalSources} sources`
-                : 'AI-powered research visualization'}
-            </p>
-          </div>
-          <ThemeSwitcher />
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className={className}>
+        <div className="h-full flex items-center justify-center bg-[var(--bg-primary)]">
+          <MapLoadingState />
         </div>
-
-        {/* Breadcrumb - only when we have sessions */}
-        {!isLoading && !error && sessions.length > 0 && (
-          <MapBreadcrumb
-            path={mapZoomPath}
-            onNavigate={handleBreadcrumbNavigate}
-          />
-        )}
       </div>
+    );
+  }
 
-      {/* Content area */}
-      <div className="flex-1 flex flex-col">
-        {renderContent()}
+  // Error state
+  if (error) {
+    return (
+      <div className={className}>
+        <div className="h-full flex items-center justify-center bg-[var(--bg-primary)]">
+          <MapErrorState error={error} onRetry={refetch} />
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-// Session Card Component
-function SessionCard({ session }: { session: ResearchSession }) {
-  const templateColor = getTemplateColor(session.template_type);
-  const templateName = getTemplateDisplayName(session.template_type);
-  const formattedDate = new Date(session.created_at).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  // Empty state
+  if (sessions.length === 0) {
+    return (
+      <div className={className}>
+        <div className="h-full flex items-center justify-center bg-[var(--bg-primary)]">
+          <MapEmptyState onRefresh={refetch} isLoading={isLoading} />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="card card-interactive group cursor-pointer">
-      {/* Template color indicator */}
-      <div
-        className="h-1 rounded-t-lg"
-        style={{ backgroundColor: templateColor }}
-      />
+    <div className={`${className} relative`}>
+      {/* Theme Switcher - floating */}
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeSwitcher />
+      </div>
 
-      <div className="p-4">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <span
-            className="badge text-xs font-medium px-2 py-0.5 rounded-full"
-            style={{
-              backgroundColor: `${templateColor}20`,
-              color: templateColor,
-            }}
-          >
-            {templateName}
-          </span>
-          <span className="text-xs text-[var(--text-muted)]">{formattedDate}</span>
-        </div>
-
-        {/* Title */}
-        <h3 className="text-headline text-sm font-semibold mb-1 line-clamp-2 group-hover:text-[var(--accent-primary)] transition-colors">
-          {session.title}
-        </h3>
-
-        {/* Query preview */}
-        <p className="text-secondary text-xs line-clamp-2 mb-3">
-          {session.query}
-        </p>
-
-        {/* Stats */}
-        <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-          <span className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {session.claim_count} findings
-          </span>
-          <span className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-            {session.source_count} sources
-          </span>
-        </div>
+      {/* Visualization fills entire space */}
+      <div className="w-full h-full">
+        {renderVisualization()}
       </div>
     </div>
   );

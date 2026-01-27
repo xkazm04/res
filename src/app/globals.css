@@ -608,28 +608,214 @@ body {
 }
 
 /* ============================================
-   THEME VARIABLES - Phase 1 Foundation
-   Full theme colors will be added in Phase 2
+   SEMANTIC THEME VARIABLES
+   Theme-agnostic variables for component styling
+   ============================================ */
+
+:root {
+  /* Backgrounds (8) */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #FAFAFA;
+  --bg-elevated: #FFFFFF;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+  --bg-tooltip: #1A1918;
+  --bg-input: #FFFFFF;
+  --bg-hover: #F5F3F0;
+  --bg-active: #E8E7E5;
+
+  /* Text (5) */
+  --text-primary: #1A1918;
+  --text-secondary: #4A4947;
+  --text-muted: #8A8987;
+  --text-inverse: #FFFFFF;
+  --text-link: #2563EB;
+
+  /* Borders (4) */
+  --border-default: #E8E7E5;
+  --border-subtle: #F0EFED;
+  --border-strong: #D0CFCD;
+  --border-focus: #2563EB;
+
+  /* Accents (5) */
+  --accent-primary: #2563EB;
+  --accent-info: #228BE6;
+  --accent-success: #2F9E44;
+  --accent-warning: #F59F00;
+  --accent-danger: #E03131;
+
+  /* Map Visualization (4) */
+  --node-fill: #2563EB;
+  --node-stroke: #1D4ED8;
+  --node-glow: none;
+  --connection-line: #D0CFCD;
+
+  /* Effects (4) */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.03);
+  --glow-primary: none;
+
+  /* Scrollbar (2) */
+  --scrollbar-track: #F8F7F5;
+  --scrollbar-thumb: #D0CFCD;
+}
+
+/* ============================================
+   SWISS THEME - Clean, minimal, high contrast
+   Default theme (light mode)
    ============================================ */
 
 :root,
 [data-theme="swiss"] {
-  --theme-background: #FFFFFF;
-  --theme-foreground: #1A1918;
-  --theme-primary: #2563EB;
-  --theme-muted: #F5F3F0;
+  /* Backgrounds */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #FAFAFA;
+  --bg-elevated: #FFFFFF;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+  --bg-tooltip: #1A1918;
+  --bg-input: #FFFFFF;
+  --bg-hover: #F5F3F0;
+  --bg-active: #E8E7E5;
+
+  /* Text */
+  --text-primary: #1A1918;
+  --text-secondary: #4A4947;
+  --text-muted: #8A8987;
+  --text-inverse: #FFFFFF;
+  --text-link: #2563EB;
+
+  /* Borders */
+  --border-default: #E8E7E5;
+  --border-subtle: #F0EFED;
+  --border-strong: #D0CFCD;
+  --border-focus: #2563EB;
+
+  /* Accents */
+  --accent-primary: #2563EB;
+  --accent-info: #228BE6;
+  --accent-success: #2F9E44;
+  --accent-warning: #F59F00;
+  --accent-danger: #E03131;
+
+  /* Map Visualization */
+  --node-fill: #2563EB;
+  --node-stroke: #1D4ED8;
+  --node-glow: none;
+  --connection-line: #D0CFCD;
+
+  /* Effects - Minimal shadows, no glows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.03);
+  --glow-primary: none;
+
+  /* Scrollbar */
+  --scrollbar-track: #F8F7F5;
+  --scrollbar-thumb: #D0CFCD;
 }
+
+/* ============================================
+   RADAR THEME - Dark, glowing, command center
+   Cyan accent with glow effects
+   ============================================ */
 
 [data-theme="radar"] {
-  --theme-background: #0A0A0B;
-  --theme-foreground: #E8E8E8;
-  --theme-primary: #22D3EE;
-  --theme-muted: #1F1F23;
+  /* Backgrounds - Dark palette */
+  --bg-primary: #0A0A0B;
+  --bg-secondary: #111113;
+  --bg-elevated: #18181B;
+  --bg-overlay: rgba(0, 0, 0, 0.8);
+  --bg-tooltip: #27272A;
+  --bg-input: #18181B;
+  --bg-hover: #1F1F23;
+  --bg-active: #27272A;
+
+  /* Text - Light on dark */
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+  --text-inverse: #0A0A0B;
+  --text-link: #22D3EE;
+
+  /* Borders - Subtle dark borders */
+  --border-default: #27272A;
+  --border-subtle: #1F1F23;
+  --border-strong: #3F3F46;
+  --border-focus: #22D3EE;
+
+  /* Accents - Cyan primary */
+  --accent-primary: #22D3EE;
+  --accent-info: #38BDF8;
+  --accent-success: #4ADE80;
+  --accent-warning: #FBBF24;
+  --accent-danger: #F87171;
+
+  /* Map Visualization - Glowing nodes */
+  --node-fill: #22D3EE;
+  --node-stroke: #06B6D4;
+  --node-glow: 0 0 12px rgba(34, 211, 238, 0.4);
+  --connection-line: #3F3F46;
+
+  /* Effects - Dark shadows with cyan glow */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5), 0 4px 6px rgba(0, 0, 0, 0.3);
+  --glow-primary: 0 0 20px rgba(34, 211, 238, 0.3);
+
+  /* Scrollbar - Dark track */
+  --scrollbar-track: #18181B;
+  --scrollbar-thumb: #3F3F46;
 }
 
+/* ============================================
+   ORGANIC THEME - Warm, natural, fluid
+   Green accent with soft shadows
+   ============================================ */
+
 [data-theme="organic"] {
-  --theme-background: #F5F3EF;
-  --theme-foreground: #2D2A26;
-  --theme-primary: #65A30D;
-  --theme-muted: #E8E4DD;
+  /* Backgrounds - Warm cream tones */
+  --bg-primary: #F5F3EF;
+  --bg-secondary: #EBE8E2;
+  --bg-elevated: #FDFCFA;
+  --bg-overlay: rgba(45, 42, 38, 0.5);
+  --bg-tooltip: #2D2A26;
+  --bg-input: #FDFCFA;
+  --bg-hover: #E8E4DD;
+  --bg-active: #DDD8CF;
+
+  /* Text - Warm dark tones */
+  --text-primary: #2D2A26;
+  --text-secondary: #5C5650;
+  --text-muted: #8A847C;
+  --text-inverse: #F5F3EF;
+  --text-link: #65A30D;
+
+  /* Borders - Warm subtle borders */
+  --border-default: #DDD8CF;
+  --border-subtle: #E8E4DD;
+  --border-strong: #C4BEB4;
+  --border-focus: #65A30D;
+
+  /* Accents - Natural green */
+  --accent-primary: #65A30D;
+  --accent-info: #0D9488;
+  --accent-success: #059669;
+  --accent-warning: #D97706;
+  --accent-danger: #DC2626;
+
+  /* Map Visualization - Organic feel */
+  --node-fill: #65A30D;
+  --node-stroke: #4D7C0F;
+  --node-glow: none;
+  --connection-line: #C4BEB4;
+
+  /* Effects - Soft, warm shadows */
+  --shadow-sm: 0 1px 3px rgba(45, 42, 38, 0.06), 0 1px 2px rgba(45, 42, 38, 0.04);
+  --shadow-md: 0 4px 8px rgba(45, 42, 38, 0.08), 0 2px 4px rgba(45, 42, 38, 0.04);
+  --shadow-lg: 0 12px 20px rgba(45, 42, 38, 0.10), 0 4px 8px rgba(45, 42, 38, 0.04);
+  --glow-primary: none;
+
+  /* Scrollbar - Warm tones */
+  --scrollbar-track: #EBE8E2;
+  --scrollbar-thumb: #C4BEB4;
 }

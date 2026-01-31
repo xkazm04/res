@@ -19,6 +19,7 @@ interface VirtualizedTopicListProps {
   estimatedItemHeight?: number;
   onDiscover?: () => void;
   onTopicAction?: (id: string, action: 'menu' | 'delete' | 'research') => void;
+  onTopicStatusChange?: (id: string, status: TopicStatus, sessionId?: string) => void;
 }
 
 export function VirtualizedTopicList({
@@ -26,6 +27,7 @@ export function VirtualizedTopicList({
   estimatedItemHeight = 96,
   onDiscover,
   onTopicAction,
+  onTopicStatusChange,
 }: VirtualizedTopicListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -52,12 +54,36 @@ export function VirtualizedTopicList({
   }, []);
 
   const handleAction = useCallback(
-    (id: string, action: 'menu' | 'delete' | 'research') => {
-      // Log for now; delete wiring in Task 4
+    async (id: string, action: 'menu' | 'delete' | 'research') => {
+      if (action === 'research') {
+        try {
+          const res = await fetch(`/api/topics/${id}/research`, {
+            method: 'POST',
+          });
+
+          if (res.status === 202) {
+            const data = await res.json();
+            // Notify parent of status change for optimistic update
+            onTopicStatusChange?.(id, 'queued', data.session_id);
+          } else if (res.status === 409) {
+            const data = await res.json();
+            alert(`Research already ${data.status} for this topic.`);
+          } else {
+            const data = await res.json();
+            alert(data.error || 'Failed to initiate research');
+          }
+        } catch (error) {
+          console.error('Research initiation failed:', error);
+          alert('Failed to initiate research. Please try again.');
+        }
+        return;
+      }
+
+      // Existing action handling
       console.log(`Topic action: ${action} on ${id}`);
       onTopicAction?.(id, action);
     },
-    [onTopicAction]
+    [onTopicAction, onTopicStatusChange]
   );
 
   if (items.length === 0) {

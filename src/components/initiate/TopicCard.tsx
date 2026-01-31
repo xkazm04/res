@@ -1,7 +1,60 @@
 'use client';
 
+import {
+  Sparkles,
+  Clock,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Trash2,
+  LucideIcon,
+} from 'lucide-react';
 import { formatRelativeTime } from '@/src/lib/utils';
 import { TopicStatus } from '@/src/types/research';
+
+// WCAG-compliant status config: icon + color + text (not just color)
+const STATUS_CONFIG: Record<
+  TopicStatus,
+  { icon: LucideIcon; label: string; bgClass: string; textClass: string; animate?: boolean }
+> = {
+  new: {
+    icon: Sparkles,
+    label: 'New',
+    bgClass: 'bg-[var(--blue-light)]',
+    textClass: 'text-[var(--blue-primary)]',
+  },
+  queued: {
+    icon: Clock,
+    label: 'Queued',
+    bgClass: 'bg-[var(--amber-light)]',
+    textClass: 'text-[var(--amber-primary)]',
+  },
+  researching: {
+    icon: Loader2,
+    label: 'Researching',
+    bgClass: 'bg-[var(--blue-light)]',
+    textClass: 'text-[var(--blue-primary)]',
+    animate: true,
+  },
+  completed: {
+    icon: CheckCircle2,
+    label: 'Completed',
+    bgClass: 'bg-[var(--green-light)]',
+    textClass: 'text-[var(--green-primary)]',
+  },
+  failed: {
+    icon: AlertCircle,
+    label: 'Failed',
+    bgClass: 'bg-[var(--red-light)]',
+    textClass: 'text-[var(--red-primary)]',
+  },
+  deleted: {
+    icon: Trash2,
+    label: 'Deleted',
+    bgClass: 'bg-[var(--bg-hover)]',
+    textClass: 'text-[var(--text-muted)]',
+  },
+};
 
 interface TopicCardProps {
   topic: {
@@ -39,11 +92,30 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
         </p>
       )}
 
-      {/* Footer with timestamp */}
+      {/* Footer with timestamp and status */}
       <div className="mt-2 flex items-center gap-2">
         <span className="text-xs text-[var(--text-muted)]">
           {formatRelativeTime(topic.discoveredAt)}
         </span>
+
+        {/* WCAG-compliant status: icon + color + text */}
+        {(() => {
+          const config = STATUS_CONFIG[topic.status];
+          const Icon = config.icon;
+          return (
+            <span
+              className={`
+                inline-flex items-center gap-1
+                px-1.5 py-0.5 rounded
+                text-[10px] font-medium
+                ${config.bgClass} ${config.textClass}
+              `}
+            >
+              <Icon size={12} className={config.animate ? 'animate-spin' : ''} />
+              {config.label}
+            </span>
+          );
+        })()}
       </div>
     </div>
   );

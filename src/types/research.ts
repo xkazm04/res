@@ -558,7 +558,7 @@ export interface DataSource {
   createdAt: string;
 }
 
-export type TopicStatus = 'new' | 'queued' | 'researching' | 'completed' | 'failed';
+export type TopicStatus = 'new' | 'queued' | 'researching' | 'completed' | 'failed' | 'deleted';
 
 export type TopicSignal = 'breaking' | 'trending' | 'controversial';
 

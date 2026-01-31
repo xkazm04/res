@@ -23,6 +23,7 @@ interface SourceColumnProps {
   onTopicsDiscovered?: (slug: string, count: number) => void;
   onDiscoveryError?: (slug: string, error: string) => void;
   isDiscovering?: boolean;
+  onTopicStatusChange?: (id: string, status: TopicStatus, sessionId?: string) => void;
 }
 
 export function SourceColumn({
@@ -37,6 +38,7 @@ export function SourceColumn({
   onTopicsDiscovered,
   onDiscoveryError,
   isDiscovering = false,
+  onTopicStatusChange,
 }: SourceColumnProps) {
   return (
     <div
@@ -80,7 +82,11 @@ export function SourceColumn({
 
       {/* Column Content */}
       <div className="flex-1 overflow-hidden">
-        <VirtualizedTopicList items={topics} onDiscover={onDiscover} />
+        <VirtualizedTopicList
+          items={topics}
+          onDiscover={onDiscover}
+          onTopicStatusChange={onTopicStatusChange}
+        />
       </div>
     </div>
   );

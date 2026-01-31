@@ -118,6 +118,30 @@ export default function InitiatePage() {
     setDiscoveringSource(slug);
   }, []);
 
+  // Handle topic status change (optimistic update)
+  const handleTopicStatusChange = useCallback(
+    (id: string, status: TopicStatus, sessionId?: string) => {
+      setTopicsBySource((prev) => {
+        const updated = { ...prev };
+        // Find which source has this topic and update it
+        for (const slug of Object.keys(updated)) {
+          const topics = updated[slug];
+          const topicIndex = topics.findIndex((t) => t.id === id);
+          if (topicIndex !== -1) {
+            updated[slug] = topics.map((t) =>
+              t.id === id ? { ...t, status } : t
+            );
+            break;
+          }
+        }
+        return updated;
+      });
+      // Log for debugging
+      console.log(`Topic ${id} status changed to ${status}${sessionId ? `, session: ${sessionId}` : ''}`);
+    },
+    []
+  );
+
   return (
     <main className="h-screen bg-[var(--bg-primary)]">
       {/* Page Header */}
@@ -146,6 +170,7 @@ export default function InitiatePage() {
             onTopicsDiscovered={handleTopicsDiscovered}
             onDiscoveryError={handleDiscoveryError}
             isDiscovering={discoveringSource === source.slug}
+            onTopicStatusChange={handleTopicStatusChange}
           />
         ))}
       </div>

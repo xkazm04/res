@@ -329,6 +329,8 @@ export interface FindingPerspective {
 // ============================================
 
 export interface PerspectiveSpecializedData {
+  // Metadata
+  original_type?: string;
   // Historical
   parallels?: string[];
   patterns?: string[];
@@ -476,11 +478,62 @@ export interface SessionWithDetails extends ResearchSession {
   findings: ResearchFinding[];
   sources: ResearchSource[];
   perspectives: ResearchPerspective[];
+  queries?: ResearchQuery[];
   decomposition?: QueryDecomposition & { sub_queries: SubQuery[] };
   relationships: FindingRelationship[];
   contradictions: ResearchContradiction[];
   gaps: ResearchGap[];
   causal_chains: CausalChain[];
+  entities?: KnowledgeEntity[];
+  topic?: KnowledgeTopic;
+  knowledge_claims?: KnowledgeClaim[];
+}
+
+// ============================================
+// GROUPING & NAVIGATION TYPES
+// ============================================
+
+export interface TopicGroup {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  topic_type?: TopicType;
+  parent_id?: string;
+  session_count: number;
+  finding_count: number;
+  entity_count: number;
+  sessions?: Array<{
+    id: string;
+    template_type: string;
+    status: SessionStatus;
+  }>;
+  children?: TopicGroup[];
+}
+
+export interface EntityGroup {
+  id: string;
+  canonical_name: string;
+  entity_type: EntityType;
+  aliases: string[];
+  description?: string;
+  mention_count: number;
+  claim_count: number;
+  session_ids: string[];
+}
+
+export interface FindingTypeCount {
+  finding_type: FindingType;
+  count: number;
+  avg_confidence: number;
+}
+
+export interface TemplateGrouping {
+  template_type: string;
+  sessions: ResearchSession[];
+  total_findings: number;
+  total_sources: number;
+  topics: TopicGroup[];
 }
 
 export interface FindingWithContext extends ResearchFinding {
@@ -488,4 +541,36 @@ export interface FindingWithContext extends ResearchFinding {
   relationships: FindingRelationship[];
   perspectives: FindingPerspective[];
   entities: KnowledgeEntity[];
+}
+
+// ============================================
+// DATA SOURCES & RESEARCH TOPICS (Phase 08)
+// ============================================
+
+export interface DataSource {
+  id: string;
+  slug: string;
+  name: string;
+  icon: string;
+  color: string;
+  searchPattern?: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export type TopicStatus = 'new' | 'queued' | 'researching' | 'completed' | 'failed';
+
+export type TopicSignal = 'breaking' | 'trending' | 'controversial';
+
+export interface ResearchTopic {
+  id: string;
+  sourceId: string;
+  title: string;
+  description?: string;
+  sourceUrl?: string;
+  status: TopicStatus;
+  sessionId?: string;
+  signals: TopicSignal[];
+  discoveredAt: string;
+  updatedAt: string;
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   Sparkles,
   Clock,
@@ -8,6 +9,7 @@ import {
   AlertCircle,
   Trash2,
   MoreVertical,
+  Beaker,
   LucideIcon,
 } from 'lucide-react';
 import { formatRelativeTime } from '@/src/lib/utils';
@@ -71,18 +73,42 @@ interface TopicCardProps {
 }
 
 export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [researchLoading, setResearchLoading] = useState(false);
+
+  // Status check for disabling research
+  const canResearch = topic.status === 'new' || topic.status === 'failed';
+
+  // Click-outside handler
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as Element).closest('[data-topic-menu]')) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [menuOpen]);
+
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
     onSelect(topic.id);
   };
 
-  const handleActionClick = (e: React.MouseEvent) => {
+  const handleResearch = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onAction(topic.id, 'menu');
+    setMenuOpen(false);
+    setResearchLoading(true);
+    onAction(topic.id, 'research');
+    // Note: Parent handles the actual API call and resets loading via status update
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    setMenuOpen(false);
     try {
       const res = await fetch(`/api/topics/${topic.id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -94,6 +120,13 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
       console.error('Failed to delete topic:', error);
     }
   };
+
+  // Reset loading state when status changes (e.g., to 'queued')
+  useEffect(() => {
+    if (topic.status !== 'new' && topic.status !== 'failed') {
+      setResearchLoading(false);
+    }
+  }, [topic.status]);
 
   return (
     <div
@@ -164,11 +197,13 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex-shrink-0 flex flex-col gap-1">
-        {/* Action menu button */}
+      {/* Action menu */}
+      <div className="flex-shrink-0 relative" data-topic-menu>
         <button
-          onClick={handleActionClick}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen(!menuOpen);
+          }}
           className="
             p-1 rounded
             hover:bg-[var(--bg-secondary)]
@@ -177,24 +212,55 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
             hover:text-[var(--text-primary)]
           "
           aria-label={`Actions for ${topic.title}`}
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
         >
           <MoreVertical size={16} />
         </button>
 
-        {/* Delete button (simple for now, dropdown in Phase 11) */}
-        <button
-          onClick={handleDelete}
-          className="
-            p-1 rounded
-            hover:bg-[var(--red-light)]
-            transition-colors
-            text-[var(--text-muted)]
-            hover:text-[var(--red-primary)]
-          "
-          aria-label={`Delete ${topic.title}`}
-        >
-          <Trash2 size={14} />
-        </button>
+        {menuOpen && (
+          <div
+            className="
+              absolute right-0 top-full mt-1
+              bg-[var(--bg-primary)] border border-[var(--border-default)]
+              rounded shadow-lg z-10 min-w-[140px]
+            "
+            role="menu"
+          >
+            <button
+              onClick={handleResearch}
+              disabled={!canResearch || researchLoading}
+              className="
+                w-full px-3 py-2 text-left text-sm
+                flex items-center gap-2
+                hover:bg-[var(--bg-hover)]
+                disabled:opacity-50 disabled:cursor-not-allowed
+                text-[var(--text-primary)]
+              "
+              role="menuitem"
+            >
+              {researchLoading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Beaker size={14} />
+              )}
+              Research
+            </button>
+            <button
+              onClick={handleDelete}
+              className="
+                w-full px-3 py-2 text-left text-sm
+                flex items-center gap-2
+                hover:bg-[var(--red-light)]
+                text-[var(--red-primary)]
+              "
+              role="menuitem"
+            >
+              <Trash2 size={14} />
+              Delete
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

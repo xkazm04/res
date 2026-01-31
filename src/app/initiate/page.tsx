@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Twitter, Globe, Newspaper, Cpu, TrendingUp,
   Shield, Zap, MessageCircle
@@ -8,6 +8,7 @@ import {
 import { SourceColumn } from '@/src/components/initiate/SourceColumn';
 import { ScrollIndicator } from '@/src/components/initiate/ScrollIndicator';
 import { SOURCES } from '@/src/lib/sources';
+import { supabase } from '@/src/lib/supabase';
 import { TopicStatus } from '@/src/types/research';
 
 // Map source slugs to Lucide icons (icons can't be serialized in SOURCES)
@@ -24,22 +25,99 @@ const ICON_MAP: Record<string, typeof Twitter> = {
   reddit: MessageCircle,
 };
 
-// Mock data generator for performance testing (120 items per column)
-function generateMockTopics(sourceSlug: string, count: number = 120) {
-  const statuses: TopicStatus[] = ['new', 'queued', 'researching', 'completed', 'failed'];
-  const now = Date.now();
-  return Array.from({ length: count }, (_, i) => ({
-    id: `${sourceSlug}-topic-${i}`,
-    title: `Topic ${i + 1}: Breaking news about ${sourceSlug} developments in technology sector`,
-    description: `This is a summary of topic ${i + 1} from ${sourceSlug}. It contains important information that users might want to research further.`,
-    status: statuses[Math.floor(Math.random() * statuses.length)],
-    // Spread timestamps: newest at top, oldest at bottom
-    discoveredAt: new Date(now - i * 3600000 * (Math.random() * 2 + 0.5)).toISOString(),
-  }));
+// Topic type from database
+interface Topic {
+  id: string;
+  title: string;
+  description?: string;
+  status: TopicStatus;
+  discoveredAt: string;
+}
+
+// Database row shape
+interface TopicRow {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  discovered_at: string;
+}
+
+// Transform database row to UI topic
+function transformTopic(row: TopicRow): Topic {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? undefined,
+    status: row.status as TopicStatus,
+    discoveredAt: row.discovered_at,
+  };
 }
 
 export default function InitiatePage() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [topicsBySource, setTopicsBySource] = useState<Record<string, Topic[]>>({});
+  const [discoveringSource, setDiscoveringSource] = useState<string | null>(null);
+
+  // Fetch topics for a specific source
+  const fetchTopicsForSource = useCallback(async (sourceSlug: string) => {
+    // Get source ID from slug
+    const { data: source } = await supabase
+      .from('data_sources')
+      .select('id')
+      .eq('slug', sourceSlug)
+      .single();
+
+    if (source) {
+      const { data: topics } = await supabase
+        .from('research_topics')
+        .select('id, title, description, status, discovered_at')
+        .eq('source_id', source.id)
+        .neq('status', 'deleted')
+        .order('discovered_at', { ascending: false });
+
+      if (topics) {
+        setTopicsBySource(prev => ({
+          ...prev,
+          [sourceSlug]: topics.map(transformTopic),
+        }));
+      }
+    }
+  }, []);
+
+  // Load initial topics on mount
+  useEffect(() => {
+    SOURCES.forEach(source => {
+      fetchTopicsForSource(source.slug);
+    });
+  }, [fetchTopicsForSource]);
+
+  // Handle successful topic discovery
+  const handleTopicsDiscovered = useCallback(async (slug: string, count: number) => {
+    // Refresh topics for this source
+    await fetchTopicsForSource(slug);
+
+    // Log success
+    console.log(`Discovered ${count} topic${count !== 1 ? 's' : ''} from ${slug}`);
+  }, [fetchTopicsForSource]);
+
+  // Handle discovery error
+  const handleDiscoveryError = useCallback((slug: string, error: string) => {
+    console.error(`Discovery failed for ${slug}: ${error}`);
+    // Show alert for user feedback (can upgrade to toast library later)
+    alert(`Discovery failed: ${error}`);
+  }, []);
+
+  // Handle download (placeholder)
+  const handleDownload = useCallback((slug: string) => {
+    console.log(`Download requested for ${slug}`);
+  }, []);
+
+  // Handle discover from empty state (triggers same flow as button)
+  const handleDiscover = useCallback((slug: string) => {
+    setDiscoveringSource(slug);
+  }, []);
+
   return (
     <main className="h-screen bg-[var(--bg-primary)]">
       {/* Page Header */}
@@ -62,7 +140,12 @@ export default function InitiatePage() {
             icon={ICON_MAP[source.slug] || Globe}
             color={source.color}
             isFirst={index === 0}
-            topics={generateMockTopics(source.slug)}
+            topics={topicsBySource[source.slug] || []}
+            onDownload={handleDownload}
+            onDiscover={() => handleDiscover(source.slug)}
+            onTopicsDiscovered={handleTopicsDiscovered}
+            onDiscoveryError={handleDiscoveryError}
+            isDiscovering={discoveringSource === source.slug}
           />
         ))}
       </div>

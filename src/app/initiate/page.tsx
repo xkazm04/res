@@ -1,11 +1,14 @@
 'use client';
 
+import { useRef } from 'react';
 import {
   Twitter, Globe, Newspaper, Cpu, TrendingUp,
   Shield, Zap, MessageCircle
 } from 'lucide-react';
 import { SourceColumn } from '@/src/components/initiate/SourceColumn';
+import { ScrollIndicator } from '@/src/components/initiate/ScrollIndicator';
 import { SOURCES } from '@/src/lib/sources';
+import { TopicStatus } from '@/src/types/research';
 
 // Map source slugs to Lucide icons (icons can't be serialized in SOURCES)
 const ICON_MAP: Record<string, typeof Twitter> = {
@@ -21,7 +24,19 @@ const ICON_MAP: Record<string, typeof Twitter> = {
   reddit: MessageCircle,
 };
 
+// Mock data generator for performance testing (120 items per column)
+function generateMockTopics(sourceSlug: string, count: number = 120) {
+  const statuses: TopicStatus[] = ['new', 'queued', 'researching', 'completed', 'failed'];
+  return Array.from({ length: count }, (_, i) => ({
+    id: `${sourceSlug}-topic-${i}`,
+    title: `Topic ${i + 1}: Breaking news about ${sourceSlug} developments in technology sector`,
+    description: `This is a summary of topic ${i + 1} from ${sourceSlug}. It contains important information that users might want to research further.`,
+    status: statuses[Math.floor(Math.random() * statuses.length)],
+  }));
+}
+
 export default function InitiatePage() {
+  const containerRef = useRef<HTMLDivElement>(null);
   return (
     <main className="h-screen bg-[var(--bg-primary)]">
       {/* Page Header */}
@@ -35,7 +50,7 @@ export default function InitiatePage() {
       </header>
 
       {/* 10-Column Grid */}
-      <div className="initiate-grid-container">
+      <div ref={containerRef} className="initiate-grid-container">
         {SOURCES.map((source, index) => (
           <SourceColumn
             key={source.slug}
@@ -44,9 +59,16 @@ export default function InitiatePage() {
             icon={ICON_MAP[source.slug] || Globe}
             color={source.color}
             isFirst={index === 0}
+            topics={generateMockTopics(source.slug)}
           />
         ))}
       </div>
+
+      {/* Scroll Indicator */}
+      <ScrollIndicator
+        containerRef={containerRef}
+        totalColumns={SOURCES.length}
+      />
     </main>
   );
 }

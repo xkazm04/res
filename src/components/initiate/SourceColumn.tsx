@@ -1,7 +1,8 @@
 'use client';
 
-import { ReactNode } from 'react';
 import { LucideIcon } from 'lucide-react';
+import { VirtualizedTopicList } from './VirtualizedTopicList';
+import { TopicStatus } from '@/src/types/research';
 
 interface SourceColumnProps {
   name: string;
@@ -9,7 +10,12 @@ interface SourceColumnProps {
   icon: LucideIcon;
   color: string;
   isFirst?: boolean;
-  children?: ReactNode;
+  topics?: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    status: TopicStatus;
+  }>;
 }
 
 export function SourceColumn({
@@ -18,7 +24,7 @@ export function SourceColumn({
   icon: Icon,
   color,
   isFirst = false,
-  children
+  topics = []
 }: SourceColumnProps) {
   return (
     <div
@@ -43,13 +49,9 @@ export function SourceColumn({
         </span>
       </div>
 
-      {/* Column Content - placeholder for virtualized list */}
+      {/* Column Content */}
       <div className="flex-1 overflow-hidden">
-        {children || (
-          <div className="p-4 text-sm text-[var(--text-muted)]">
-            No topics yet. Click Discover to find trending topics.
-          </div>
-        )}
+        <VirtualizedTopicList items={topics} />
       </div>
     </div>
   );

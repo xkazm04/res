@@ -2,11 +2,23 @@
 
 ## What This Is
 
-A multi-level discovery interface for exploring thousands of research sessions across categories (financial, investigative, tech market, competitive, due diligence, etc.). Users arrive unfamiliar with what exists and navigate through a map-like interface to discover compelling insights. Three switchable visual themes (Radar, Swiss, Organic) provide distinct aesthetic experiences.
+A research initiation and exploration platform. Users discover newsworthy topics from multiple data sources (Twitter, BBC, etc.), review and initiate deep research on selected topics, and explore completed research findings. The current focus is a dashboard for topic discovery and research initiation.
 
 ## Core Value
 
-Enable users to discover and explore research findings through intuitive spatial navigation, teasing compelling insights that draw them deeper into the knowledge landscape.
+Enable users to efficiently discover, prioritize, and initiate research on newsworthy topics from diverse data sources.
+
+## Current Milestone: v2.0 Research Initiation Dashboard
+
+**Goal:** Build a compact, efficient UI for discovering and initiating research from 10 data source lists
+
+**Target features:**
+- New `/initiate` page with 10-column topic lists (Swiss theme)
+- Data sources: Twitter, BBC, Reuters, etc. (mocked initially)
+- Per-list: download topics action
+- Per-item: delete, research trigger, status indicator (pending/researching/completed)
+- LLM prompt for on-demand topic discovery per source
+- Database schema for research topics and data sources
 
 ## Requirements
 
@@ -18,53 +30,48 @@ Enable users to discover and explore research findings through intuitive spatial
 
 ### Active
 
-**Navigation Structure:**
-- [ ] Template type selector (Level 1) — tree/hierarchy view of research categories
-- [ ] Topic map (Level 2) — geographic-style map with clustered nodes
-- [ ] Research detail modal (Level 3) — themed view showing full research
-- [ ] Smooth zoom transition from template selector to topic map
-- [ ] Click cluster to zoom deeper into sub-clusters
-- [ ] Click single research to open modal overlay
-- [ ] Breadcrumb navigation showing current path
-- [ ] Back button for level navigation
-- [ ] Time filter in header to filter visible researches
+**Dashboard Layout (v2):**
+- [ ] New `/initiate` page route
+- [ ] 10-column layout showing all source lists without scrolling
+- [ ] Swiss theme styling (clean, minimal, high-contrast)
+- [ ] Compact, information-dense design
 
-**Visual Themes (switchable):**
-- [ ] Radar theme — dark mode, glowing nodes, command center aesthetic
-- [ ] Swiss theme — clean white/light, precise typography, minimal
-- [ ] Organic theme — fluid, living ecosystem, natural clustering
-- [ ] Theme affects all levels including research detail modal
-- [ ] Theme switcher in UI (tab-style)
+**Data Sources (v2):**
+- [ ] 10 mocked data sources (Twitter, BBC, Reuters, etc.)
+- [ ] Source header with name and download action
+- [ ] Source list with scrollable topic items
 
-**Map Nodes:**
-- [ ] Node size represents number of researches in cluster
-- [ ] Node color represents template type
-- [ ] Node label shows topic name (always visible)
-- [ ] Hover tooltip with unique styling (not generic)
-- [ ] Tooltip shows: insight-style headline + research date
+**Topic Items (v2):**
+- [ ] Display topic title and discovery date
+- [ ] Delete action (soft delete)
+- [ ] Research action (triggers Python actor)
+- [ ] Status indicator: pending (default), researching (in progress), completed (linked to session)
 
-**Research Detail View (new):**
-- [ ] Themed modal overlay matching selected theme
-- [ ] Display findings, sources, perspectives from research
-- [ ] Replace legacy report view entirely
+**LLM Discovery (v2):**
+- [ ] Prompt design for web-search enabled LLM
+- [ ] On-demand discovery button per source
+- [ ] Topics returned: title, description, URL, signals (controversial/trending/breaking)
 
-**Data Layer:**
-- [ ] Add `headline` column to research_sessions table
-- [ ] Update Python actor to generate insight-style headlines
-- [ ] Manual backfill headlines for existing researches
+**Database Schema (v2):**
+- [ ] `data_sources` table — source definitions
+- [ ] `research_topics` table — discovered topics with status
+- [ ] Migration script for Supabase
+- [ ] Link research_topics to research_sessions on completion
 
-**Cleanup:**
-- [ ] Delete legacy report components (src/components/report/)
-- [ ] Delete legacy canvas components (src/components/canvas/)
-- [ ] Delete unused stores and hooks
+**Deferred from v1:**
+- [ ] Navigation shell (template selector, breadcrumb)
+- [ ] Topic map visualization
+- [ ] Transitions and animations
+- [ ] Research detail modal
 
 ### Out of Scope
 
-- Search functionality — this is discovery-first, not search-first
-- User authentication/multi-tenant — single user exploration
-- Real-time collaboration — solo exploration experience
-- Mobile-first design — desktop primary (responsive later)
-- Export functionality — viewing only for v1
+- Search functionality — discovery-first approach
+- User authentication/multi-tenant — single user for now
+- Mobile-first design — desktop primary
+- Automated/scheduled discovery — on-demand only for v2
+- Topic editing — only delete and research actions
+- Batch research — one topic at a time
 
 ## Context
 
@@ -72,40 +79,40 @@ Enable users to discover and explore research findings through intuitive spatial
 - Next.js 16 + React 19 frontend with Tailwind CSS 4
 - Python backend with Apify SDK, deployed to Cloud Run
 - Supabase PostgreSQL for all research data
-- D3 currently used for canvas (will be replaced/reimagined)
 - Zustand for state management
-- ~1900 lines of codebase analysis in .planning/codebase/
+- Swiss theme system with semantic CSS variables (from v1)
 
-**Why Rebuilding:**
-- Current UI is "ugly and non-creative"
-- Visual representation system unclear
-- Transitions not smooth, laggy performance
-- No clear direction for representing diverse research types attractively
+**v1 Foundation (completed):**
+- Theme switcher with persistence (Radar, Swiss, Organic)
+- Semantic variable system (~35 variables)
+- Legacy component cleanup
 
-**Research Data Structure:**
+**Current Schema (research_sessions):**
 - Sessions have template_type, query, status, parameters
 - Findings have type, content, confidence_score, evidence
 - Sources have url, title, domain, credibility_score
-- Perspectives provide expert analysis angles
-- Contradictions track conflicting findings
-- Gaps identify missing information
+- No table for unresearched topics (v2 adds this)
+
+**v2 Schema Additions:**
+- `data_sources` — 10 source definitions (Twitter, BBC, etc.)
+- `research_topics` — Topics discovered but not yet researched
 
 ## Constraints
 
-- **Performance**: Must handle hundreds of visible nodes without lag
-- **Data compatibility**: Must work with existing Supabase schema (extend, don't break)
-- **Theme consistency**: All three themes must feel cohesive and complete
-- **Headline backfill**: Existing researches won't have headlines until manually updated
+- **Performance**: 10 lists visible simultaneously without layout shift
+- **Data compatibility**: Extend Supabase schema, don't break existing tables
+- **Theme**: Swiss theme only for v2 (other themes deferred)
+- **Actor integration**: Must trigger existing Python research actor
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Three visual themes instead of one | User preference exploration, differentiation | — Pending |
-| Discovery-first over search-first | Users don't know what exists, need wayfinding | — Pending |
-| Headline as human-curated hook | No clear metric for "compelling", editorial judgment needed | — Pending |
-| Modal overlay for research detail | Maintains map context, quick in/out exploration | — Pending |
-| Geographic map metaphor for topics | Handles dozens-to-hundreds of nodes naturally | — Pending |
+| Pivot from v1 explorer to v2 initiation | User priority shifted to research initiation workflow | — Pending |
+| 10-column layout for source lists | Maximize information density, minimize scrolling | — Pending |
+| Swiss theme only for v2 | Focus on functionality first, visual variety later | — Pending |
+| LLM discovery on-demand | Avoid background processing complexity | — Pending |
+| Soft delete for topics | Preserve data for audit, allow recovery | — Pending |
 
 ---
-*Last updated: 2026-01-27 after initialization*
+*Last updated: 2026-01-31 after v2 milestone start*

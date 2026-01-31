@@ -2,6 +2,7 @@
 
 import { LucideIcon, Download } from 'lucide-react';
 import { VirtualizedTopicList } from './VirtualizedTopicList';
+import { DiscoverButton } from './DiscoverButton';
 import { TopicStatus } from '@/src/types/research';
 
 interface SourceColumnProps {
@@ -19,6 +20,9 @@ interface SourceColumnProps {
   }>;
   onDownload?: (slug: string) => void;
   onDiscover?: () => void;
+  onTopicsDiscovered?: (slug: string, count: number) => void;
+  onDiscoveryError?: (slug: string, error: string) => void;
+  isDiscovering?: boolean;
 }
 
 export function SourceColumn({
@@ -29,7 +33,10 @@ export function SourceColumn({
   isFirst = false,
   topics = [],
   onDownload,
-  onDiscover
+  onDiscover,
+  onTopicsDiscovered,
+  onDiscoveryError,
+  isDiscovering = false,
 }: SourceColumnProps) {
   return (
     <div
@@ -54,13 +61,21 @@ export function SourceColumn({
             {name}
           </span>
         </div>
-        <button
-          onClick={() => onDownload?.(slug)}
-          className="p-1.5 rounded hover:bg-[var(--bg-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-          title="Download topics"
-        >
-          <Download size={14} />
-        </button>
+        <div className="flex items-center gap-1">
+          <DiscoverButton
+            sourceSlug={slug}
+            onDiscovered={(count) => onTopicsDiscovered?.(slug, count)}
+            onError={(error) => onDiscoveryError?.(slug, error)}
+            disabled={isDiscovering}
+          />
+          <button
+            onClick={() => onDownload?.(slug)}
+            className="p-1.5 rounded hover:bg-[var(--bg-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            title="Download topics"
+          >
+            <Download size={14} />
+          </button>
+        </div>
       </div>
 
       {/* Column Content */}

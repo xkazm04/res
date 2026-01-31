@@ -3,6 +3,7 @@
 import { useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { TopicStatus } from '@/src/types/research';
+import { EmptyState } from './EmptyState';
 
 interface TopicItem {
   id: string;
@@ -14,11 +15,13 @@ interface TopicItem {
 interface VirtualizedTopicListProps {
   items: TopicItem[];
   estimatedItemHeight?: number;
+  onDiscover?: () => void;
 }
 
 export function VirtualizedTopicList({
   items,
-  estimatedItemHeight = 80
+  estimatedItemHeight = 80,
+  onDiscover
 }: VirtualizedTopicListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -33,9 +36,9 @@ export function VirtualizedTopicList({
 
   if (items.length === 0) {
     return (
-      <div className="p-4 text-sm text-[var(--text-muted)]">
-        No topics yet. Click Discover to find trending topics.
-      </div>
+      <EmptyState
+        action={onDiscover ? { label: 'Discover Topics', onClick: onDiscover } : undefined}
+      />
     );
   }
 

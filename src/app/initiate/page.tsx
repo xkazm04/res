@@ -27,11 +27,14 @@ const ICON_MAP: Record<string, typeof Twitter> = {
 // Mock data generator for performance testing (120 items per column)
 function generateMockTopics(sourceSlug: string, count: number = 120) {
   const statuses: TopicStatus[] = ['new', 'queued', 'researching', 'completed', 'failed'];
+  const now = Date.now();
   return Array.from({ length: count }, (_, i) => ({
     id: `${sourceSlug}-topic-${i}`,
     title: `Topic ${i + 1}: Breaking news about ${sourceSlug} developments in technology sector`,
     description: `This is a summary of topic ${i + 1} from ${sourceSlug}. It contains important information that users might want to research further.`,
     status: statuses[Math.floor(Math.random() * statuses.length)],
+    // Spread timestamps: newest at top, oldest at bottom
+    discoveredAt: new Date(now - i * 3600000 * (Math.random() * 2 + 0.5)).toISOString(),
   }));
 }
 

@@ -1,29 +1,34 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { TopicStatus } from '@/src/types/research';
 import { EmptyState } from './EmptyState';
+import { TopicCard } from './TopicCard';
 
 interface TopicItem {
   id: string;
   title: string;
   description?: string;
   status: TopicStatus;
+  discoveredAt: string;
 }
 
 interface VirtualizedTopicListProps {
   items: TopicItem[];
   estimatedItemHeight?: number;
   onDiscover?: () => void;
+  onTopicAction?: (id: string, action: 'menu' | 'delete' | 'research') => void;
 }
 
 export function VirtualizedTopicList({
   items,
-  estimatedItemHeight = 80,
-  onDiscover
+  estimatedItemHeight = 96,
+  onDiscover,
+  onTopicAction,
 }: VirtualizedTopicListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const virtualizer = useVirtualizer({
     count: items.length,
@@ -33,6 +38,27 @@ export function VirtualizedTopicList({
     // CRITICAL: Required for React 19 compatibility
     useFlushSync: false,
   });
+
+  const handleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleAction = useCallback(
+    (id: string, action: 'menu' | 'delete' | 'research') => {
+      // Log for now; delete wiring in Task 4
+      console.log(`Topic action: ${action} on ${id}`);
+      onTopicAction?.(id, action);
+    },
+    [onTopicAction]
+  );
 
   if (items.length === 0) {
     return (
@@ -70,29 +96,12 @@ export function VirtualizedTopicList({
                 transform: `translateY(${virtualItem.start}px)`,
               }}
             >
-              {/* Topic Card Placeholder - Phase 9 will add full TopicCard */}
-              <div className="px-4 py-3 border-b border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors">
-                <div className="text-sm font-medium text-[var(--text-primary)] line-clamp-2">
-                  {item.title}
-                </div>
-                {item.description && (
-                  <div className="mt-1 text-xs text-[var(--text-muted)] line-clamp-2">
-                    {item.description}
-                  </div>
-                )}
-                <div className="mt-2 flex items-center gap-2">
-                  <span className={`
-                    text-xs px-2 py-0.5 rounded
-                    ${item.status === 'new' ? 'bg-[var(--blue-light)] text-[var(--blue-primary)]' : ''}
-                    ${item.status === 'queued' ? 'bg-[var(--amber-light)] text-[var(--amber-primary)]' : ''}
-                    ${item.status === 'researching' ? 'bg-[var(--blue-light)] text-[var(--blue-primary)]' : ''}
-                    ${item.status === 'completed' ? 'bg-[var(--green-light)] text-[var(--green-primary)]' : ''}
-                    ${item.status === 'failed' ? 'bg-[var(--red-light)] text-[var(--red-primary)]' : ''}
-                  `}>
-                    {item.status}
-                  </span>
-                </div>
-              </div>
+              <TopicCard
+                topic={item}
+                selected={selectedIds.has(item.id)}
+                onSelect={handleSelect}
+                onAction={handleAction}
+              />
             </div>
           );
         })}

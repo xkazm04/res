@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Trash2,
+  MoreVertical,
   LucideIcon,
 } from 'lucide-react';
 import { formatRelativeTime } from '@/src/lib/utils';
@@ -70,52 +71,100 @@ interface TopicCardProps {
 }
 
 export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProps) {
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    onSelect(topic.id);
+  };
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAction(topic.id, 'menu');
+  };
+
   return (
     <div
       className={`
+        relative flex gap-2
         px-3 py-2
         border-b border-[var(--border-subtle)]
         hover:bg-[var(--bg-hover)]
         transition-colors
-        cursor-pointer
+        ${selected ? 'bg-[var(--blue-light)]' : ''}
       `}
     >
-      {/* Title - bold, 2 lines max */}
-      <h3 className="text-sm font-semibold text-[var(--text-primary)] line-clamp-2 leading-tight">
-        {topic.title}
-      </h3>
+      {/* Selection checkbox */}
+      <div className="flex-shrink-0 pt-0.5">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={handleCheckboxChange}
+          className="
+            w-4 h-4 rounded
+            border-[var(--border-default)]
+            accent-[var(--blue-primary)]
+            cursor-pointer
+            focus:ring-2 focus:ring-[var(--blue-primary)] focus:ring-offset-1
+          "
+          aria-label={`Select ${topic.title}`}
+        />
+      </div>
 
-      {/* Snippet - 3 lines max */}
-      {topic.description && (
-        <p className="text-xs text-[var(--text-muted)] line-clamp-3 mt-1 leading-relaxed">
-          {topic.description}
-        </p>
-      )}
+      {/* Main content */}
+      <div className="flex-1 min-w-0">
+        {/* Title - bold, 2 lines max */}
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] line-clamp-2 leading-tight">
+          {topic.title}
+        </h3>
 
-      {/* Footer with timestamp and status */}
-      <div className="mt-2 flex items-center gap-2">
-        <span className="text-xs text-[var(--text-muted)]">
-          {formatRelativeTime(topic.discoveredAt)}
-        </span>
+        {/* Snippet - 3 lines max */}
+        {topic.description && (
+          <p className="text-xs text-[var(--text-muted)] line-clamp-3 mt-1 leading-relaxed">
+            {topic.description}
+          </p>
+        )}
 
-        {/* WCAG-compliant status: icon + color + text */}
-        {(() => {
-          const config = STATUS_CONFIG[topic.status];
-          const Icon = config.icon;
-          return (
-            <span
-              className={`
-                inline-flex items-center gap-1
-                px-1.5 py-0.5 rounded
-                text-[10px] font-medium
-                ${config.bgClass} ${config.textClass}
-              `}
-            >
-              <Icon size={12} className={config.animate ? 'animate-spin' : ''} />
-              {config.label}
-            </span>
-          );
-        })()}
+        {/* Footer with timestamp and status */}
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-xs text-[var(--text-muted)]">
+            {formatRelativeTime(topic.discoveredAt)}
+          </span>
+
+          {/* WCAG-compliant status: icon + color + text */}
+          {(() => {
+            const config = STATUS_CONFIG[topic.status];
+            const Icon = config.icon;
+            return (
+              <span
+                className={`
+                  inline-flex items-center gap-1
+                  px-1.5 py-0.5 rounded
+                  text-[10px] font-medium
+                  ${config.bgClass} ${config.textClass}
+                `}
+              >
+                <Icon size={12} className={config.animate ? 'animate-spin' : ''} />
+                {config.label}
+              </span>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* Action menu button */}
+      <div className="flex-shrink-0">
+        <button
+          onClick={handleActionClick}
+          className="
+            p-1 rounded
+            hover:bg-[var(--bg-secondary)]
+            transition-colors
+            text-[var(--text-muted)]
+            hover:text-[var(--text-primary)]
+          "
+          aria-label={`Actions for ${topic.title}`}
+        >
+          <MoreVertical size={16} />
+        </button>
       </div>
     </div>
   );

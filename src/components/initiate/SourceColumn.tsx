@@ -15,6 +15,7 @@ interface SourceColumnProps {
     title: string;
     description?: string;
     status: TopicStatus;
+    discoveredAt: string;
   }>;
   onDownload?: (slug: string) => void;
   onDiscover?: () => void;

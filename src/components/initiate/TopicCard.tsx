@@ -81,6 +81,20 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
     onAction(topic.id, 'menu');
   };
 
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/topics/${topic.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        onAction(topic.id, 'delete');
+      } else {
+        console.error('Failed to delete topic');
+      }
+    } catch (error) {
+      console.error('Failed to delete topic:', error);
+    }
+  };
+
   return (
     <div
       className={`
@@ -150,8 +164,9 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
         </div>
       </div>
 
-      {/* Action menu button */}
-      <div className="flex-shrink-0">
+      {/* Action buttons */}
+      <div className="flex-shrink-0 flex flex-col gap-1">
+        {/* Action menu button */}
         <button
           onClick={handleActionClick}
           className="
@@ -164,6 +179,21 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
           aria-label={`Actions for ${topic.title}`}
         >
           <MoreVertical size={16} />
+        </button>
+
+        {/* Delete button (simple for now, dropdown in Phase 11) */}
+        <button
+          onClick={handleDelete}
+          className="
+            p-1 rounded
+            hover:bg-[var(--red-light)]
+            transition-colors
+            text-[var(--text-muted)]
+            hover:text-[var(--red-primary)]
+          "
+          aria-label={`Delete ${topic.title}`}
+        >
+          <Trash2 size={14} />
         </button>
       </div>
     </div>

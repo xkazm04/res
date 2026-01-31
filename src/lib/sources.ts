@@ -123,3 +123,35 @@ export function getSourceBySlug(slug: string): Omit<DataSource, 'id' | 'createdA
 export function isValidSourceSlug(slug: string): slug is SourceSlug {
   return SOURCE_SLUGS.includes(slug as SourceSlug);
 }
+
+/**
+ * Template mapping based on source characteristics
+ */
+const SOURCE_TEMPLATE_MAP: Record<SourceSlug, string> = {
+  // News sources -> investigative template
+  'bbc': 'investigative',
+  'reuters': 'investigative',
+  'nyt': 'investigative',
+  'guardian': 'investigative',
+  'ap-news': 'investigative',
+  'al-jazeera': 'investigative',
+  // Tech sources -> tech_market template
+  'techcrunch': 'tech_market',
+  // Financial sources -> financial template
+  'bloomberg': 'financial',
+  // Social sources -> understanding template
+  'twitter': 'understanding',
+  'reddit': 'understanding',
+};
+
+/**
+ * Get the appropriate research template for a source
+ * @param sourceSlug - The source slug to look up
+ * @returns Template type string (defaults to 'investigative')
+ */
+export function getTemplateForSource(sourceSlug: string): string {
+  if (isValidSourceSlug(sourceSlug)) {
+    return SOURCE_TEMPLATE_MAP[sourceSlug];
+  }
+  return 'investigative';
+}

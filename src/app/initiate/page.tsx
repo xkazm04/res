@@ -3,13 +3,14 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Twitter, Globe, Newspaper, Cpu, TrendingUp,
-  Shield, Zap, MessageCircle
+  Shield, Zap, MessageCircle, RefreshCw
 } from 'lucide-react';
 import { SourceColumn } from '@/src/components/initiate/SourceColumn';
 import { ScrollIndicator } from '@/src/components/initiate/ScrollIndicator';
 import { SOURCES } from '@/src/lib/sources';
 import { supabase } from '@/src/lib/supabase';
 import { TopicStatus } from '@/src/types/research';
+import { useStatusPolling, TopicStatusUpdate } from '@/src/hooks/useStatusPolling';
 
 // Map source slugs to Lucide icons (icons can't be serialized in SOURCES)
 const ICON_MAP: Record<string, typeof Twitter> = {
@@ -32,6 +33,7 @@ interface Topic {
   description?: string;
   status: TopicStatus;
   discoveredAt: string;
+  updatedAt?: string;
 }
 
 // Database row shape
@@ -41,6 +43,7 @@ interface TopicRow {
   description: string | null;
   status: string;
   discovered_at: string;
+  updated_at: string;
 }
 
 // Transform database row to UI topic
@@ -51,6 +54,7 @@ function transformTopic(row: TopicRow): Topic {
     description: row.description ?? undefined,
     status: row.status as TopicStatus,
     discoveredAt: row.discovered_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -71,7 +75,7 @@ export default function InitiatePage() {
     if (source) {
       const { data: topics } = await supabase
         .from('research_topics')
-        .select('id, title, description, status, discovered_at')
+        .select('id, title, description, status, discovered_at, updated_at')
         .eq('source_id', source.id)
         .neq('status', 'deleted')
         .order('discovered_at', { ascending: false });
@@ -142,6 +146,62 @@ export default function InitiatePage() {
     []
   );
 
+  // Compute whether we have any active (queued/researching) topics
+  const hasActiveTopics = Object.values(topicsBySource).some((topics) =>
+    topics.some((t) => t.status === 'queued' || t.status === 'researching')
+  );
+
+  // Handle status updates from polling
+  const handleStatusUpdate = useCallback((updates: TopicStatusUpdate[]) => {
+    setTopicsBySource((prev) => {
+      const updated = { ...prev };
+      for (const update of updates) {
+        // Find which source has this topic and update it
+        for (const slug of Object.keys(updated)) {
+          const topics = updated[slug];
+          const topicIndex = topics.findIndex((t) => t.id === update.id);
+          if (topicIndex !== -1) {
+            updated[slug] = topics.map((t) =>
+              t.id === update.id
+                ? { ...t, status: update.status, updatedAt: update.updatedAt }
+                : t
+            );
+            break;
+          }
+        }
+      }
+      return updated;
+    });
+  }, []);
+
+  // Activate polling when there are active topics
+  useStatusPolling(hasActiveTopics, handleStatusUpdate);
+
+  // Manual refresh function
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshAllActiveTopics = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await fetch('/api/topics/status?active=true');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.topics && data.topics.length > 0) {
+          const updates: TopicStatusUpdate[] = data.topics.map((topic: { id: string; status: string; updatedAt: string; sessionId?: string }) => ({
+            id: topic.id,
+            status: topic.status as TopicStatus,
+            updatedAt: topic.updatedAt,
+            sessionId: topic.sessionId,
+          }));
+          handleStatusUpdate(updates);
+        }
+      }
+    } catch (error) {
+      console.error('Manual refresh failed:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [handleStatusUpdate]);
+
   return (
     <main className="h-screen bg-[var(--bg-primary)]">
       {/* Page Header */}
@@ -149,8 +209,28 @@ export default function InitiatePage() {
         <h1 className="text-lg font-semibold text-[var(--text-primary)]">
           Research Initiation
         </h1>
-        <div className="text-sm text-[var(--text-muted)]">
-          {SOURCES.length} sources
+        <div className="flex items-center gap-4">
+          {hasActiveTopics && (
+            <button
+              onClick={refreshAllActiveTopics}
+              disabled={isRefreshing}
+              className="
+                flex items-center gap-1.5 px-2 py-1
+                text-sm text-[var(--text-secondary)]
+                hover:text-[var(--text-primary)]
+                hover:bg-[var(--bg-hover)]
+                rounded transition-colors
+                disabled:opacity-50
+              "
+              title="Refresh active topic statuses"
+            >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          )}
+          <div className="text-sm text-[var(--text-muted)]">
+            {SOURCES.length} sources
+          </div>
         </div>
       </header>
 

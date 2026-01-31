@@ -29,8 +29,8 @@ const STATUS_CONFIG: Record<
   queued: {
     icon: Clock,
     label: 'Queued',
-    bgClass: 'bg-[var(--amber-light)]',
-    textClass: 'text-[var(--amber-primary)]',
+    bgClass: 'bg-[var(--bg-tertiary)]',
+    textClass: 'text-[var(--text-muted)]',
   },
   researching: {
     icon: Loader2,
@@ -66,6 +66,7 @@ interface TopicCardProps {
     description?: string;
     status: TopicStatus;
     discoveredAt: string;
+    updatedAt?: string;
   };
   selected: boolean;
   onSelect: (id: string) => void;
@@ -194,6 +195,13 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
               </span>
             );
           })()}
+
+          {/* Updated timestamp for non-new statuses */}
+          {topic.status !== 'new' && topic.updatedAt && (
+            <span className="text-[10px] text-[var(--text-muted)]">
+              Updated {formatRelativeTime(topic.updatedAt)}
+            </span>
+          )}
         </div>
       </div>
 

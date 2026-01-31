@@ -522,8 +522,19 @@ body {
   to { transform: translateX(100%); }
 }
 
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 .animate-fade-in {
   animation: fade-in var(--transition-normal) var(--ease-out-expo);
+  animation-fill-mode: both;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left var(--transition-normal) var(--ease-out-expo);
+  animation-fill-mode: both;
 }
 
 .animate-slide-in-right {
@@ -774,57 +785,47 @@ body {
 }
 
 /* ============================================
-   ORGANIC THEME - Warm, natural, fluid
-   Green accent with soft shadows
+   INITIATE DASHBOARD LAYOUT
+   10-column grid with horizontal scroll
    ============================================ */
 
-[data-theme="organic"] {
-  /* Backgrounds - Warm cream tones */
-  --bg-primary: #F5F3EF;
-  --bg-secondary: #EBE8E2;
-  --bg-elevated: #FDFCFA;
-  --bg-overlay: rgba(45, 42, 38, 0.5);
-  --bg-tooltip: #2D2A26;
-  --bg-input: #FDFCFA;
-  --bg-hover: #E8E4DD;
-  --bg-active: #DDD8CF;
+.initiate-grid-container {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: calc(100vh - 60px); /* Account for header */
+  scroll-behavior: smooth;
+}
 
-  /* Text - Warm dark tones */
-  --text-primary: #2D2A26;
-  --text-secondary: #5C5650;
-  --text-muted: #8A847C;
-  --text-inverse: #F5F3EF;
-  --text-link: #65A30D;
+.sticky-first-column {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+}
 
-  /* Borders - Warm subtle borders */
-  --border-default: #DDD8CF;
-  --border-subtle: #E8E4DD;
-  --border-strong: #C4BEB4;
-  --border-focus: #65A30D;
+/* Scroll indicator gradient on right edge */
+.initiate-grid-container::after {
+  content: '';
+  position: sticky;
+  right: 0;
+  width: 40px;
+  min-width: 40px;
+  background: linear-gradient(
+    to left,
+    var(--bg-primary) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 5;
+}
 
-  /* Accents - Natural green */
-  --accent-primary: #65A30D;
-  --accent-info: #0D9488;
-  --accent-success: #059669;
-  --accent-warning: #D97706;
-  --accent-danger: #DC2626;
+/* Hide gradient when scrolled to end (JS will toggle this class) */
+.initiate-grid-container.scrolled-end::after {
+  opacity: 0;
+}
 
-  /* Map Visualization - Organic feel */
-  --node-fill: #65A30D;
-  --node-stroke: #4D7C0F;
-  --node-glow: none;
-  --connection-line: #C4BEB4;
-
-  /* Effects - Soft, warm shadows */
-  --shadow-sm: 0 1px 3px rgba(45, 42, 38, 0.06), 0 1px 2px rgba(45, 42, 38, 0.04);
-  --shadow-md: 0 4px 8px rgba(45, 42, 38, 0.08), 0 2px 4px rgba(45, 42, 38, 0.04);
-  --shadow-lg: 0 12px 20px rgba(45, 42, 38, 0.10), 0 4px 8px rgba(45, 42, 38, 0.04);
-  --glow-primary: none;
-
-  /* Scrollbar - Warm tones */
-  --scrollbar-track: #EBE8E2;
-  --scrollbar-thumb: #C4BEB4;
-
-  /* Alias for backward compatibility */
-  --border-color: var(--border-default);
+/* Column hover state */
+.source-column:hover {
+  background: var(--bg-hover);
 }

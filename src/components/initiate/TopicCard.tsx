@@ -11,6 +11,8 @@ import {
   MoreVertical,
   Beaker,
   LucideIcon,
+  Eye,
+  RefreshCw,
 } from 'lucide-react';
 import { formatRelativeTime } from '@/src/lib/utils';
 import { TopicStatus } from '@/src/types/research';
@@ -67,18 +69,24 @@ interface TopicCardProps {
     status: TopicStatus;
     discoveredAt: string;
     updatedAt?: string;
+    sessionId?: string;
   };
   selected: boolean;
   onSelect: (id: string) => void;
   onAction: (id: string, action: 'menu' | 'delete' | 'research') => void;
+  onViewSession?: (sessionId: string) => void;
+  onRetry?: (topicId: string) => void;
 }
 
-export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProps) {
+export function TopicCard({ topic, selected, onSelect, onAction, onViewSession, onRetry }: TopicCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [researchLoading, setResearchLoading] = useState(false);
+  const [retryLoading, setRetryLoading] = useState(false);
 
-  // Status check for disabling research
+  // Status checks
   const canResearch = topic.status === 'new' || topic.status === 'failed';
+  const canViewResults = topic.status === 'completed' && !!topic.sessionId;
+  const canRetry = topic.status === 'failed';
 
   // Click-outside handler
   useEffect(() => {
@@ -107,6 +115,23 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
     // Note: Parent handles the actual API call and resets loading via status update
   };
 
+  const handleViewResults = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (topic.sessionId && onViewSession) {
+      onViewSession(topic.sessionId);
+    }
+  };
+
+  const handleRetry = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    if (onRetry) {
+      setRetryLoading(true);
+      onRetry(topic.id);
+      // Note: Loading will be reset when status changes via useEffect
+    }
+  };
+
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setMenuOpen(false);
@@ -122,10 +147,11 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
     }
   };
 
-  // Reset loading state when status changes (e.g., to 'queued')
+  // Reset loading states when status changes (e.g., to 'queued')
   useEffect(() => {
     if (topic.status !== 'new' && topic.status !== 'failed') {
       setResearchLoading(false);
+      setRetryLoading(false);
     }
   }, [topic.status]);
 
@@ -202,6 +228,48 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
               Updated {formatRelativeTime(topic.updatedAt)}
             </span>
           )}
+
+          {/* View Results button for completed topics */}
+          {canViewResults && (
+            <button
+              onClick={handleViewResults}
+              className="
+                inline-flex items-center gap-1
+                px-1.5 py-0.5 rounded
+                text-[10px] font-medium
+                text-[var(--blue-primary)]
+                hover:bg-[var(--blue-light)]
+                transition-colors
+              "
+            >
+              <Eye size={10} />
+              View Results
+            </button>
+          )}
+
+          {/* Retry button for failed topics */}
+          {canRetry && (
+            <button
+              onClick={handleRetry}
+              disabled={retryLoading}
+              className="
+                inline-flex items-center gap-1
+                px-1.5 py-0.5 rounded
+                text-[10px] font-medium
+                text-[var(--amber-primary,#D97706)]
+                hover:bg-[var(--amber-light,#FEF3C7)]
+                transition-colors
+                disabled:opacity-50
+              "
+            >
+              {retryLoading ? (
+                <Loader2 size={10} className="animate-spin" />
+              ) : (
+                <RefreshCw size={10} />
+              )}
+              Retry
+            </button>
+          )}
         </div>
       </div>
 
@@ -235,25 +303,66 @@ export function TopicCard({ topic, selected, onSelect, onAction }: TopicCardProp
             "
             role="menu"
           >
-            <button
-              onClick={handleResearch}
-              disabled={!canResearch || researchLoading}
-              className="
-                w-full px-3 py-2 text-left text-sm
-                flex items-center gap-2
-                hover:bg-[var(--bg-hover)]
-                disabled:opacity-50 disabled:cursor-not-allowed
-                text-[var(--text-primary)]
-              "
-              role="menuitem"
-            >
-              {researchLoading ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Beaker size={14} />
-              )}
-              Research
-            </button>
+            {/* View Results for completed topics */}
+            {canViewResults && (
+              <button
+                onClick={handleViewResults}
+                className="
+                  w-full px-3 py-2 text-left text-sm
+                  flex items-center gap-2
+                  hover:bg-[var(--bg-hover)]
+                  text-[var(--text-primary)]
+                "
+                role="menuitem"
+              >
+                <Eye size={14} />
+                View Results
+              </button>
+            )}
+            {/* Research for new/failed topics (not completed) */}
+            {!canViewResults && (
+              <button
+                onClick={handleResearch}
+                disabled={!canResearch || researchLoading}
+                className="
+                  w-full px-3 py-2 text-left text-sm
+                  flex items-center gap-2
+                  hover:bg-[var(--bg-hover)]
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  text-[var(--text-primary)]
+                "
+                role="menuitem"
+              >
+                {researchLoading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Beaker size={14} />
+                )}
+                Research
+              </button>
+            )}
+            {/* Retry for failed topics */}
+            {canRetry && (
+              <button
+                onClick={handleRetry}
+                disabled={retryLoading}
+                className="
+                  w-full px-3 py-2 text-left text-sm
+                  flex items-center gap-2
+                  hover:bg-[var(--amber-light,#FEF3C7)]
+                  text-[var(--amber-primary,#D97706)]
+                  disabled:opacity-50
+                "
+                role="menuitem"
+              >
+                {retryLoading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={14} />
+                )}
+                Retry
+              </button>
+            )}
             <button
               onClick={handleDelete}
               className="

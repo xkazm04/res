@@ -17,6 +17,8 @@ interface SourceColumnProps {
     description?: string;
     status: TopicStatus;
     discoveredAt: string;
+    updatedAt?: string;
+    sessionId?: string;
   }>;
   onDownload?: (slug: string) => void;
   onDiscover?: () => void;
@@ -24,6 +26,8 @@ interface SourceColumnProps {
   onDiscoveryError?: (slug: string, error: string) => void;
   isDiscovering?: boolean;
   onTopicStatusChange?: (id: string, status: TopicStatus, sessionId?: string) => void;
+  onViewSession?: (sessionId: string) => void;
+  onRetry?: (topicId: string) => void;
 }
 
 export function SourceColumn({
@@ -39,6 +43,8 @@ export function SourceColumn({
   onDiscoveryError,
   isDiscovering = false,
   onTopicStatusChange,
+  onViewSession,
+  onRetry,
 }: SourceColumnProps) {
   return (
     <div
@@ -86,6 +92,8 @@ export function SourceColumn({
           items={topics}
           onDiscover={onDiscover}
           onTopicStatusChange={onTopicStatusChange}
+          onViewSession={onViewSession}
+          onRetry={onRetry}
         />
       </div>
     </div>

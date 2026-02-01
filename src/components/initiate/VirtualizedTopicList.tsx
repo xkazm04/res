@@ -12,6 +12,8 @@ interface TopicItem {
   description?: string;
   status: TopicStatus;
   discoveredAt: string;
+  updatedAt?: string;
+  sessionId?: string;
 }
 
 interface VirtualizedTopicListProps {
@@ -20,6 +22,8 @@ interface VirtualizedTopicListProps {
   onDiscover?: () => void;
   onTopicAction?: (id: string, action: 'menu' | 'delete' | 'research') => void;
   onTopicStatusChange?: (id: string, status: TopicStatus, sessionId?: string) => void;
+  onViewSession?: (sessionId: string) => void;
+  onRetry?: (topicId: string) => void;
 }
 
 export function VirtualizedTopicList({
@@ -28,6 +32,8 @@ export function VirtualizedTopicList({
   onDiscover,
   onTopicAction,
   onTopicStatusChange,
+  onViewSession,
+  onRetry,
 }: VirtualizedTopicListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -127,6 +133,8 @@ export function VirtualizedTopicList({
                 selected={selectedIds.has(item.id)}
                 onSelect={handleSelect}
                 onAction={handleAction}
+                onViewSession={onViewSession}
+                onRetry={onRetry}
               />
             </div>
           );

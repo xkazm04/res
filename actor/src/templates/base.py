@@ -1,17 +1,643 @@
-"""Base research template."""
+"""Base research template with data-driven architecture."""
 
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from abc import ABC
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import List, Dict, Any, Optional, Type, Set, ClassVar
+import inspect
+import warnings
 
 from ..clients.gemini import GeminiClient
 
 
+# ========== FINDING TYPE VALIDATION ==========
+
+class FindingType(str, Enum):
+    """Base class for template-specific finding type enums.
+
+    Inherits from str to allow seamless string comparison and JSON serialization.
+    Each template should define its own FindingType enum inheriting from this.
+
+    Example:
+        class DueDiligenceFindingType(FindingType):
+            COMPANY_PROFILE = "company_profile"
+            FINANCIAL_HEALTH = "financial_health"
+            RED_FLAG = "red_flag"
+    """
+
+    @classmethod
+    def values(cls) -> Set[str]:
+        """Get all valid finding type values as strings."""
+        return {member.value for member in cls}
+
+    @classmethod
+    def from_string(cls, value: str) -> 'FindingType':
+        """Convert string to enum member, raising ValueError if invalid."""
+        for member in cls:
+            if member.value == value:
+                return member
+        raise ValueError(f"'{value}' is not a valid {cls.__name__}. Valid values: {cls.values()}")
+
+    @classmethod
+    def is_valid(cls, value: str) -> bool:
+        """Check if a string is a valid finding type."""
+        return value in cls.values()
+
+
+def validate_finding_types(template_class: Type['BaseTemplate']) -> List[str]:
+    """Validate that all finding_type references in a template match its config.
+
+    Scans method source code for finding_type string literals and compares
+    them against the template's configured finding_types.
+
+    Args:
+        template_class: The template class to validate
+
+    Returns:
+        List of validation error messages (empty if valid)
+    """
+    errors = []
+
+    # Get configured finding types
+    config = getattr(template_class, 'config', None)
+    if config is None:
+        return errors  # No config = no validation needed
+
+    configured_types = {ft.name for ft in config.finding_types}
+
+    # Also check priority_finding_types and grouping_order
+    for priority_type in config.priority_finding_types:
+        if priority_type not in configured_types:
+            errors.append(
+                f"{template_class.__name__}: priority_finding_types contains '{priority_type}' "
+                f"but it's not in finding_types config"
+            )
+
+    for group_type in config.grouping_order:
+        if group_type not in configured_types:
+            errors.append(
+                f"{template_class.__name__}: grouping_order contains '{group_type}' "
+                f"but it's not in finding_types config"
+            )
+
+    # Scan method source for finding_type references
+    finding_type_pattern = 'finding_type'
+    string_patterns = ['"', "'"]
+
+    for name, method in inspect.getmembers(template_class, predicate=inspect.isfunction):
+        if name.startswith('_') and not name.startswith('_generate'):
+            continue  # Skip private methods except report generators
+
+        try:
+            source = inspect.getsource(method)
+        except (OSError, TypeError):
+            continue  # Can't get source for built-in methods
+
+        # Look for patterns like: finding_type == "xxx" or get("finding_type") == "xxx"
+        # or f.get("finding_type") == "xxx"
+        if finding_type_pattern not in source:
+            continue
+
+        # Extract string literals that appear near finding_type
+        lines = source.split('\n')
+        for line_num, line in enumerate(lines, 1):
+            if finding_type_pattern not in line:
+                continue
+
+            # Find quoted strings in this line
+            for quote in string_patterns:
+                idx = 0
+                while True:
+                    start = line.find(quote, idx)
+                    if start == -1:
+                        break
+                    end = line.find(quote, start + 1)
+                    if end == -1:
+                        break
+
+                    potential_type = line[start + 1:end]
+                    idx = end + 1
+
+                    # Skip if it's a key like "finding_type" itself or common patterns
+                    if potential_type in ('finding_type', 'content', 'summary', 'extracted_data'):
+                        continue
+
+                    # Check if this looks like a finding type reference
+                    # Must be lowercase with underscores, reasonable length
+                    if (potential_type and
+                        potential_type.replace('_', '').isalpha() and
+                        len(potential_type) < 30 and
+                        potential_type == potential_type.lower()):
+
+                        # Check if it's likely a finding type by context
+                        if ('finding_type' in line[:start] or
+                            '== "' in line[start-5:start] or
+                            "== '" in line[start-5:start] or
+                            'in [' in line[:start] or
+                            'in ("' in line[:start]):
+
+                            if potential_type not in configured_types:
+                                errors.append(
+                                    f"{template_class.__name__}.{name}: references finding_type "
+                                    f"'{potential_type}' which is not in config. "
+                                    f"Valid types: {sorted(configured_types)}"
+                                )
+
+    return errors
+
+
+def validates_finding_types(method):
+    """Decorator to mark methods that use finding types (for documentation).
+
+    This is primarily for documentation/IDE hints. Actual validation happens
+    at class initialization time via __init_subclass__.
+    """
+    method._uses_finding_types = True
+    return method
+
+
+# ========== DECLARATIVE REPORT BUILDER ==========
+
+class MarkdownBuilder:
+    """Utility class for common markdown generation patterns."""
+
+    @staticmethod
+    def header(title: str, level: int = 1) -> str:
+        """Generate a markdown header."""
+        return f"{'#' * level} {title}"
+
+    @staticmethod
+    def metadata(label: str, value: str) -> str:
+        """Generate a bold label with value."""
+        return f"**{label}:** {value}"
+
+    @staticmethod
+    def bullet(text: str, prefix: str = "") -> str:
+        """Generate a bullet point with optional prefix."""
+        if prefix:
+            return f"- **{prefix}** {text}"
+        return f"- {text}"
+
+    @staticmethod
+    def divider() -> str:
+        """Generate a horizontal divider."""
+        return "---"
+
+    @staticmethod
+    def table(headers: List[str], rows: List[List[str]]) -> str:
+        """Generate a markdown table."""
+        if not headers or not rows:
+            return ""
+        lines = []
+        lines.append("| " + " | ".join(headers) + " |")
+        lines.append("|" + "|".join(["------" for _ in headers]) + "|")
+        for row in rows:
+            # Pad row to match headers if needed
+            padded = row + [""] * (len(headers) - len(row))
+            lines.append("| " + " | ".join(str(c) for c in padded[:len(headers)]) + " |")
+        return "\n".join(lines)
+
+    @staticmethod
+    def format_extracted_field(extracted: Dict[str, Any], field: str, label: str = "") -> str:
+        """Format a field from extracted_data with optional label."""
+        value = extracted.get(field, "")
+        if not value:
+            return ""
+        if label:
+            return f"**{label}:** {value}"
+        return str(value)
+
+
+@dataclass
+class SectionSpec:
+    """Declarative specification for a report section.
+
+    Defines how to filter, transform, and render findings into a report section.
+    """
+    title: str
+    finding_types: List[str] = field(default_factory=list)  # Filter by these types
+    max_items: int = 10
+    show_if_empty: bool = False
+    empty_message: str = "No items found."
+    header_level: int = 2
+
+    # Rendering options
+    render_style: str = "bullet"  # "bullet", "detailed", "table", "custom"
+    show_confidence: bool = False
+    show_extracted_data: bool = False
+
+    # Extracted data formatting
+    extracted_fields: List[str] = field(default_factory=list)  # Fields to show from extracted_data
+    extracted_format: str = "inline"  # "inline", "list", "prefix"
+
+    # Custom prefix based on extracted_data field
+    prefix_field: str = ""  # e.g., "severity" to show [HIGH], [MEDIUM]
+    prefix_transform: str = "upper"  # "upper", "title", "none"
+
+    # Filter function name (method on template class)
+    custom_filter: str = ""  # e.g., "filter_high_severity_red_flags"
+
+    # Custom renderer function name (method on template class)
+    custom_renderer: str = ""  # e.g., "render_connected_entities"
+
+
+@dataclass
+class ReportVariantSpec:
+    """Declarative specification for a complete report variant.
+
+    Defines the structure of a report variant (e.g., executive_summary, risk_summary).
+    """
+    variant_name: str
+    title_template: str = "{variant}: {query}"  # e.g., "Risk Summary: {query}"
+    show_divider: bool = True
+    show_date: bool = True
+    query_label: str = "Subject"
+
+    # Sections to include in order
+    sections: List[SectionSpec] = field(default_factory=list)
+
+    # Optional assessment section at the top
+    assessment_section: Optional['AssessmentSpec'] = None
+
+    # Include perspective warnings/recommendations
+    include_perspective_warnings: bool = False
+    include_perspective_recommendations: bool = False
+    max_warnings: int = 8
+    max_recommendations: int = 6
+
+
+@dataclass
+class AssessmentSpec:
+    """Specification for a risk/status assessment section."""
+    title: str = "Assessment"
+    assessment_type: str = "risk"  # "risk", "verdict", "score"
+
+    # For risk assessment
+    high_threshold: int = 1  # Number of high-severity items to trigger HIGH risk
+    medium_threshold: int = 1  # Number of any items to trigger MEDIUM risk
+    finding_type: str = "red_flag"  # Finding type to count
+    severity_field: str = "severity"  # Field in extracted_data for severity
+
+    # Labels
+    high_label: str = "**RISK LEVEL: HIGH** - Significant concerns identified"
+    medium_label: str = "**RISK LEVEL: MEDIUM** - Some concerns warrant attention"
+    low_label: str = "**RISK LEVEL: LOW** - No major red flags detected"
+
+
+class ReportBuilder:
+    """Declarative report builder that renders reports from specifications.
+
+    Eliminates ~80% of duplicated report generation code by providing
+    a declarative way to define report structure.
+
+    Usage:
+        # Define sections declaratively
+        RISK_SUMMARY_SPEC = ReportVariantSpec(
+            variant_name="risk_summary",
+            title_template="Due Diligence: {query}",
+            assessment_section=AssessmentSpec(finding_type="red_flag"),
+            sections=[
+                SectionSpec(
+                    title="Red Flags",
+                    finding_types=["red_flag"],
+                    max_items=6,
+                    prefix_field="severity",
+                ),
+                SectionSpec(
+                    title="Legal History",
+                    finding_types=["legal_history"],
+                    max_items=5,
+                ),
+            ],
+        )
+
+        # Generate report
+        builder = ReportBuilder(result, template)
+        markdown = builder.render(RISK_SUMMARY_SPEC)
+    """
+
+    def __init__(
+        self,
+        result: Dict[str, Any],
+        template: Optional['BaseTemplate'] = None,
+    ):
+        self.result = result
+        self.template = template
+        self.findings = result.get("findings", [])
+        self.perspectives = result.get("perspectives", [])
+        self.query = result.get("query", "Unknown")
+
+    def render(self, spec: ReportVariantSpec, title: Optional[str] = None) -> str:
+        """Render a complete report from a variant specification."""
+        from datetime import datetime
+
+        sections: List[str] = []
+
+        # Header
+        report_title = title or spec.title_template.format(
+            variant=spec.variant_name.replace("_", " ").title(),
+            query=self.query[:50]
+        )
+        sections.append(MarkdownBuilder.header(report_title, 1))
+        sections.append("")
+
+        # Metadata
+        sections.append(MarkdownBuilder.metadata(spec.query_label, self.query))
+        if spec.show_date:
+            sections.append(MarkdownBuilder.metadata("Date", datetime.now().strftime('%B %d, %Y')))
+        sections.append("")
+
+        if spec.show_divider:
+            sections.append(MarkdownBuilder.divider())
+            sections.append("")
+
+        # Assessment section (if defined)
+        if spec.assessment_section:
+            assessment_content = self._render_assessment(spec.assessment_section)
+            if assessment_content:
+                sections.append(assessment_content)
+                sections.append("")
+
+        # Render each section
+        for section_spec in spec.sections:
+            section_content = self._render_section(section_spec)
+            if section_content:
+                sections.append(section_content)
+                sections.append("")
+
+        # Perspective warnings
+        if spec.include_perspective_warnings:
+            warnings_content = self._render_perspective_warnings(spec.max_warnings)
+            if warnings_content:
+                sections.append(warnings_content)
+                sections.append("")
+
+        # Perspective recommendations
+        if spec.include_perspective_recommendations:
+            recs_content = self._render_perspective_recommendations(spec.max_recommendations)
+            if recs_content:
+                sections.append(recs_content)
+                sections.append("")
+
+        return "\n".join(sections)
+
+    def _render_assessment(self, spec: AssessmentSpec) -> str:
+        """Render an assessment section."""
+        lines: List[str] = []
+        lines.append(MarkdownBuilder.header(spec.title, 2))
+        lines.append("")
+
+        # Filter findings by type
+        typed_findings = [f for f in self.findings if f.get("finding_type") == spec.finding_type]
+
+        # Count high severity items
+        high_severity_count = 0
+        for f in typed_findings:
+            extracted = f.get("extracted_data", {})
+            if isinstance(extracted, dict):
+                severity = extracted.get(spec.severity_field, "").lower()
+                if severity == "high" or severity == "critical":
+                    high_severity_count += 1
+
+        # Determine risk level
+        if high_severity_count >= spec.high_threshold:
+            lines.append(spec.high_label)
+        elif len(typed_findings) >= spec.medium_threshold:
+            lines.append(spec.medium_label)
+        else:
+            lines.append(spec.low_label)
+
+        return "\n".join(lines)
+
+    def _render_section(self, spec: SectionSpec) -> str:
+        """Render a single section from specification."""
+        # Filter findings
+        if spec.finding_types:
+            section_findings = [
+                f for f in self.findings
+                if f.get("finding_type") in spec.finding_types
+            ]
+        else:
+            section_findings = self.findings.copy()
+
+        # Apply custom filter if specified
+        if spec.custom_filter and self.template:
+            filter_method = getattr(self.template, spec.custom_filter, None)
+            if filter_method and callable(filter_method):
+                section_findings = filter_method(section_findings)
+
+        # Limit items
+        section_findings = section_findings[:spec.max_items]
+
+        # Check if we should render
+        if not section_findings and not spec.show_if_empty:
+            return ""
+
+        lines: List[str] = []
+        lines.append(MarkdownBuilder.header(spec.title, spec.header_level))
+        lines.append("")
+
+        if not section_findings:
+            lines.append(spec.empty_message)
+            return "\n".join(lines)
+
+        # Use custom renderer if specified
+        if spec.custom_renderer and self.template:
+            renderer_method = getattr(self.template, spec.custom_renderer, None)
+            if renderer_method and callable(renderer_method):
+                custom_content = renderer_method(section_findings)
+                lines.append(custom_content)
+                return "\n".join(lines)
+
+        # Render based on style
+        if spec.render_style == "bullet":
+            lines.extend(self._render_bullet_list(section_findings, spec))
+        elif spec.render_style == "detailed":
+            lines.extend(self._render_detailed_list(section_findings, spec))
+        elif spec.render_style == "table":
+            lines.append(self._render_table(section_findings, spec))
+        else:
+            # Default to bullet
+            lines.extend(self._render_bullet_list(section_findings, spec))
+
+        return "\n".join(lines)
+
+    def _render_bullet_list(self, findings: List[Dict[str, Any]], spec: SectionSpec) -> List[str]:
+        """Render findings as a bullet list."""
+        lines: List[str] = []
+
+        for f in findings:
+            summary = f.get("summary") or f.get("content", "")[:100]
+            prefix = ""
+
+            # Add prefix from extracted_data if specified
+            if spec.prefix_field:
+                extracted = f.get("extracted_data", {})
+                if isinstance(extracted, dict):
+                    prefix_value = extracted.get(spec.prefix_field, "")
+                    if prefix_value:
+                        if spec.prefix_transform == "upper":
+                            prefix = f"[{prefix_value.upper()}]"
+                        elif spec.prefix_transform == "title":
+                            prefix = f"[{prefix_value.title()}]"
+                        else:
+                            prefix = f"[{prefix_value}]"
+
+            lines.append(MarkdownBuilder.bullet(summary, prefix))
+
+            # Add extracted data inline if specified
+            if spec.show_extracted_data and spec.extracted_fields:
+                extracted = f.get("extracted_data", {})
+                if isinstance(extracted, dict) and spec.extracted_format == "list":
+                    for field_name in spec.extracted_fields:
+                        if field_name in extracted and extracted[field_name]:
+                            lines.append(f"  - {field_name.replace('_', ' ').title()}: {extracted[field_name]}")
+
+        return lines
+
+    def _render_detailed_list(self, findings: List[Dict[str, Any]], spec: SectionSpec) -> List[str]:
+        """Render findings with full details."""
+        lines: List[str] = []
+
+        for f in findings:
+            summary = f.get("summary") or f.get("content", "")[:60]
+            content = f.get("content", "")
+
+            # Sub-header
+            lines.append(MarkdownBuilder.header(summary, spec.header_level + 1))
+            lines.append("")
+            lines.append(content)
+            lines.append("")
+
+            # Confidence if requested
+            if spec.show_confidence:
+                conf = f.get("confidence_score", 0.5)
+                conf_label = "High" if conf >= 0.8 else "Medium" if conf >= 0.6 else "Low"
+                lines.append(f"*Confidence: {conf_label} ({conf:.0%})*")
+                lines.append("")
+
+            # Extracted data
+            if spec.show_extracted_data and spec.extracted_fields:
+                extracted = f.get("extracted_data", {})
+                if isinstance(extracted, dict):
+                    for field_name in spec.extracted_fields:
+                        value = extracted.get(field_name, "")
+                        if value:
+                            if isinstance(value, list):
+                                lines.append(f"**{field_name.replace('_', ' ').title()}:**")
+                                for item in value[:5]:
+                                    lines.append(f"- {item}")
+                            else:
+                                lines.append(f"**{field_name.replace('_', ' ').title()}:** {value}")
+                    lines.append("")
+
+        return lines
+
+    def _render_table(self, findings: List[Dict[str, Any]], spec: SectionSpec) -> str:
+        """Render findings as a table."""
+        if not spec.extracted_fields:
+            # Default: summary only
+            headers = ["Finding"]
+            rows = [[f.get("summary") or f.get("content", "")[:80]] for f in findings]
+        else:
+            # Use extracted fields as columns
+            headers = [field.replace("_", " ").title() for field in spec.extracted_fields]
+            rows = []
+            for f in findings:
+                extracted = f.get("extracted_data", {})
+                if isinstance(extracted, dict):
+                    row = [str(extracted.get(field, "")) for field in spec.extracted_fields]
+                else:
+                    row = [""] * len(spec.extracted_fields)
+                rows.append(row)
+
+        return MarkdownBuilder.table(headers, rows)
+
+    def _render_perspective_warnings(self, max_items: int) -> str:
+        """Render warnings from all perspectives."""
+        all_warnings: List[str] = []
+        for p in self.perspectives:
+            warnings = p.get("warnings", [])
+            all_warnings.extend(warnings)
+
+        if not all_warnings:
+            return ""
+
+        lines: List[str] = []
+        lines.append(MarkdownBuilder.header("Expert Risk Assessment", 2))
+        lines.append("")
+        for warning in all_warnings[:max_items]:
+            lines.append(MarkdownBuilder.bullet(warning))
+
+        return "\n".join(lines)
+
+    def _render_perspective_recommendations(self, max_items: int) -> str:
+        """Render recommendations from all perspectives."""
+        all_recs: List[str] = []
+        for p in self.perspectives:
+            recs = p.get("recommendations", [])
+            all_recs.extend(recs[:2])  # Take top 2 from each perspective
+
+        if not all_recs:
+            return ""
+
+        lines: List[str] = []
+        lines.append(MarkdownBuilder.header("Recommended Actions", 2))
+        lines.append("")
+        for rec in all_recs[:max_items]:
+            if isinstance(rec, str):
+                lines.append(MarkdownBuilder.bullet(rec))
+
+        return "\n".join(lines)
+
+
+@dataclass
+class FindingTypeConfig:
+    """Configuration for a finding type."""
+    name: str  # e.g., "red_flag"
+    display_name: str  # e.g., "Red Flag"
+    description: str  # Instructions for extraction
+    extracted_data_schema: str  # JSON schema hint for LLM
+    analysis_fallback: str  # Fallback analysis if LLM doesn't provide one
+
+
+@dataclass
+class TemplateConfig:
+    """Data-driven configuration for a research template.
+
+    Subclasses define these attributes as class-level config to eliminate
+    duplicated method implementations.
+    """
+    # Search query generation config
+    search_intro: str = ""  # e.g., "You are a due diligence researcher..."
+    search_angles: List[Dict[str, Any]] = field(default_factory=list)  # Numbered research angles
+    search_depth_guidance: Dict[str, str] = field(default_factory=dict)  # Depth-level instructions
+
+    # Finding extraction config
+    extraction_intro: str = ""  # e.g., "You are a due diligence analyst..."
+    finding_types: List[FindingTypeConfig] = field(default_factory=list)
+    extraction_guidelines: str = ""  # Template-specific extraction instructions
+    analysis_instruction: str = ""  # Template-specific analysis field instructions
+
+    # Priority ordering for reports
+    priority_finding_types: List[str] = field(default_factory=list)  # Order for _get_priority_findings
+    grouping_order: List[str] = field(default_factory=list)  # Order for _group_findings
+
+
 class BaseTemplate(ABC):
-    """Abstract base class for research templates."""
+    """Abstract base class for research templates.
+
+    Subclasses can either:
+    1. Define a `config: TemplateConfig` class attribute for data-driven behavior
+    2. Override methods directly for custom implementations
+    """
 
     template_id: str = "base"
     template_name: str = "Base Research"
     description: str = "Base research template"
+
+    # Template configuration - subclasses set this for data-driven behavior
+    config: Optional[TemplateConfig] = None
 
     # Default perspectives for multi-perspective analysis
     default_perspectives: List[str] = ["historical", "economic", "political"]
@@ -32,21 +658,98 @@ class BaseTemplate(ABC):
     def __init__(self):
         self.gemini_client: Optional[GeminiClient] = None
 
+    def __init_subclass__(cls, **kwargs):
+        """Validate finding type references when template subclass is defined.
+
+        This provides compile-time validation that catches mismatches between
+        config finding_types and actual usage in report generation methods.
+        """
+        super().__init_subclass__(**kwargs)
+
+        # Skip validation for intermediate abstract classes
+        if cls.__name__ == 'BaseTemplate':
+            return
+
+        # Run validation
+        errors = validate_finding_types(cls)
+
+        if errors:
+            # Issue warnings rather than raising to allow gradual migration
+            for error in errors:
+                warnings.warn(
+                    f"FindingType validation: {error}",
+                    category=UserWarning,
+                    stacklevel=2
+                )
+
     def set_client(self, client: GeminiClient) -> None:
         """Set the Gemini client for API calls."""
         self.gemini_client = client
 
-    @abstractmethod
+    # ========== DATA-DRIVEN SEARCH QUERY GENERATION ==========
+
     async def generate_search_queries(
         self,
         query: str,
         max_searches: int,
         granularity: str = "standard",
     ) -> List[str]:
-        """Generate search queries for the research question."""
-        pass
+        """Generate search queries using config-driven prompts.
 
-    @abstractmethod
+        If config is defined, uses data-driven generation.
+        Subclasses can override for custom implementations.
+        """
+        if self.config is None:
+            # Fallback to default prompt
+            prompt = self.get_query_generation_prompt(query, max_searches)
+        else:
+            prompt = self._build_search_prompt(query, max_searches, granularity)
+
+        result = await self._call_gemini_json(prompt)
+
+        if isinstance(result, list):
+            return result[:max_searches]
+        return []
+
+    def _build_search_prompt(self, query: str, max_searches: int, granularity: str) -> str:
+        """Build search query prompt from config."""
+        if self.config is None:
+            return self.get_query_generation_prompt(query, max_searches)
+
+        cfg = self.config
+
+        # Build angles section
+        angles_text = ""
+        for i, angle in enumerate(cfg.search_angles, 1):
+            angle_name = angle.get("name", f"Angle {i}")
+            angle_items = angle.get("items", [])
+            angles_text += f"\n{i}. {angle_name}\n"
+            for item in angle_items:
+                angles_text += f"   - {item}\n"
+
+        # Build depth guidance
+        depth_text = cfg.search_depth_guidance.get(granularity, "Cover all angles with balanced depth")
+
+        prompt = f"""
+{cfg.search_intro}
+
+Research Subject: {query}
+
+Depth Level: {granularity}
+
+Generate search queries covering these angles:
+{angles_text}
+
+For a "{granularity}" depth level:
+{depth_text}
+
+Return a JSON array of exactly {max_searches} search query strings.
+Make queries specific and investigative. Include the subject name in each query.
+"""
+        return prompt
+
+    # ========== DATA-DRIVEN FINDING EXTRACTION ==========
+
     async def extract_findings(
         self,
         query: str,
@@ -54,8 +757,183 @@ class BaseTemplate(ABC):
         synthesized_content: str,
         granularity: str = "standard",
     ) -> List[Dict[str, Any]]:
-        """Extract structured findings from research content."""
-        pass
+        """Extract findings using config-driven prompts.
+
+        If config is defined, uses data-driven extraction.
+        Subclasses can override for custom implementations.
+        """
+        if self.config is None:
+            # Subclass must implement if no config
+            raise NotImplementedError(
+                f"{self.__class__.__name__} must either define 'config' or override 'extract_findings'"
+            )
+
+        prompt = self._build_extraction_prompt(query, sources, synthesized_content, granularity)
+        result = await self._call_gemini_json(prompt)
+
+        return self._normalize_findings(result)
+
+    def _build_extraction_prompt(
+        self,
+        query: str,
+        sources: List[Dict[str, Any]],
+        synthesized_content: str,
+        granularity: str,
+    ) -> str:
+        """Build finding extraction prompt from config."""
+        if self.config is None:
+            raise NotImplementedError("config must be defined to use _build_extraction_prompt")
+
+        cfg = self.config
+
+        # Build source context
+        source_context = "\n\n".join([
+            f"Source: {s.get('title', 'Unknown')} ({s.get('url', '')})\n"
+            f"Domain: {s.get('domain', '')}"
+            for s in sources[:20]
+        ])
+
+        # Build finding types section
+        finding_types_text = ""
+        for i, ft in enumerate(cfg.finding_types, 1):
+            finding_types_text += f"""
+{i}. {ft.display_name.upper()} (finding_type: "{ft.name}")
+   - {ft.description}
+   - extracted_data: {ft.extracted_data_schema}
+"""
+
+        prompt = f"""
+{cfg.extraction_intro}
+
+Research Subject: {query}
+
+Synthesized Research Content:
+{synthesized_content[:16000]}
+
+Sources Referenced:
+{source_context}
+
+Extract findings in these categories:
+{finding_types_text}
+
+For each finding, return:
+- finding_type: One of the types above
+- content: Detailed finding with specific facts
+- summary: One concise sentence (this is what users see first)
+- analysis: {cfg.analysis_instruction}
+- confidence_score: 0.0-1.0 based on source quality and corroboration
+- temporal_context: 'past', 'present', 'ongoing'
+- extracted_data: Structured data for the finding type
+
+{cfg.extraction_guidelines}
+
+Return as JSON array.
+"""
+        return prompt
+
+    def _normalize_findings(self, result: Any) -> List[Dict[str, Any]]:
+        """Normalize LLM result into standardized findings list."""
+        findings = []
+        if not isinstance(result, list):
+            return findings
+
+        # Build analysis fallback map from config
+        fallback_map = {}
+        if self.config:
+            for ft in self.config.finding_types:
+                fallback_map[ft.name] = ft.analysis_fallback
+
+        for f in result:
+            if not isinstance(f, dict):
+                continue
+
+            finding = {
+                "finding_type": f.get("finding_type", "fact"),
+                "content": f.get("content", ""),
+                "summary": f.get("summary"),
+                "analysis": f.get("analysis", ""),
+                "confidence_score": f.get("confidence_score", 0.5),
+                "temporal_context": f.get("temporal_context", "present"),
+                "extracted_data": f.get("extracted_data"),
+            }
+
+            # Copy any additional fields (date_referenced, etc.)
+            for key in ["date_referenced", "date_range", "event_date"]:
+                if key in f:
+                    finding[key] = f[key]
+
+            # Validate analysis field - use fallback if too short/empty
+            analysis = finding.get("analysis", "")
+            if not analysis or len(analysis) < 30:
+                finding_type = finding.get("finding_type", "fact")
+                finding["analysis"] = fallback_map.get(
+                    finding_type,
+                    "This finding provides relevant context for the analysis."
+                )
+
+            findings.append(finding)
+
+        return findings
+
+    # ========== DATA-DRIVEN PRIORITY AND GROUPING ==========
+
+    def _get_priority_findings(self, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Get priority-sorted findings using config or default logic."""
+        if self.config and self.config.priority_finding_types:
+            priority_types = self.config.priority_finding_types
+        else:
+            # Default: high confidence findings sorted by confidence
+            high_conf = sorted(
+                [f for f in findings if f.get("confidence_score", 0) >= 0.6],
+                key=lambda x: x.get("confidence_score", 0),
+                reverse=True
+            )
+            return high_conf
+
+        prioritized = []
+        for ftype in priority_types:
+            type_findings = [f for f in findings if f.get("finding_type") == ftype]
+            prioritized.extend(sorted(
+                type_findings,
+                key=lambda x: x.get("confidence_score", 0),
+                reverse=True
+            ))
+
+        remaining = [f for f in findings if f not in prioritized]
+        prioritized.extend(sorted(remaining, key=lambda x: x.get("confidence_score", 0), reverse=True))
+
+        return prioritized
+
+    def _group_findings(self, findings: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Group findings by type using config or default logic."""
+        if self.config and self.config.grouping_order:
+            order = self.config.grouping_order
+        else:
+            # Default grouping by type as found
+            grouped: Dict[str, List[Dict[str, Any]]] = {}
+            for f in findings:
+                ftype = f.get("finding_type", "other")
+                if ftype not in grouped:
+                    grouped[ftype] = []
+                grouped[ftype].append(f)
+            return grouped
+
+        grouped: Dict[str, List[Dict[str, Any]]] = {}
+
+        for ftype in order:
+            type_findings = [f for f in findings if f.get("finding_type") == ftype]
+            if type_findings:
+                grouped[ftype] = type_findings
+
+        # Add remaining types not in order
+        for f in findings:
+            ftype = f.get("finding_type", "other")
+            if ftype not in grouped:
+                grouped[ftype] = []
+            if f not in grouped.get(ftype, []):
+                grouped.setdefault(ftype, []).append(f)
+
+        return grouped
 
     # Expert perspective prompts for deep analysis
     PERSPECTIVE_PROMPTS: Dict[str, str] = {
@@ -802,29 +1680,67 @@ Be specific, actionable, and provide evidence-based conclusions.
 Based on your specialized expertise, provide:
 
 1. CORE ANALYSIS: Deep expert analysis from your perspective (3-4 detailed paragraphs)
-2. HIDDEN INSIGHTS: 5-7 insights that only someone with your expertise would notice
-3. ACTIONABLE RECOMMENDATIONS: 3-5 specific, actionable recommendations
-4. PREDICTIONS: 2-4 predictions about future developments, each with:
-   - What will likely happen
-   - Rationale explaining WHY you predict this (based on evidence from findings)
-   - Confidence level (high/medium/low)
-   - Timeline (when this is expected, e.g., "Q1 2025", "6-12 months", "2025-2026")
-   - Which sources or findings support this prediction
-5. CRITICAL WARNINGS: Important risks or red flags from your perspective
-6. KNOWLEDGE GAPS: What additional information would strengthen this analysis?
-7. CONTRARIAN VIEW: What is the opposite view and why might it be right?
+   - Explain the reasoning behind each major point
+   - Connect observations to broader patterns or trends
+   - Reference specific findings that support your analysis
 
+2. HIDDEN INSIGHTS: 5-7 insights that only someone with your expertise would notice
+   Each insight MUST include:
+   - The insight itself
+   - WHY this matters (the "so what?")
+   - EVIDENCE from the findings that supports this
+   Example: "Customer concentration risk is higher than it appears because [evidence]. This matters because [implication]."
+
+3. ACTIONABLE RECOMMENDATIONS: 3-5 specific, actionable recommendations
+   Each recommendation MUST explain:
+   - WHAT to do
+   - WHY this action is warranted (the reasoning)
+   - WHAT EVIDENCE supports this recommendation
+
+4. PREDICTIONS: 2-4 predictions about future developments, each with DETAILED rationale:
+   - prediction: What will likely happen (specific and measurable)
+   - rationale: DETAILED explanation (3-5 sentences) of WHY you predict this, including:
+     * The causal mechanism or logic chain
+     * Historical precedents or patterns that inform this
+     * Key assumptions underlying the prediction
+     * What would need to be true for this to occur
+   - confidence: high/medium/low with EXPLANATION of confidence level
+   - timeline: When this is expected (e.g., "Q1 2025", "6-12 months")
+   - supporting_evidence: Specific findings or data points that support this
+   - what_could_change_this: Factors that could invalidate the prediction
+
+5. CRITICAL WARNINGS: Important risks or red flags from your perspective
+   Each warning MUST include:
+   - The risk/warning
+   - WHY this is concerning (the mechanism of harm)
+   - What to watch for (leading indicators)
+
+6. KNOWLEDGE GAPS: What additional information would strengthen this analysis?
+   For each gap, explain WHY this information matters and HOW it would change conclusions.
+
+7. CONTRARIAN VIEW: What is the opposite view and why might it be right?
+   Provide genuine steel-man argument with supporting logic.
+
+CRITICAL: Every statement must have supporting reasoning. No unsupported assertions.
 Be specific and cite evidence from the findings. Avoid generic statements.
 
 Return as JSON with keys:
 - analysis_text (string)
-- key_insights (array of strings)
-- recommendations (array of strings)
-- predictions (array of objects with: prediction, rationale, confidence, timeline, supporting_sources)
-- warnings (array of strings)
-- knowledge_gaps (array of strings)
-- contrarian_view (string)
+- key_insights (array of strings - each insight should include reasoning)
+- recommendations (array of strings - each with reasoning)
+- predictions (array of objects with: prediction, rationale, confidence, timeline, supporting_evidence, what_could_change_this)
+- warnings (array of strings - each with reasoning)
+- knowledge_gaps (array of strings - each explaining why it matters)
+- contrarian_view (string - with supporting logic)
 - confidence (0.0-1.0)
+- bear_case (object, REQUIRED for short_seller perspective): {{
+    "probability": 0.25,
+    "summary": "One sentence summary of bear scenario",
+    "trigger": "What event/condition would cause the negative outcome",
+    "magnitude": "Expected impact (e.g., 'stock drops 40%', 'revenue declines 30%')",
+    "timeline": "When this could materialize (e.g., 'H2 2025', '12-18 months')",
+    "kill_signals": ["Signal 1 to watch", "Signal 2 to watch", "Signal 3 to watch"]
+  }}
 """
 
         result, _ = await self.gemini_client.generate_json(prompt, temperature=0.4)
@@ -840,6 +1756,7 @@ Return as JSON with keys:
                 "knowledge_gaps": [],
                 "contrarian_view": "",
                 "confidence": 0.3,
+                "bear_case": None,
             }
 
         # Ensure predictions field exists and is properly structured
@@ -858,6 +1775,51 @@ Return as JSON with keys:
                     }
                     for p in result["predictions"]
                 ]
+
+        # Ensure bear_case is properly structured for short_seller perspective
+        if perspective_type == "short_seller":
+            if "bear_case" not in result or not isinstance(result.get("bear_case"), dict):
+                # Try to extract bear case summary from analysis_text
+                analysis_text = result.get("analysis_text", "")
+                contrarian_view = result.get("contrarian_view", "")
+                warnings = result.get("warnings", [])
+
+                # Build a meaningful summary from available data
+                summary = ""
+                if contrarian_view:
+                    summary = contrarian_view[:200]
+                elif warnings:
+                    summary = f"Key risks: {'; '.join(warnings[:2])}"
+                elif analysis_text:
+                    # Extract first substantive sentence
+                    sentences = analysis_text.split(". ")
+                    summary = sentences[0][:200] if sentences else "See analysis for bear case details"
+
+                result["bear_case"] = {
+                    "probability": 0.25,
+                    "summary": summary,
+                    "trigger": warnings[0] if warnings else "Multiple risk factors could materialize",
+                    "magnitude": "Significant downside potential - see analysis",
+                    "timeline": "6-18 months",
+                    "kill_signals": warnings[:5] if warnings else ["Monitor key risk factors"]
+                }
+            else:
+                # Ensure all fields exist with meaningful defaults
+                bear_case = result["bear_case"]
+                warnings = result.get("warnings", [])
+
+                if not bear_case.get("probability"):
+                    bear_case["probability"] = 0.25
+                if not bear_case.get("summary"):
+                    bear_case["summary"] = result.get("contrarian_view", "")[:200] or "See analysis"
+                if not bear_case.get("trigger"):
+                    bear_case["trigger"] = warnings[0] if warnings else ""
+                if not bear_case.get("magnitude"):
+                    bear_case["magnitude"] = ""
+                if not bear_case.get("timeline"):
+                    bear_case["timeline"] = "6-18 months"
+                if not bear_case.get("kill_signals"):
+                    bear_case["kill_signals"] = warnings[:5] if warnings else []
 
         result["perspective_type"] = perspective_type
         return result

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-export type ThemeName = 'radar' | 'swiss' | 'organic';
+export type ThemeName = 'radar' | 'swiss';
 
 interface ThemeState {
   theme: ThemeName;

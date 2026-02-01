@@ -17,14 +17,14 @@ This actor performs comprehensive web research on any topic, returning:
 
 | Need | Template | Example Query |
 |------|----------|--------------|
-| **Tech trends & market analysis** | `tech_market` | "AI coding assistants market 2025" |
-| **Vet a company before partnering** | `due_diligence` | "WeWork Adam Neumann company vetting" |
-| **Research before buying** | `purchase_decision` | "MacBook Pro M3 vs Dell XPS 15" |
+| **Tech trends & market analysis** | `tech_market` | "LLM infrastructure and vector database market 2025-2026: Pinecone vs Weaviate vs Milvus" |
+| **Vet a company before partnering** | `due_diligence` | "Microsoft Activision acquisition regulatory due diligence" |
+| **Research before buying** | `purchase_decision` | "AWS vs Azure vs GCP cloud platform selection for enterprise RAG" |
 | **Check if something is legit** | `reputation` | "Is Temu legitimate safe to buy" |
-| **Understand major events** | `understanding` | "US-Venezuela diplomatic crisis January 2026" |
-| **Stock/investment analysis** | `financial` | "NVIDIA Q4 2025 earnings outlook" |
-| **Compare competitors** | `competitive` | "Stripe vs Square vs Adyen" |
-| **Legal & regulatory research** | `legal` | "AI copyright lawsuits 2025" |
+| **Understand major events** | `understanding` | "Why USA struck Venezuela January 2026 and why 30% still support Maduro" |
+| **Stock/investment analysis** | `financial` | "Micro-nuclear SMR stocks: NuScale vs Oklo vs Nano Nuclear investment outlook" |
+| **Compare competitors** | `competitive` | "LLM API market share 2025: Anthropic vs OpenAI vs Google enterprise adoption" |
+| **Legal & regulatory research** | `legal` | "GDPR enforcement actions 2025: TikTok, Meta, Google fines and precedents" |
 
 ## Quick Start
 
@@ -661,48 +661,77 @@ These example runs demonstrate the actor across all templates and configurations
 
 ### Tech Market Template
 
-| Topic | Template | Depth | Report | Run URL |
-|-------|----------|-------|--------|---------|
-| AI coding assistants enterprise adoption 2025 | tech_market | quick | executive_summary | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/L4IU2nPHd9P5x0RRV) |
-| Kubernetes alternatives gaining traction 2025 | tech_market | standard | full_report | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/CdWKKC6BcTzgEvUKi) |
-| Developer productivity tools market outlook 2026 | tech_market | deep | investment_thesis | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/sCHEppOLikeMOfMCC) |
-| React vs Vue vs Svelte framework adoption 2025 | tech_market | standard | executive_summary | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/eFBIAa4HhRT7DQn4C) |
-| GitHub Actions vs GitLab CI enterprise adoption | tech_market | quick | full_report | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/V2om9AWA3mmRm4CsZ) |
-| LLM infrastructure and vector database market 2025-2026 | tech_market | deep | full_report | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/BLJVsg9wHnZDo3FDQ) |
+| Topic | Template | Depth | Report |
+|-------|----------|-------|--------|
+| Vector database market 2025-2026: Pinecone vs Weaviate vs Milvus vs Chroma | tech_market | deep | full_report |
+| React vs Vue vs Angular framework market share 2025 worldwide | tech_market | standard | full_report |
+| AI/LLM enterprise adoption rates 2025 worldwide | tech_market | standard | full_report |
+| Kubernetes alternatives gaining traction 2025 | tech_market | standard | full_report |
+| AI coding assistants enterprise adoption 2025 | tech_market | quick | executive_summary |
+
+**Sample findings from vector database research:**
+- Vector search commoditizing - now a feature in cloud platforms, not standalone moat
+- Hybrid search (keyword + vector) is now default for production RAG applications
+- GraphRAG emerging with 50% to 80%+ accuracy improvements over pure vector search
+- PostgreSQL + pgVector may handle 50%+ of production RAG workloads by 2026
 
 ### Financial Template
 
-| Topic | Template | Depth | Report | Run URL |
-|-------|----------|-------|--------|---------|
-| Apple Q4 2024 earnings and 2025 outlook | financial | quick | executive_summary | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/VfsQ7qS4BALtnCzra) |
-| NVIDIA stock valuation and AI chip market 2025 | financial | standard | full_report | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/WJJPqXKzboDUlJXEu) |
-| Microsoft AI investments ROI analysis | financial | deep | investment_thesis | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/J4AzzGcokJc0lrGU3) |
-| Anthropic valuation and competitive position | financial | standard | investment_thesis | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/Dl9fSDTomRCmHLfQH) |
+| Topic | Template | Depth | Report |
+|-------|----------|-------|--------|
+| Micro-nuclear SMR stocks: NuScale, Oklo, Nano Nuclear investment outlook | financial | deep | investment_thesis |
+| Tesla Q4 2025 earnings and AI robotics valuation | financial | standard | full_report |
+| NVIDIA stock valuation and AI chip market 2025 | financial | standard | full_report |
+| Anthropic valuation and competitive position | financial | standard | investment_thesis |
+
+**Sample findings from nuclear SMR research:**
+- NuScale only company with NRC-certified SMR design, but stock down 79% from 2023 highs
+- Oklo secured 12 GW letter of intent pipeline but pre-revenue until 2027
+- Google and Amazon signing nuclear power agreements for data center needs
+- SMR sector volatile with 30-50% swings; suitable for high-risk tolerance investors
 
 ### Competitive Intelligence Template
 
-| Topic | Template | Depth | Report | Run URL |
-|-------|----------|-------|--------|---------|
-| Stripe vs Square vs Adyen payment processing | competitive | quick | executive_summary | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/cRsPRW2D3QgxPZTtv) |
-| AWS vs Azure vs GCP cloud market share 2025 | competitive | standard | full_report | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/kFEtoejidI0zzI5Gs) |
-| Notion vs Confluence enterprise collaboration | competitive | deep | investment_thesis | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/ddG0iqW3jrugw5vPA) |
-| Vercel vs Netlify vs Cloudflare Pages | competitive | standard | executive_summary | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/07UmN7edBzndxUlOx) |
+| Topic | Template | Depth | Report |
+|-------|----------|-------|--------|
+| LLM API market share 2025: Anthropic vs OpenAI vs Google vs Meta | competitive | deep | full_report |
+| Streaming services competitive landscape: Netflix vs Disney+ vs Max | competitive | standard | full_report |
+| AWS vs Azure vs GCP cloud market share 2025 | competitive | standard | full_report |
+| Stripe vs Square vs Adyen payment processing | competitive | quick | executive_summary |
+
+**Sample findings from LLM API competitive research:**
+- Anthropic grew to 32.5% enterprise market share, up from 15% in early 2024
+- OpenAI at 25.2% enterprise share, down from 48% dominance in 2023
+- Google Gemini captured 21.3% with aggressive cloud bundle pricing
+- Claude leads in coding benchmarks; GPT-4o leads in multimodal tasks
 
 ### Investigative Template
 
-| Topic | Template | Depth | Report | Run URL |
-|-------|----------|-------|--------|---------|
-| OpenAI leadership and governance changes 2023-2024 | investigative | quick | executive_summary | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/8tj71Ew5oQpIQanRu) |
-| FTX collapse timeline and key actors | investigative | standard | full_report | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/p5DnoyLhQTSxwj06P) |
-| Theranos fraud investigation key findings | investigative | deep | full_report | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/813enuQtiewczhTg7) |
+| Topic | Template | Depth | Report |
+|-------|----------|-------|--------|
+| Why USA struck Venezuela January 2026 and Chavismo support analysis | investigative | deep | full_report |
+| FTX collapse timeline and key actors | investigative | standard | full_report |
+| OpenAI leadership and governance changes 2023-2024 | investigative | quick | executive_summary |
+
+**Sample findings from Venezuela research:**
+- Operation Absolute Resolve launched January 3, 2026 capturing Maduro
+- ~27% Chavismo support sustained by clientelism, historical gratitude, anti-imperialism
+- 7.7 million Venezuelans emigrated (quarter of population) during Maduro presidency
+- US intervention paradoxically validates anti-imperialist narrative sustaining Chavismo
 
 ### Legal Template
 
-| Topic | Template | Depth | Report | Run URL |
-|-------|----------|-------|--------|---------|
-| AI copyright and IP lawsuits 2024-2025 | legal | quick | executive_summary | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/W3BcpsRohNUfEKIaO) |
-| GDPR enforcement actions tech companies 2024 | legal | standard | full_report | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/WHxtWBnMWl0AM1h8e) |
-| SEC cryptocurrency regulations 2024-2025 | legal | deep | full_report | [View Run](https://console.apify.com/actors/mj1eRf4tmih4bqlNG/runs/Zzz9bYIKts4zsw5BF) |
+| Topic | Template | Depth | Report |
+|-------|----------|-------|--------|
+| GDPR enforcement actions 2025: TikTok, Meta, Google major fines | legal | deep | full_report |
+| Epic vs Apple antitrust case outcomes and precedents | legal | standard | full_report |
+| AI copyright and IP lawsuits 2024-2025 | legal | quick | executive_summary |
+
+**Sample findings from GDPR research:**
+- GDPR fines exceeded €3 billion in H1 2025 - more than any previous full year
+- TikTok fined €530M for transferring European user data to China
+- Meta fined €479M by Madrid court for unlawful data processing
+- 63% of total GDPR fines (€3.9B) imposed on US-based companies
 
 ---
 

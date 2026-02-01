@@ -1,10 +1,171 @@
 """Investigative journalism research template."""
 
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 
-from .base import BaseTemplate
+from .base import BaseTemplate, TemplateConfig, FindingTypeConfig, FindingType
 from ..services.report_components import (
-    ComponentType, ComponentConfig, ReportHints, get_report_hints
+    ComponentType, ReportHints
+)
+
+
+# ========== FINDING TYPE ENUM ==========
+
+class InvestigativeFindingType(FindingType):
+    """Valid finding types for investigative journalism research."""
+    ACTOR = "actor"
+    EVENT = "event"
+    RELATIONSHIP = "relationship"
+    FINANCIAL = "financial"
+    EVIDENCE = "evidence"
+    PATTERN = "pattern"
+    GAP = "gap"
+
+
+# ========== TEMPLATE CONFIGURATION ==========
+
+INVESTIGATIVE_CONFIG = TemplateConfig(
+    search_intro="You are an investigative journalist planning research queries for a deep investigation.",
+    search_angles=[
+        {
+            "name": "KEY ACTORS",
+            "items": [
+                "Who are the main people/organizations involved?",
+                "Backgrounds and histories of key individuals",
+                "Corporate structures and ownership",
+            ]
+        },
+        {
+            "name": "TIMELINE",
+            "items": [
+                "What events happened and when?",
+                "Sequence of key decisions and actions",
+                "Historical context and precedents",
+            ]
+        },
+        {
+            "name": "LOCATIONS",
+            "items": [
+                "Where did key events occur?",
+                "What jurisdictions are involved?",
+                "Geographic patterns and connections",
+            ]
+        },
+        {
+            "name": "MOTIVATIONS",
+            "items": [
+                "What are the underlying interests?",
+                "Relationships and alliances",
+                "Conflicts of interest",
+            ]
+        },
+        {
+            "name": "METHODS",
+            "items": [
+                "How were things done?",
+                "What mechanisms were used?",
+                "Patterns of behavior or action",
+            ]
+        },
+        {
+            "name": "MONEY TRAIL",
+            "items": [
+                "Financial connections and transactions",
+                "Funding sources and flows",
+                "Property and asset movements",
+            ]
+        },
+        {
+            "name": "OFFICIAL RECORDS",
+            "items": [
+                "Government filings and registrations",
+                "Court documents and legal proceedings",
+                "Regulatory actions and investigations",
+            ]
+        },
+        {
+            "name": "MEDIA COVERAGE",
+            "items": [
+                "News reports and investigations",
+                "Interviews and public statements",
+                "Coverage patterns and omissions",
+            ]
+        },
+    ],
+    search_depth_guidance={
+        "quick": "Focus on 1-3 most critical angles",
+        "standard": "Cover 4-5 key angles with balanced depth",
+        "deep": "Comprehensive coverage of all angles with follow-up queries",
+    },
+
+    extraction_intro="You are an investigative analyst extracting key findings for a deep investigation.",
+    finding_types=[
+        FindingTypeConfig(
+            name="actor",
+            display_name="Actor",
+            description="People, organizations, entities involved. Include: name, role, affiliations, significance. Note any aliases or connections.",
+            extracted_data_schema='{"name": "...", "role": "...", "affiliations": [...], "significance": "...", "aliases": [...]}',
+            analysis_fallback="This actor's role and connections warrant further investigation to understand their influence on events.",
+        ),
+        FindingTypeConfig(
+            name="event",
+            display_name="Event",
+            description="Key incidents, actions, decisions. Include: date (if known), location, participants, outcome. Note sequence and causation.",
+            extracted_data_schema='{"date": "...", "location": "...", "participants": [...], "outcome": "...", "causation": "..."}',
+            analysis_fallback="This event is significant in the investigative timeline and may have causal links to other developments.",
+        ),
+        FindingTypeConfig(
+            name="relationship",
+            display_name="Relationship",
+            description="Connections between actors. Types: personal, professional, political, criminal. Include strength of evidence.",
+            extracted_data_schema='{"actor_a": "...", "actor_b": "...", "relationship_type": "...", "evidence_strength": "strong/moderate/weak"}',
+            analysis_fallback="This connection reveals potential coordination or influence that could be relevant to the investigation.",
+        ),
+        FindingTypeConfig(
+            name="financial",
+            display_name="Financial Transaction",
+            description="ANY money movement: payments, gifts, loans, wire transfers, settlements, property purchases, investments, donations. This is CRITICAL - extract ALL financial amounts mentioned.",
+            extracted_data_schema='{"amount": 0, "currency": "USD", "payer": "...", "payee": "...", "transaction_date": "YYYY-MM-DD", "transaction_type": "payment/gift/loan/wire_transfer/property/settlement/investment", "purpose": "..."}',
+            analysis_fallback="This financial transaction may indicate underlying arrangements that require further scrutiny.",
+        ),
+        FindingTypeConfig(
+            name="evidence",
+            display_name="Evidence",
+            description="Documents, statements, data points. Include: type, source, significance. Note verification status.",
+            extracted_data_schema='{"evidence_type": "document/statement/data", "source": "...", "significance": "...", "verified": true/false}',
+            analysis_fallback="This evidence supports key aspects of the investigation and strengthens the evidentiary foundation.",
+        ),
+        FindingTypeConfig(
+            name="pattern",
+            display_name="Pattern",
+            description="Recurring behaviors, methods, structures. Include: description, frequency, participants.",
+            extracted_data_schema='{"description": "...", "frequency": "...", "participants": [...], "time_span": "..."}',
+            analysis_fallback="This recurring pattern suggests systematic behavior that may indicate intentional coordination.",
+        ),
+        FindingTypeConfig(
+            name="gap",
+            display_name="Gap",
+            description="Missing information, unanswered questions. What we don't know and why it matters. Suggested follow-up.",
+            extracted_data_schema='{"question": "...", "importance": "high/medium/low", "suggested_followup": [...]}',
+            analysis_fallback="This information gap limits our ability to draw complete conclusions and should be addressed.",
+        ),
+    ],
+    analysis_instruction="""YOUR EXPERT ANALYTICAL COMMENTARY (REQUIRED - 2-4 sentences) explaining:
+  * WHY this finding is significant for the investigation
+  * What it IMPLIES about the broader situation
+  * How it CONNECTS to other findings or patterns
+  * What questions it RAISES or answers""",
+    extraction_guidelines="""CRITICAL: The "analysis" field must provide substantive reasoning, not just restate the finding.
+Bad example: "This is an important financial transaction."
+Good example: "This payment pattern suggests a quid pro quo arrangement because the timing coincides with the policy change. The use of intermediary accounts indicates awareness that direct payment would raise red flags. This connects to the earlier lobbying activity and raises questions about who authorized the payment structure."
+
+IMPORTANT:
+- Prioritize extracting ALL financial transactions with specific dollar amounts
+- Note corroboration status for key claims
+- Flag connections that warrant further investigation""",
+
+    priority_finding_types=["financial", "evidence", "actor", "relationship", "pattern"],
+    grouping_order=["financial", "actor", "relationship", "evidence", "event", "pattern", "gap"],
 )
 
 
@@ -14,6 +175,9 @@ class InvestigativeTemplate(BaseTemplate):
     template_id = "investigative"
     template_name = "Investigative Research"
     description = "Deep investigative journalism with actor and relationship analysis"
+
+    # Data-driven configuration
+    config = INVESTIGATIVE_CONFIG
 
     # Report hints for component-based rendering
     report_hints = ReportHints(
@@ -62,148 +226,6 @@ class InvestigativeTemplate(BaseTemplate):
         "source_quality": "thorough",       # Primary sources critical
     }
 
-    async def generate_search_queries(
-        self,
-        query: str,
-        max_searches: int,
-        granularity: str = "standard",
-    ) -> List[str]:
-        """Generate investigative search queries."""
-        prompt = f"""
-You are an investigative journalist planning research queries for a deep investigation.
-
-Investigation Topic: {query}
-
-Depth Level: {granularity}
-
-Generate search queries covering these investigative angles:
-1. KEY ACTORS: Who are the main people/organizations involved?
-2. TIMELINE: What events happened and when?
-3. LOCATIONS: Where did key events occur? What jurisdictions are involved?
-4. MOTIVATIONS: What are the underlying interests and relationships?
-5. METHODS: How were things done? What mechanisms were used?
-6. MONEY TRAIL: Financial connections and transactions
-7. OFFICIAL RECORDS: Government filings, court documents, regulatory actions
-8. MEDIA COVERAGE: News reports, interviews, public statements
-
-For a "{granularity}" depth level:
-- "quick": Focus on 1-3 most critical angles
-- "standard": Cover 4-5 key angles with balanced depth
-- "deep": Comprehensive coverage of all angles with follow-up queries
-
-Return a JSON array of exactly {max_searches} search query strings, ordered by importance.
-Example: ["query about main actor", "query about key event", ...]
-"""
-
-        result = await self._call_gemini_json(prompt)
-
-        if isinstance(result, list):
-            return result[:max_searches]
-        return []
-
-    async def extract_findings(
-        self,
-        query: str,
-        sources: List[Dict[str, Any]],
-        synthesized_content: str,
-        granularity: str = "standard",
-    ) -> List[Dict[str, Any]]:
-        """Extract investigative findings."""
-        # Build source context
-        source_context = "\n\n".join([
-            f"Source: {s.get('title', 'Unknown')} ({s.get('url', '')})\n"
-            f"Credibility: {s.get('credibility_score', 'Unknown')}\n"
-            f"Domain: {s.get('domain', '')}"
-            for s in sources[:20]
-        ])
-
-        prompt = f"""
-You are an investigative analyst extracting key findings for a deep investigation.
-
-Investigation Topic: {query}
-
-Synthesized Research Content:
-{synthesized_content[:15000]}
-
-Sources Referenced:
-{source_context}
-
-Extract findings in these investigative categories:
-
-1. ACTORS (finding_type: "actor")
-   - People, organizations, entities involved
-   - Include: name, role, affiliations, significance
-   - Note any aliases or connections
-
-2. EVENTS (finding_type: "event")
-   - Key incidents, actions, decisions
-   - Include: date (if known), location, participants, outcome
-   - Note sequence and causation
-
-3. RELATIONSHIPS (finding_type: "relationship")
-   - Connections between actors
-   - Types: personal, professional, political, criminal
-   - Include strength of evidence
-
-4. FINANCIAL TRANSACTIONS (finding_type: "financial")
-   - ANY money movement: payments, gifts, loans, wire transfers, settlements
-   - Property purchases, sales, or transfers
-   - Investments, donations, or funding
-   - Include in extracted_data:
-     * "amount": dollar amount (number)
-     * "currency": "USD", "GBP", etc.
-     * "payer": who paid/gave the money
-     * "payee": who received the money
-     * "transaction_date": date if known (YYYY-MM-DD)
-     * "transaction_type": payment/gift/loan/wire_transfer/property/settlement/investment
-     * "purpose": reason or context for the transaction
-   - This is CRITICAL - extract ALL financial amounts mentioned
-
-5. EVIDENCE (finding_type: "evidence")
-   - Documents, statements, data points
-   - Include: type, source, significance
-   - Note verification status
-
-6. PATTERNS (finding_type: "pattern")
-   - Recurring behaviors, methods, structures
-   - Include: description, frequency, participants
-
-7. GAPS (finding_type: "gap")
-   - Missing information, unanswered questions
-   - What we don't know and why it matters
-   - Suggested follow-up
-
-For each finding, return:
-- finding_type: One of 'actor', 'event', 'relationship', 'financial', 'evidence', 'pattern', 'gap'
-- content: Detailed finding with specific facts
-- summary: One sentence
-- confidence_score: 0.0-1.0 (based on source quality and corroboration)
-- temporal_context: 'past', 'present', 'ongoing', or 'prediction'
-- extracted_data: JSON object with structured data specific to the finding type
-  - For 'financial': MUST include amount, payer, payee, transaction_type
-
-Return as JSON array. Prioritize extracting ALL financial transactions with specific dollar amounts.
-"""
-
-        result = await self._call_gemini_json(prompt)
-
-        findings = []
-        if isinstance(result, list):
-            for f in result:
-                if isinstance(f, dict):
-                    findings.append({
-                        "finding_type": f.get("finding_type", "fact"),
-                        "content": f.get("content", ""),
-                        "summary": f.get("summary"),
-                        "confidence_score": f.get("confidence_score", 0.5),
-                        "temporal_context": f.get("temporal_context", "present"),
-                        "extracted_data": f.get("extracted_data"),
-                    })
-
-        return findings
-
-    # ========== INVESTIGATIVE-SPECIFIC REPORT GENERATION ==========
-
     def get_supported_report_variants(self) -> List[str]:
         """Investigative template supports risk_assessment variant."""
         return ["full_report", "executive_summary", "risk_assessment"]
@@ -214,8 +236,6 @@ Return as JSON array. Prioritize extracting ALL financial transactions with spec
         title: Optional[str] = None,
     ) -> str:
         """Generate risk assessment report - investigative-specific variant."""
-        from datetime import datetime
-
         query = result.get("query", "Unknown")
         report_title = title or f"Risk Assessment: {query[:40]}"
 
@@ -270,7 +290,7 @@ Return as JSON array. Prioritize extracting ALL financial transactions with spec
                     payer = extracted.get("payer", "")
                     payee = extracted.get("payee", "")
                     if amount:
-                        sections.append(f"- **${amount:,}** from {payer} to {payee}")
+                        sections.append(f"- **${amount:,}** from {payer} to {payee}" if isinstance(amount, (int, float)) else f"- **{amount}** from {payer} to {payee}")
                 else:
                     sections.append(f"- {txn.get('summary') or txn.get('content', '')[:80]}")
             sections.append("")
@@ -315,47 +335,6 @@ Return as JSON array. Prioritize extracting ALL financial transactions with spec
             sections.append("")
 
         return "\n".join(sections)
-
-    def _get_priority_findings(self, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Investigative template prioritizes actors, financial, and evidence."""
-        # Priority order for investigative findings
-        priority_types = ["financial", "evidence", "actor", "relationship", "pattern"]
-        prioritized = []
-
-        for ftype in priority_types:
-            type_findings = [f for f in findings if f.get("finding_type") == ftype]
-            prioritized.extend(sorted(
-                type_findings,
-                key=lambda x: x.get("confidence_score", 0),
-                reverse=True
-            ))
-
-        # Add remaining
-        remaining = [f for f in findings if f not in prioritized]
-        prioritized.extend(sorted(remaining, key=lambda x: x.get("confidence_score", 0), reverse=True))
-
-        return prioritized
-
-    def _group_findings(self, findings: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
-        """Group findings with investigative priority order."""
-        # Custom order for investigative reports
-        order = ["financial", "actor", "relationship", "evidence", "event", "pattern", "gap", "other"]
-        grouped: Dict[str, List[Dict[str, Any]]] = {}
-
-        for ftype in order:
-            type_findings = [f for f in findings if f.get("finding_type") == ftype]
-            if type_findings:
-                grouped[ftype] = type_findings
-
-        # Add any remaining types not in order
-        for f in findings:
-            ftype = f.get("finding_type", "other")
-            if ftype not in grouped:
-                grouped[ftype] = []
-            if f not in grouped.get(ftype, []):
-                grouped.setdefault(ftype, []).append(f)
-
-        return grouped
 
     def _generate_key_sections(self, result: Dict[str, Any]) -> str:
         """Generate investigative-specific key sections: Actor map, Financial trail."""

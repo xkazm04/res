@@ -332,6 +332,9 @@ async def run_actor(
 
     # Execute research
     try:
+        # Get intent configuration for tailored research
+        intent_config = actor_input.get_intent_config() if actor_input.intent else None
+
         result = await research_service.execute_research(
             query=actor_input.query,
             template_type=actor_input.template,
@@ -344,6 +347,8 @@ async def run_actor(
             workspace_id=actor_input.workspace_id,
             use_cache=actor_input.use_cache,
             extend_cache=actor_input.extend_cache,
+            intent=actor_input.intent,
+            intent_config=intent_config,
         )
     except Exception as e:
         logger.error(f"Research failed: {e}")

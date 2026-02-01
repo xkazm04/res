@@ -38,9 +38,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[Research] Starting research for: ${input.query.slice(0, 50)}...`);
-    console.log(`[Research] Template: ${input.template}, Granularity: ${input.granularity}, Max searches: ${input.max_searches}`);
-
     // Initialize research service
     const researchService = new ResearchService(googleApiKey);
 
@@ -59,9 +56,6 @@ export async function POST(request: NextRequest) {
         sendEmail: input.send_email_on_complete ?? !!input.user_email,
       }
     );
-
-    console.log(`[Research] Completed: ${result.findings.length} findings, ${result.sources.length} sources, ${result.perspectives.length} perspectives`);
-    console.log(`[Research] Status: ${result.status}, Tokens: ${result.costSummary.totalTokens}, Cost: $${result.costSummary.totalCostUsd.toFixed(4)}`);
 
     // Transform to match expected output format
     const output = {

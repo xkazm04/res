@@ -1,10 +1,209 @@
 """Competitive analysis research template."""
 
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 
-from .base import BaseTemplate
+from .base import BaseTemplate, TemplateConfig, FindingTypeConfig, FindingType
 from ..services.report_components import (
-    ComponentType, ComponentConfig, ReportHints, get_report_hints
+    ComponentType, ReportHints
+)
+
+
+# ========== FINDING TYPE ENUM ==========
+
+class CompetitiveFindingType(FindingType):
+    """Valid finding types for competitive analysis research."""
+    FACT = "fact"
+    ACTOR = "actor"
+    EVENT = "event"
+    RELATIONSHIP = "relationship"
+    EVIDENCE = "evidence"
+    PATTERN = "pattern"
+    CLAIM = "claim"
+    PREDICTION = "prediction"
+    GAP = "gap"
+
+
+# ========== TEMPLATE CONFIGURATION ==========
+
+COMPETITIVE_CONFIG = TemplateConfig(
+    search_intro="You are a competitive intelligence analyst planning research for a comprehensive competitive analysis.",
+    search_angles=[
+        {
+            "name": "MARKET OVERVIEW",
+            "items": [
+                "Total addressable market size and growth rate",
+                "Market segmentation and dynamics",
+                "Industry value chain analysis",
+            ]
+        },
+        {
+            "name": "COMPETITOR IDENTIFICATION",
+            "items": [
+                "Direct competitors by market segment",
+                "Indirect and emerging competitors",
+                "Potential new entrants and substitutes",
+            ]
+        },
+        {
+            "name": "COMPETITOR PROFILES",
+            "items": [
+                "Business model and revenue streams",
+                "Product/service offerings and differentiation",
+                "Geographic presence and expansion plans",
+                "Recent news, announcements, product launches",
+            ]
+        },
+        {
+            "name": "FINANCIAL COMPARISON",
+            "items": [
+                "Revenue, growth rates, margins",
+                "Market share estimates",
+                "Investment and R&D spending",
+                "Profitability and unit economics",
+            ]
+        },
+        {
+            "name": "STRATEGIC POSITIONING",
+            "items": [
+                "Value propositions and target customers",
+                "Pricing strategies and models",
+                "Distribution and go-to-market approaches",
+                "Partnerships and ecosystem plays",
+            ]
+        },
+        {
+            "name": "COMPETITIVE ADVANTAGES",
+            "items": [
+                "Technology and IP advantages",
+                "Network effects and switching costs",
+                "Scale and cost advantages",
+                "Brand and reputation",
+            ]
+        },
+        {
+            "name": "CUSTOMER INTELLIGENCE",
+            "items": [
+                "Customer reviews and satisfaction",
+                "Win/loss analysis patterns",
+                "Customer concentration",
+                "Churn and retention data",
+            ]
+        },
+        {
+            "name": "TALENT AND CULTURE",
+            "items": [
+                "Leadership team background",
+                "Key hires and departures",
+                "Glassdoor/Indeed reviews",
+                "Engineering talent and culture",
+            ]
+        },
+        {
+            "name": "WEAKNESSES AND THREATS",
+            "items": [
+                "Known vulnerabilities",
+                "Customer complaints",
+                "Regulatory challenges",
+                "Strategic missteps",
+            ]
+        },
+        {
+            "name": "FUTURE OUTLOOK",
+            "items": [
+                "Stated strategies and roadmaps",
+                "M&A activity and rumors",
+                "Industry trend positioning",
+            ]
+        },
+    ],
+    search_depth_guidance={
+        "quick": "Focus on top 3 competitors with key metrics only",
+        "standard": "Cover 5-7 competitors with balanced analysis",
+        "deep": "Comprehensive coverage of 10+ competitors with detailed profiles",
+    },
+
+    extraction_intro="You are a competitive intelligence analyst extracting key findings for strategic decision-making.",
+    finding_types=[
+        FindingTypeConfig(
+            name="fact",
+            display_name="Market Data",
+            description="Market size, growth rates, segments. Include: metric, value, source, date. Note methodology if available.",
+            extracted_data_schema='{"metric": "...", "value": "...", "period": "...", "growth": "...", "source": "..."}',
+            analysis_fallback="This market data provides context for understanding the competitive landscape.",
+        ),
+        FindingTypeConfig(
+            name="actor",
+            display_name="Competitor Profile",
+            description="Company overview, positioning, strategy. Include: company name, segment, key metrics. Note strengths and weaknesses.",
+            extracted_data_schema='{"company": "...", "segment": "...", "revenue": "...", "market_share": "...", "strengths": [...], "weaknesses": [...]}',
+            analysis_fallback="This competitor profile helps understand their market position and strategic focus.",
+        ),
+        FindingTypeConfig(
+            name="event",
+            display_name="Market Event",
+            description="Product launches, M&A, leadership changes. Include: date, companies involved, impact. Note strategic implications.",
+            extracted_data_schema='{"date": "...", "companies": [...], "event_type": "...", "impact": "..."}',
+            analysis_fallback="This market event may signal strategic shifts or competitive dynamics changes.",
+        ),
+        FindingTypeConfig(
+            name="relationship",
+            display_name="Competitive Dynamics",
+            description="Head-to-head competition, partnerships, ecosystems. Include: companies, nature of relationship. Note competitive intensity.",
+            extracted_data_schema='{"company_a": "...", "company_b": "...", "relationship_type": "...", "competitive_intensity": "high/medium/low"}',
+            analysis_fallback="This competitive relationship reveals market dynamics and potential strategic implications.",
+        ),
+        FindingTypeConfig(
+            name="evidence",
+            display_name="Market Share Data",
+            description="Market share percentages, rankings. Include: source, methodology, time period. Note trends and changes.",
+            extracted_data_schema='{"company": "...", "market_share": "...", "ranking": "...", "source": "...", "period": "...", "trend": "..."}',
+            analysis_fallback="This market share data helps quantify competitive positions.",
+        ),
+        FindingTypeConfig(
+            name="pattern",
+            display_name="Strategic Move",
+            description="Pricing changes, go-to-market shifts, pivots. Include: company, action, timing. Note competitive response.",
+            extracted_data_schema='{"company": "...", "action": "...", "timing": "...", "competitive_response": "..."}',
+            analysis_fallback="This strategic move may indicate shifts in competitive strategy.",
+        ),
+        FindingTypeConfig(
+            name="claim",
+            display_name="Customer Intelligence",
+            description="Customer feedback, satisfaction, preferences. Include: sentiment, specifics, volume. Note credibility of source.",
+            extracted_data_schema='{"source": "...", "sentiment": "positive/negative/mixed", "volume": "...", "key_themes": [...]}',
+            analysis_fallback="This customer intelligence provides insight into market perceptions and preferences.",
+        ),
+        FindingTypeConfig(
+            name="prediction",
+            display_name="Threats and Opportunities",
+            description="Emerging threats, market opportunities. Include: threat/opportunity, likelihood, timeline. Note strategic implications.",
+            extracted_data_schema='{"type": "threat/opportunity", "description": "...", "likelihood": "high/medium/low", "timeline": "...", "implications": "..."}',
+            analysis_fallback="This forward-looking assessment identifies potential strategic considerations.",
+        ),
+        FindingTypeConfig(
+            name="gap",
+            display_name="Gap",
+            description="Missing competitive data. Information needed for complete analysis. Suggested intelligence gathering.",
+            extracted_data_schema='{"information_needed": "...", "importance": "high/medium/low", "suggested_sources": [...]}',
+            analysis_fallback="This gap in competitive intelligence should be addressed for a complete analysis.",
+        ),
+    ],
+    analysis_instruction="""YOUR EXPERT ANALYTICAL COMMENTARY (REQUIRED - 2-4 sentences) explaining:
+  * WHY this finding matters for competitive positioning
+  * What STRATEGIC IMPLICATIONS it has for market players
+  * How this COMPARES to historical patterns or industry norms
+  * What ACTIONS or responses this might trigger from competitors""",
+    extraction_guidelines="""CRITICAL: The "analysis" field must provide substantive strategic reasoning, not just restate the finding.
+Good example: "This market share gain is significant because it crosses the 30% threshold typically required for pricing power. Historically, companies reaching this level have been able to raise prices 5-10% without significant churn. Competitors will likely respond with aggressive bundling or price cuts within 6 months."
+
+IMPORTANT:
+- Be skeptical of vendor-provided market share data
+- Note methodology differences between market research sources
+- Distinguish between market leadership claims and verified data""",
+
+    priority_finding_types=["actor", "evidence", "fact", "relationship", "pattern"],
+    grouping_order=["actor", "evidence", "fact", "relationship", "pattern", "event", "claim", "prediction", "gap"],
 )
 
 
@@ -14,6 +213,9 @@ class CompetitiveTemplate(BaseTemplate):
     template_id = "competitive"
     template_name = "Competitive Analysis"
     description = "Deep competitive intelligence, market positioning, and strategic analysis"
+
+    # Data-driven configuration
+    config = COMPETITIVE_CONFIG
 
     # Report hints for component-based rendering
     report_hints = ReportHints(
@@ -61,206 +263,6 @@ class CompetitiveTemplate(BaseTemplate):
         "source_quality": "standard",       # Mix of analyst and vendor sources
     }
 
-    async def generate_search_queries(
-        self,
-        query: str,
-        max_searches: int,
-        granularity: str = "standard",
-    ) -> List[str]:
-        """Generate competitive analysis search queries."""
-        prompt = f"""
-You are a competitive intelligence analyst planning research for a comprehensive competitive analysis.
-
-Research Topic: {query}
-
-Depth Level: {granularity}
-
-Generate search queries covering these competitive intelligence angles:
-
-1. MARKET OVERVIEW
-   - Total addressable market size and growth rate
-   - Market segmentation and dynamics
-   - Industry value chain analysis
-
-2. COMPETITOR IDENTIFICATION
-   - Direct competitors by market segment
-   - Indirect and emerging competitors
-   - Potential new entrants and substitutes
-
-3. COMPETITOR PROFILES (for each key competitor)
-   - Business model and revenue streams
-   - Product/service offerings and differentiation
-   - Geographic presence and expansion plans
-   - Recent news, announcements, product launches
-
-4. FINANCIAL COMPARISON
-   - Revenue, growth rates, margins
-   - Market share estimates
-   - Investment and R&D spending
-   - Profitability and unit economics
-
-5. STRATEGIC POSITIONING
-   - Value propositions and target customers
-   - Pricing strategies and models
-   - Distribution and go-to-market approaches
-   - Partnerships and ecosystem plays
-
-6. COMPETITIVE ADVANTAGES
-   - Technology and IP advantages
-   - Network effects and switching costs
-   - Scale and cost advantages
-   - Brand and reputation
-
-7. CUSTOMER INTELLIGENCE
-   - Customer reviews and satisfaction
-   - Win/loss analysis patterns
-   - Customer concentration
-   - Churn and retention data
-
-8. TALENT AND CULTURE
-   - Leadership team background
-   - Key hires and departures
-   - Glassdoor/Indeed reviews
-   - Engineering talent and culture
-
-9. WEAKNESSES AND THREATS
-   - Known vulnerabilities
-   - Customer complaints
-   - Regulatory challenges
-   - Strategic missteps
-
-10. FUTURE OUTLOOK
-    - Stated strategies and roadmaps
-    - M&A activity and rumors
-    - Industry trend positioning
-
-For a "{granularity}" depth level:
-- "quick": Focus on top 3 competitors with key metrics only
-- "standard": Cover 5-7 competitors with balanced analysis
-- "deep": Comprehensive coverage of 10+ competitors with detailed profiles
-
-Return a JSON array of exactly {max_searches} search query strings, ordered by importance.
-Example: ["company X vs company Y market share 2024", "company X revenue growth analysis", ...]
-"""
-
-        result = await self._call_gemini_json(prompt)
-
-        if isinstance(result, list):
-            return result[:max_searches]
-        return []
-
-    async def extract_findings(
-        self,
-        query: str,
-        sources: List[Dict[str, Any]],
-        synthesized_content: str,
-        granularity: str = "standard",
-    ) -> List[Dict[str, Any]]:
-        """Extract competitive intelligence findings."""
-        # Build source context
-        source_context = "\n\n".join([
-            f"Source: {s.get('title', 'Unknown')} ({s.get('url', '')})\n"
-            f"Credibility: {s.get('credibility_score', 'Unknown')}\n"
-            f"Domain: {s.get('domain', '')}"
-            for s in sources[:20]
-        ])
-
-        prompt = f"""
-You are a competitive intelligence analyst extracting key findings for strategic decision-making.
-
-Research Topic: {query}
-
-Synthesized Research Content:
-{synthesized_content[:15000]}
-
-Sources Referenced:
-{source_context}
-
-Extract findings in these competitive intelligence categories:
-
-1. MARKET DATA (finding_type: "fact")
-   - Market size, growth rates, segments
-   - Include: metric, value, source, date
-   - Note methodology if available
-
-2. COMPETITOR PROFILES (finding_type: "actor")
-   - Company overview, positioning, strategy
-   - Include: company name, segment, key metrics
-   - Note strengths and weaknesses
-
-3. MARKET EVENTS (finding_type: "event")
-   - Product launches, M&A, leadership changes
-   - Include: date, companies involved, impact
-   - Note strategic implications
-
-4. COMPETITIVE DYNAMICS (finding_type: "relationship")
-   - Head-to-head competition, partnerships, ecosystems
-   - Include: companies, nature of relationship
-   - Note competitive intensity
-
-5. MARKET SHARE DATA (finding_type: "evidence")
-   - Market share percentages, rankings
-   - Include: source, methodology, time period
-   - Note trends and changes
-
-6. STRATEGIC MOVES (finding_type: "pattern")
-   - Pricing changes, go-to-market shifts, pivots
-   - Include: company, action, timing
-   - Note competitive response
-
-7. CUSTOMER INTELLIGENCE (finding_type: "claim")
-   - Customer feedback, satisfaction, preferences
-   - Include: sentiment, specifics, volume
-   - Note credibility of source
-
-8. FINANCIAL METRICS (finding_type: "evidence")
-   - Revenue, margins, growth rates by competitor
-   - Include: metric, value, period, YoY change
-   - Note vs. industry benchmarks
-
-9. THREATS AND OPPORTUNITIES (finding_type: "prediction")
-   - Emerging threats, market opportunities
-   - Include: threat/opportunity, likelihood, timeline
-   - Note strategic implications
-
-10. GAPS (finding_type: "gap")
-    - Missing competitive data
-    - Information needed for complete analysis
-    - Suggested intelligence gathering
-
-For each finding, return:
-- finding_type: One of 'fact', 'actor', 'event', 'relationship', 'evidence', 'pattern', 'claim', 'prediction', 'gap'
-- content: Detailed finding with specific data points
-- summary: One sentence
-- confidence_score: 0.0-1.0 (based on source quality and recency)
-- temporal_context: 'past', 'present', 'ongoing', or 'prediction'
-- extracted_data: JSON object with structured data:
-  - For market data: {{"metric": "...", "value": ..., "period": "...", "growth": ...}}
-  - For competitors: {{"company": "...", "segment": "...", "revenue": ..., "market_share": ...}}
-  - For events: {{"date": "...", "companies": [...], "event_type": "...", "impact": "..."}}
-
-Return as JSON array.
-"""
-
-        result = await self._call_gemini_json(prompt)
-
-        findings = []
-        if isinstance(result, list):
-            for f in result:
-                if isinstance(f, dict):
-                    findings.append({
-                        "finding_type": f.get("finding_type", "fact"),
-                        "content": f.get("content", ""),
-                        "summary": f.get("summary"),
-                        "confidence_score": f.get("confidence_score", 0.5),
-                        "temporal_context": f.get("temporal_context", "present"),
-                        "extracted_data": f.get("extracted_data"),
-                    })
-
-        return findings
-
-    # ========== COMPETITIVE-SPECIFIC REPORT GENERATION ==========
-
     def get_supported_report_variants(self) -> List[str]:
         """Competitive template supports competitor_matrix variant."""
         return ["full_report", "executive_summary", "competitor_matrix"]
@@ -271,8 +273,6 @@ Return as JSON array.
         title: Optional[str] = None,
     ) -> str:
         """Generate competitor matrix report - competitive-specific variant."""
-        from datetime import datetime
-
         query = result.get("query", "Unknown")
         report_title = title or f"Competitive Matrix: {query[:40]}"
 
@@ -359,24 +359,6 @@ Return as JSON array.
             sections.append("")
 
         return "\n".join(sections)
-
-    def _get_priority_findings(self, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Competitive template prioritizes actors (competitors) and evidence."""
-        priority_types = ["actor", "evidence", "fact", "relationship", "pattern"]
-        prioritized = []
-
-        for ftype in priority_types:
-            type_findings = [f for f in findings if f.get("finding_type") == ftype]
-            prioritized.extend(sorted(
-                type_findings,
-                key=lambda x: x.get("confidence_score", 0),
-                reverse=True
-            ))
-
-        remaining = [f for f in findings if f not in prioritized]
-        prioritized.extend(sorted(remaining, key=lambda x: x.get("confidence_score", 0), reverse=True))
-
-        return prioritized
 
     def _generate_key_sections(self, result: Dict[str, Any]) -> str:
         """Generate competitive-specific key sections: Market Position, Key Competitors."""

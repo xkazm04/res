@@ -6,7 +6,7 @@ import { useThemeStore } from '@/src/stores/themeStore';
 import { useSessions } from '@/src/hooks/useSessions';
 import { MapEmptyState, MapLoadingState, MapErrorState } from './MapEmptyState';
 import { ThemeSwitcher } from '@/src/components/swiss/ThemeSwitcher';
-import { RadarView, SwissView, OrganicView } from '@/src/components/visualizations';
+import { RadarView, SwissView, SwissMapView, StrategicMapView } from '@/src/components/visualizations';
 import type { ResearchSession } from '@/src/types/research';
 
 interface ResearchMapProps {
@@ -26,13 +26,12 @@ export function ResearchMap({ className }: ResearchMapProps) {
   const renderVisualization = () => {
     switch (theme) {
       case 'radar':
-        return <RadarView sessions={sessions} onSessionSelect={handleSessionSelect} />;
+        // Use StrategicMapView for radar theme (Total War-style strategic map)
+        return <StrategicMapView sessions={sessions} onSessionSelect={handleSessionSelect} />;
       case 'swiss':
-        return <SwissView sessions={sessions} onSessionSelect={handleSessionSelect} />;
-      case 'organic':
-        return <OrganicView sessions={sessions} onSessionSelect={handleSessionSelect} />;
       default:
-        return <SwissView sessions={sessions} onSessionSelect={handleSessionSelect} />;
+        // Use SwissMapView for Swiss theme (infinite map with keyboard navigation)
+        return <SwissMapView sessions={sessions} onSessionSelect={handleSessionSelect} />;
     }
   };
 

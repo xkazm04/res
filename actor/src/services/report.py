@@ -196,6 +196,24 @@ class ReportService:
         """
         # Use interactive HTML if research result is available
         if research_result:
+            # Enrich result with template-specific analysis for financial/due_diligence templates
+            template_type = research_result.get("template", "investigative")
+            template = get_template(template_type)
+
+            # Generate kill criteria if template supports it
+            if hasattr(template, "generate_kill_criteria") and template_type in ["financial", "due_diligence"]:
+                try:
+                    research_result["kill_criteria"] = template.generate_kill_criteria(research_result)
+                except Exception:
+                    pass  # Don't fail report generation if this fails
+
+            # Generate ecosystem analysis if template supports it
+            if hasattr(template, "generate_ecosystem_analysis") and template_type == "financial":
+                try:
+                    research_result["ecosystem_analysis"] = template.generate_ecosystem_analysis(research_result)
+                except Exception:
+                    pass  # Don't fail report generation if this fails
+
             return generate_interactive_html(research_result, title)
 
         # Fallback to markdown conversion

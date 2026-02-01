@@ -25,6 +25,38 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // SESSION QUERIES
 // ============================================
 
+// Get all sessions (lightweight, for map visualization)
+export async function getAllSessions(): Promise<ResearchSession[]> {
+  const { data, error } = await supabase
+    .from('research_sessions')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching all sessions:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// Get session counts by template type
+export async function getSessionCountsByTemplate(): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('research_sessions')
+    .select('template_type');
+
+  if (error) {
+    console.error('Error fetching session counts:', error);
+    return {};
+  }
+
+  const counts: Record<string, number> = {};
+  data?.forEach((s) => {
+    counts[s.template_type] = (counts[s.template_type] || 0) + 1;
+  });
+  return counts;
+}
+
 export async function getSession(sessionId: string): Promise<ResearchSession | null> {
   const { data, error } = await supabase
     .from('research_sessions')
@@ -593,6 +625,201 @@ export async function saveActorReport(
     return false;
   }
   return true;
+}
+
+// ============================================
+// TOPIC QUERIES (for intermediate categorization)
+// ============================================
+
+export interface TopicGroup {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  topic_type?: string;
+  parent_id?: string;
+  session_count: number;
+  finding_count: number;
+  entity_count: number;
+  sessions?: Array<{
+    id: string;
+    template_type: string;
+    status: string;
+  }>;
+}
+
+export async function getTopicsWithSessionCounts(): Promise<TopicGroup[]> {
+  // Get topics with their linked sessions
+  const { data: topics, error } = await supabase
+    .from('knowledge_topics')
+    .select('*')
+    .order('session_count', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching topics:', error);
+    return [];
+  }
+
+  // For each topic, get linked sessions
+  const topicsWithSessions = await Promise.all(
+    (topics || []).map(async (topic) => {
+      const { data: sessionLinks } = await supabase
+        .from('session_topics')
+        .select('session_id')
+        .eq('topic_id', topic.id);
+
+      let sessions: Array<{ id: string; template_type: string; status: string }> = [];
+      if (sessionLinks && sessionLinks.length > 0) {
+        const sessionIds = sessionLinks.map((l) => l.session_id);
+        const { data: sessionsData } = await supabase
+          .from('research_sessions')
+          .select('id, template_type, status')
+          .in('id', sessionIds);
+        sessions = sessionsData || [];
+      }
+
+      return {
+        ...topic,
+        sessions,
+        session_count: sessions.length || topic.session_count || 0,
+      } as TopicGroup;
+    })
+  );
+
+  return topicsWithSessions.filter((t) => t.session_count > 0);
+}
+
+export async function getTopicHierarchy(): Promise<TopicGroup[]> {
+  const { data, error } = await supabase
+    .from('knowledge_topics')
+    .select('*')
+    .order('path');
+
+  if (error) {
+    console.error('Error fetching topic hierarchy:', error);
+    return [];
+  }
+  return (data || []) as TopicGroup[];
+}
+
+// ============================================
+// ENTITY QUERIES (for intermediate categorization)
+// ============================================
+
+export interface EntityGroup {
+  id: string;
+  canonical_name: string;
+  entity_type: string;
+  aliases: string[];
+  description?: string;
+  mention_count: number;
+  claim_count: number;
+  session_ids: string[];
+}
+
+export async function getEntitiesWithSessions(): Promise<EntityGroup[]> {
+  // Get entities with high mention counts
+  const { data: entities, error } = await supabase
+    .from('knowledge_entities')
+    .select('*')
+    .order('mention_count', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error('Error fetching entities:', error);
+    return [];
+  }
+
+  // For each entity, find linked sessions via claims
+  const entitiesWithSessions = await Promise.all(
+    (entities || []).map(async (entity) => {
+      // Get claims linked to this entity
+      const { data: claimEntities } = await supabase
+        .from('claim_entities')
+        .select('claim_id')
+        .eq('entity_id', entity.id);
+
+      if (!claimEntities || claimEntities.length === 0) {
+        return { ...entity, session_ids: [] } as EntityGroup;
+      }
+
+      const claimIds = claimEntities.map((ce) => ce.claim_id);
+
+      // Get sessions that originated these claims
+      const { data: claims } = await supabase
+        .from('knowledge_claims')
+        .select('origin_session_id')
+        .in('id', claimIds)
+        .not('origin_session_id', 'is', null);
+
+      const sessionIds = [...new Set((claims || []).map((c) => c.origin_session_id).filter(Boolean))];
+
+      return {
+        ...entity,
+        session_ids: sessionIds,
+      } as EntityGroup;
+    })
+  );
+
+  return entitiesWithSessions.filter((e) => e.session_ids.length > 0);
+}
+
+export async function getEntitiesByType(entityType: string): Promise<EntityGroup[]> {
+  const { data, error } = await supabase
+    .from('knowledge_entities')
+    .select('*')
+    .eq('entity_type', entityType)
+    .order('mention_count', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('Error fetching entities by type:', error);
+    return [];
+  }
+  return (data || []) as EntityGroup[];
+}
+
+// ============================================
+// FINDING TYPE AGGREGATION
+// ============================================
+
+export interface FindingTypeCount {
+  finding_type: string;
+  count: number;
+  avg_confidence: number;
+}
+
+export async function getFindingTypeCounts(sessionId?: string): Promise<FindingTypeCount[]> {
+  let query = supabase
+    .from('research_findings')
+    .select('finding_type, confidence_score');
+
+  if (sessionId) {
+    query = query.eq('session_id', sessionId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching finding types:', error);
+    return [];
+  }
+
+  // Aggregate by finding_type
+  const typeMap = new Map<string, { count: number; totalConfidence: number }>();
+  (data || []).forEach((f) => {
+    const current = typeMap.get(f.finding_type) || { count: 0, totalConfidence: 0 };
+    typeMap.set(f.finding_type, {
+      count: current.count + 1,
+      totalConfidence: current.totalConfidence + (f.confidence_score || 0),
+    });
+  });
+
+  return Array.from(typeMap.entries()).map(([type, stats]) => ({
+    finding_type: type,
+    count: stats.count,
+    avg_confidence: stats.count > 0 ? stats.totalConfidence / stats.count : 0,
+  }));
 }
 
 // ============================================

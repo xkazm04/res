@@ -646,7 +646,7 @@ class StakeholderImpactMatrix:
 
         impact_data = []
         for finding in key_findings:
-            summary = finding.get("summary", "")[:60]
+            summary = finding.get("summary", "") or finding.get("content", "")[:200]
             content = finding.get("content", "").lower()
             ftype = finding.get("finding_type", "")
 
@@ -705,9 +705,9 @@ class StakeholderImpactMatrix:
     <style>
         .impact-matrix { width: 100%; border-collapse: collapse; font-size: 12px; }
         .impact-matrix th { background: #f1f3f5; padding: 8px 6px; text-align: center; font-weight: 600; border: 1px solid #dee2e6; }
-        .impact-matrix th.finding-col { text-align: left; min-width: 200px; }
+        .impact-matrix th.finding-col { text-align: left; min-width: 280px; max-width: 400px; }
         .impact-matrix td { padding: 8px 6px; text-align: center; border: 1px solid #dee2e6; }
-        .impact-matrix td.finding-cell { text-align: left; font-size: 11px; }
+        .impact-matrix td.finding-cell { text-align: left; font-size: 11px; line-height: 1.4; word-wrap: break-word; max-width: 400px; }
         .impact-cell { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 4px; font-weight: 700; font-size: 14px; }
         .impact-legend { display: flex; gap: 16px; margin-top: 12px; font-size: 11px; flex-wrap: wrap; }
         .legend-item { display: flex; align-items: center; gap: 6px; }

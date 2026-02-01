@@ -5,7 +5,6 @@ import { useThemeStore, ThemeName } from '@/src/stores/themeStore';
 const themes: { id: ThemeName; label: string; description: string }[] = [
   { id: 'radar', label: 'Radar', description: 'Dark, ambient' },
   { id: 'swiss', label: 'Swiss', description: 'Clean, minimal' },
-  { id: 'organic', label: 'Organic', description: 'Fluid, natural' },
 ];
 
 interface ThemeSwitcherProps {

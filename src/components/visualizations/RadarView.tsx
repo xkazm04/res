@@ -1,8 +1,16 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import type { ResearchSession } from '@/src/types/research';
-import { getTemplateColor, getTemplateDisplayName, groupSessionsByTemplate } from '@/src/stores/appStore';
+import {
+  useAppStore,
+  getTemplateColor,
+  getTemplateDisplayName,
+  groupSessionsByTemplate,
+  getTopicsForTemplate,
+  type TopicWithSessions,
+} from '@/src/stores/appStore';
+import { circularLayout, evenAngles, type LayoutDimensions } from '@/src/lib/layout';
 
 interface RadarViewProps {
   sessions: ResearchSession[];
@@ -19,6 +27,11 @@ interface Node {
   sessions: ResearchSession[];
   template: string;
   pulsePhase: number;
+  type: 'template' | 'topic';
+  parentTemplate?: string;
+  topic?: TopicWithSessions;
+  orbitRadius?: number;
+  orbitAngle?: number;
 }
 
 interface ViewState {
@@ -34,6 +47,14 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
   const nodesRef = useRef<Node[]>([]);
   const [hoveredNode, setHoveredNode] = useState<Node | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [focusedTemplate, setFocusedTemplate] = useState<string | null>(null);
+  const [focusedTopic, setFocusedTopic] = useState<TopicWithSessions | null>(null);
+  const { topics, fetchTopics } = useAppStore();
+
+  // Fetch topics on mount
+  useEffect(() => {
+    fetchTopics();
+  }, [fetchTopics]);
 
   const [view, setView] = useState<ViewState>({
     offsetX: 0,
@@ -44,21 +65,36 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
   const isDragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
 
-  // Generate nodes from sessions grouped by template
+  // Generate nodes from sessions grouped by template, with topic subnodes
+  // Uses shared circular layout utilities for positioning
   useEffect(() => {
     const grouped = groupSessionsByTemplate(sessions);
     const templates = Object.keys(grouped);
     const nodes: Node[] = [];
 
-    // Arrange template clusters in a circle
-    const clusterRadius = 300;
+    // Layout parameters
+    const clusterRadius = focusedTemplate ? 100 : 300;
+    const orbitRadius = 180;
+
+    // Use shared circular layout for template positions
+    const templateLayoutNodes = templates.map((template, i) => ({
+      id: template,
+      x: 0,
+      y: 0,
+      value: grouped[template].length,
+    }));
+
+    // Calculate angles for templates using shared utility
+    const templateAngles = evenAngles(templates.length, -Math.PI / 2);
+
     templates.forEach((template, i) => {
-      const angle = (i / templates.length) * Math.PI * 2 - Math.PI / 2;
-      const cx = Math.cos(angle) * clusterRadius;
-      const cy = Math.sin(angle) * clusterRadius;
+      const isFocused = focusedTemplate === template;
+      const angle = templateAngles[i];
+      const cx = isFocused ? 0 : Math.cos(angle) * clusterRadius;
+      const cy = isFocused ? 0 : Math.sin(angle) * clusterRadius;
 
       const templateSessions = grouped[template];
-      const radius = Math.max(40, Math.min(80, 20 + templateSessions.length * 8));
+      const radius = isFocused ? 60 : Math.max(40, Math.min(80, 20 + templateSessions.length * 8));
 
       nodes.push({
         id: template,
@@ -70,11 +106,43 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
         sessions: templateSessions,
         template,
         pulsePhase: Math.random() * Math.PI * 2,
+        type: 'template',
       });
+
+      // Add topic nodes if this template is focused
+      if (isFocused) {
+        const templateTopics = getTopicsForTemplate(template, topics);
+
+        // Calculate angles for topics using shared utility
+        const topicAngles = evenAngles(templateTopics.length, -Math.PI / 2);
+
+        templateTopics.forEach((topic, tidx) => {
+          const topicAngle = topicAngles[tidx];
+          const topicSessions = topic.sessions?.filter(s => s.template_type === template) || [];
+          const topicRadius = Math.max(20, Math.min(40, 15 + topicSessions.length * 4));
+
+          nodes.push({
+            id: `topic-${topic.id}`,
+            x: cx + Math.cos(topicAngle) * orbitRadius,
+            y: cy + Math.sin(topicAngle) * orbitRadius,
+            radius: topicRadius,
+            color: getTemplateColor(template),
+            label: topic.name,
+            sessions: sessions.filter(s => topicSessions.some(ts => ts.id === s.id)),
+            template,
+            pulsePhase: Math.random() * Math.PI * 2,
+            type: 'topic',
+            parentTemplate: template,
+            topic,
+            orbitRadius,
+            orbitAngle: topicAngle,
+          });
+        });
+      }
     });
 
     nodesRef.current = nodes;
-  }, [sessions]);
+  }, [sessions, topics, focusedTemplate]);
 
   // Canvas rendering with animation
   useEffect(() => {
@@ -149,15 +217,22 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
       ctx.arc(centerX, centerY, 600 * view.scale, 0, Math.PI * 2);
       ctx.fill();
 
-      // Draw connections between nodes
+      // Draw connections between template nodes only
       const nodes = nodesRef.current;
+      const templateNodes = nodes.filter(n => n.type === 'template');
+      const topicNodes = nodes.filter(n => n.type === 'topic');
+
       ctx.strokeStyle = 'rgba(34, 211, 238, 0.1)';
       ctx.lineWidth = 1;
 
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const n1 = nodes[i];
-          const n2 = nodes[j];
+      for (let i = 0; i < templateNodes.length; i++) {
+        for (let j = i + 1; j < templateNodes.length; j++) {
+          const n1 = templateNodes[i];
+          const n2 = templateNodes[j];
+          // Dim connections when focused
+          const opacity = focusedTemplate ? 0.03 : 0.1;
+          ctx.strokeStyle = `rgba(34, 211, 238, ${opacity})`;
+
           const x1 = centerX + n1.x * view.scale;
           const y1 = centerY + n1.y * view.scale;
           const x2 = centerX + n2.x * view.scale;
@@ -170,17 +245,53 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
         }
       }
 
-      // Draw nodes
-      nodes.forEach((node) => {
+      // Draw orbit ring for focused template
+      if (focusedTemplate) {
+        const focusedNode = templateNodes.find(n => n.template === focusedTemplate);
+        if (focusedNode) {
+          const fx = centerX + focusedNode.x * view.scale;
+          const fy = centerY + focusedNode.y * view.scale;
+          const orbitR = 180 * view.scale;
+
+          // Draw orbit ring
+          ctx.strokeStyle = focusedNode.color + '30';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 10]);
+          ctx.beginPath();
+          ctx.arc(fx, fy, orbitR, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Draw connections from center to topics
+          topicNodes.forEach(topic => {
+            const tx = centerX + topic.x * view.scale;
+            const ty = centerY + topic.y * view.scale;
+
+            ctx.strokeStyle = topic.color + '40';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(fx, fy);
+            ctx.lineTo(tx, ty);
+            ctx.stroke();
+          });
+        }
+      }
+
+      // Draw nodes (templates first, then topics on top)
+      [...templateNodes, ...topicNodes].forEach((node) => {
         const x = centerX + node.x * view.scale;
         const y = centerY + node.y * view.scale;
         const pulse = Math.sin(time * 2 + node.pulsePhase) * 0.15 + 1;
         const r = node.radius * view.scale * pulse;
 
+        // Determine opacity based on focus state
+        const isFocused = !focusedTemplate || node.template === focusedTemplate;
+        const opacity = isFocused ? 1 : 0.2;
+
         // Outer glow
         const glowGradient = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 2);
-        glowGradient.addColorStop(0, node.color + '40');
-        glowGradient.addColorStop(0.5, node.color + '15');
+        glowGradient.addColorStop(0, node.color + (isFocused ? '40' : '10'));
+        glowGradient.addColorStop(0.5, node.color + (isFocused ? '15' : '05'));
         glowGradient.addColorStop(1, 'transparent');
 
         ctx.fillStyle = glowGradient;
@@ -190,9 +301,9 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
 
         // Inner circle
         const innerGradient = ctx.createRadialGradient(x, y, 0, x, y, r);
-        innerGradient.addColorStop(0, node.color + 'CC');
-        innerGradient.addColorStop(0.7, node.color + '88');
-        innerGradient.addColorStop(1, node.color + '44');
+        innerGradient.addColorStop(0, node.color + (isFocused ? 'CC' : '44'));
+        innerGradient.addColorStop(0.7, node.color + (isFocused ? '88' : '22'));
+        innerGradient.addColorStop(1, node.color + (isFocused ? '44' : '11'));
 
         ctx.fillStyle = innerGradient;
         ctx.beginPath();
@@ -200,23 +311,25 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
         ctx.fill();
 
         // Border
-        ctx.strokeStyle = node.color;
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = node.color + (isFocused ? 'FF' : '44');
+        ctx.lineWidth = node.type === 'topic' ? 1.5 : 2;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Label
-        ctx.fillStyle = '#E8E8E8';
-        ctx.font = `${Math.max(12, 14 * view.scale)}px Inter, system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(node.label, x, y - r - 15 * view.scale);
+        // Label (only if focused or no focus)
+        if (isFocused) {
+          ctx.fillStyle = '#E8E8E8';
+          ctx.font = `${Math.max(10, (node.type === 'topic' ? 12 : 14) * view.scale)}px Inter, system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(node.label, x, y - r - 15 * view.scale);
 
-        // Count
-        ctx.fillStyle = '#A1A1AA';
-        ctx.font = `${Math.max(10, 12 * view.scale)}px Inter, system-ui, sans-serif`;
-        ctx.fillText(`${node.sessions.length} sessions`, x, y + r + 15 * view.scale);
+          // Count
+          ctx.fillStyle = '#A1A1AA';
+          ctx.font = `${Math.max(9, (node.type === 'topic' ? 10 : 12) * view.scale)}px Inter, system-ui, sans-serif`;
+          ctx.fillText(`${node.sessions.length}`, x, y + r + 12 * view.scale);
+        }
       });
 
       time += 0.016;
@@ -230,7 +343,7 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [view, sessions]);
+  }, [view, sessions, focusedTemplate, topics]);
 
   // Mouse handlers for pan/zoom
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -289,10 +402,35 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
   }, []);
 
   const handleClick = useCallback(() => {
-    if (hoveredNode && hoveredNode.sessions.length === 1 && onSessionSelect) {
-      onSessionSelect(hoveredNode.sessions[0]);
+    if (!hoveredNode) {
+      // Click on empty space - unfocus
+      if (focusedTemplate) {
+        setFocusedTemplate(null);
+        setFocusedTopic(null);
+      }
+      return;
     }
-  }, [hoveredNode, onSessionSelect]);
+
+    if (hoveredNode.type === 'template') {
+      if (focusedTemplate === hoveredNode.template) {
+        // Already focused, unfocus
+        setFocusedTemplate(null);
+        setFocusedTopic(null);
+      } else {
+        // Focus on this template
+        setFocusedTemplate(hoveredNode.template);
+        setFocusedTopic(null);
+      }
+    } else if (hoveredNode.type === 'topic') {
+      if (hoveredNode.sessions.length === 1 && onSessionSelect) {
+        // Single session - select it directly
+        onSessionSelect(hoveredNode.sessions[0]);
+      } else if (hoveredNode.topic) {
+        // Show topic sessions in panel
+        setFocusedTopic(hoveredNode.topic);
+      }
+    }
+  }, [hoveredNode, onSessionSelect, focusedTemplate]);
 
   return (
     <div
@@ -323,6 +461,9 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
               style={{ backgroundColor: hoveredNode.color, boxShadow: `0 0 8px ${hoveredNode.color}` }}
             />
             <span className="text-[#E8E8E8] font-medium">{hoveredNode.label}</span>
+            <span className="text-[#71717A] text-xs uppercase">
+              {hoveredNode.type}
+            </span>
           </div>
           <div className="text-[#A1A1AA] text-sm">
             {hoveredNode.sessions.length} research sessions
@@ -335,12 +476,58 @@ export function RadarView({ sessions, onSessionSelect }: RadarViewProps) {
               <div>+{hoveredNode.sessions.length - 3} more...</div>
             )}
           </div>
+          <div className="mt-2 text-xs text-[#22D3EE]">
+            {hoveredNode.type === 'template'
+              ? focusedTemplate === hoveredNode.template
+                ? 'Click to unfocus'
+                : 'Click to see topics'
+              : hoveredNode.sessions.length === 1
+                ? 'Click to open report'
+                : 'Click to see sessions'}
+          </div>
+        </div>
+      )}
+
+      {/* Focused topic sessions panel */}
+      {focusedTopic && (
+        <div className="absolute top-4 left-4 bg-[#1A1A1E]/95 backdrop-blur-sm border border-[#22D3EE]/30 rounded-lg p-4 max-w-xs shadow-lg">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[#E8E8E8] font-medium">{focusedTopic.name}</h3>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setFocusedTopic(null);
+              }}
+              className="text-[#71717A] hover:text-[#22D3EE] text-xs"
+            >
+              Close
+            </button>
+          </div>
+          {focusedTopic.description && (
+            <p className="text-xs text-[#A1A1AA] mb-3">{focusedTopic.description}</p>
+          )}
+          <div className="space-y-1 max-h-48 overflow-auto">
+            {sessions
+              .filter(s => focusedTopic.sessions?.some(ts => ts.id === s.id))
+              .map(s => (
+                <button
+                  key={s.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSessionSelect?.(s);
+                  }}
+                  className="w-full text-left text-sm text-[#A1A1AA] hover:text-[#22D3EE] truncate transition-colors"
+                >
+                  {s.title}
+                </button>
+              ))}
+          </div>
         </div>
       )}
 
       {/* Controls hint */}
       <div className="absolute bottom-4 left-4 text-[#71717A] text-xs">
-        Drag to pan • Scroll to zoom
+        Drag to pan • Scroll to zoom • Click nodes to {focusedTemplate ? 'drill down' : 'focus'}
       </div>
 
       {/* Zoom indicator */}

@@ -2,117 +2,138 @@
 
 ## What This Is
 
-A research initiation and exploration platform. Users discover newsworthy topics from multiple data sources (Twitter, BBC, etc.), review and initiate deep research on selected topics, and explore completed research findings. The current focus is a dashboard for topic discovery and research initiation.
+A research initiation and exploration platform. Users discover newsworthy topics from 10 data sources (Twitter, BBC, Reuters, etc.), review and initiate deep research on selected topics with a single click, and track research progress in real-time. The platform combines LLM-powered topic discovery with automated research generation.
 
 ## Core Value
 
 Enable users to efficiently discover, prioritize, and initiate research on newsworthy topics from diverse data sources.
 
-## Current Milestone: v2.0 Research Initiation Dashboard
+## Current Milestone: v3.0 Claude Code Research Engine
 
-**Goal:** Build a compact, efficient UI for discovering and initiating research from 10 data source lists
+**Goal:** Replace Python actor + Cloud Run Gemini with Claude Code CLI as the research engine.
 
 **Target features:**
-- New `/initiate` page with 10-column topic lists (Swiss theme)
-- Data sources: Twitter, BBC, Reuters, etc. (mocked initially)
-- Per-list: download topics action
-- Per-item: delete, research trigger, status indicator (pending/researching/completed)
-- LLM prompt for on-demand topic discovery per source
-- Database schema for research topics and data sources
+- TypeScript template builder generating .md prompt files
+- 3rd party app spawns Claude Code headless CLI for research
+- Claude Code uses built-in web search (replaces Gemini grounded search)
+- Same Supabase persistence structure as current system
+- Perplexity-quality deep research via prompt engineering
+- All 10 templates migrated to new system
+- Legacy actor/serverless code deleted after validation
+
+## Previous State (v2.0 Shipped)
+
+**Shipped:** 2026-02-01
+**Codebase:** 73,187 lines TypeScript
+
+**Delivered:**
+- `/initiate` page with 10-column topic dashboard
+- LLM-powered topic discovery with Google Search grounding
+- One-click research initiation with source-based template selection
+- Real-time status polling (5-second interval)
+- Queue dashboard showing all active research
+- View Results for completed topics, Retry for failed
+
+**Tech Stack:**
+- Next.js 16 + React 19 + Tailwind CSS 4
+- Supabase PostgreSQL (data_sources, research_topics tables)
+- Gemini API with structured output for discovery
+- Python actor on Cloud Run for research generation (REPLACING)
+- TanStack Virtual for 60fps list rendering
 
 ## Requirements
 
-### Validated
+### Validated (v2.0)
 
-- Research sessions stored in Supabase with template types, findings, sources, perspectives
-- Python actor generates research with Gemini + web search grounding
-- Multiple template types exist (investigative, financial, competitive, tech_market, legal, due_diligence, contract, purchase_decision, reputation, understanding)
+- ✓ 10-column grid layout with horizontal scroll — v2.0
+- ✓ Virtualized lists handle 100+ items at 60fps — v2.0
+- ✓ TopicCard with status indicators (WCAG compliant) — v2.0
+- ✓ LLM discovery with Google Search grounding — v2.0
+- ✓ URL validation (HEAD request health check) — v2.0
+- ✓ Rate limiting (max 3 concurrent discovery requests) — v2.0
+- ✓ Research initiation returns HTTP 202 with session ID — v2.0
+- ✓ Template selected based on source — v2.0
+- ✓ Status polling every 5 seconds — v2.0
+- ✓ Queue dashboard shows all pending/active research — v2.0
+- ✓ View Results opens research session — v2.0
+- ✓ Retry re-initiates failed research — v2.0
 
-### Active
+### Validated (v1.0)
 
-**Dashboard Layout (v2):**
-- [ ] New `/initiate` page route
-- [ ] 10-column layout showing all source lists without scrolling
-- [ ] Swiss theme styling (clean, minimal, high-contrast)
-- [ ] Compact, information-dense design
+- ✓ Research sessions stored in Supabase with template types, findings, sources
+- ✓ Python actor generates research with Gemini + web search grounding
+- ✓ Theme switcher with persistence (Radar, Swiss, Organic)
+- ✓ Semantic CSS variable system (~35 variables)
 
-**Data Sources (v2):**
-- [ ] 10 mocked data sources (Twitter, BBC, Reuters, etc.)
-- [ ] Source header with name and download action
-- [ ] Source list with scrollable topic items
+### Active (v3.0)
 
-**Topic Items (v2):**
-- [ ] Display topic title and discovery date
-- [ ] Delete action (soft delete)
-- [ ] Research action (triggers Python actor)
-- [ ] Status indicator: pending (default), researching (in progress), completed (linked to session)
+**Claude Code Research Engine:**
+- [ ] TypeScript template builder with composable prompt parts
+- [ ] Template configs for all 10 templates (tech_market, financial, etc.)
+- [ ] 6-phase research pipeline embedded in prompts
+- [ ] Claude Code CLI invocation with --prompt-file
+- [ ] Supabase API integration for persistence
+- [ ] Quality validation against existing research output
+- [ ] Legacy code deletion (actor/, serverless/)
 
-**LLM Discovery (v2):**
-- [ ] Prompt design for web-search enabled LLM
-- [ ] On-demand discovery button per source
-- [ ] Topics returned: title, description, URL, signals (controversial/trending/breaking)
-
-**Database Schema (v2):**
-- [ ] `data_sources` table — source definitions
-- [ ] `research_topics` table — discovered topics with status
-- [ ] Migration script for Supabase
-- [ ] Link research_topics to research_sessions on completion
-
-**Deferred from v1:**
+**Deferred (v4+ Candidates):**
+- [ ] Signal badges (breaking/trending/controversial) on topic cards
+- [ ] Density toggle (comfortable vs compact mode)
+- [ ] Column collapse/expand
+- [ ] Quick preview on hover
+- [ ] Research history context ("Researched 3 days ago")
+- [ ] Bulk selection with "Research all selected"
+- [ ] Keyboard shortcuts (j/k navigation, r to research)
+- [ ] AI-powered topic deduplication across sources
+- [ ] Topic clustering by theme (Politics, Tech, Markets)
+- [ ] Batch scheduling ("Research all at 6 PM")
+- [ ] Priority scoring via LLM
 - [ ] Navigation shell (template selector, breadcrumb)
 - [ ] Topic map visualization
 - [ ] Transitions and animations
-- [ ] Research detail modal
 
 ### Out of Scope
 
 - Search functionality — discovery-first approach
 - User authentication/multi-tenant — single user for now
 - Mobile-first design — desktop primary
-- Automated/scheduled discovery — on-demand only for v2
+- Automated/scheduled discovery — on-demand only
 - Topic editing — only delete and research actions
-- Batch research — one topic at a time
 
 ## Context
 
-**Existing Codebase:**
-- Next.js 16 + React 19 frontend with Tailwind CSS 4
-- Python backend with Apify SDK, deployed to Cloud Run
-- Supabase PostgreSQL for all research data
-- Zustand for state management
-- Swiss theme system with semantic CSS variables (from v1)
-
-**v1 Foundation (completed):**
-- Theme switcher with persistence (Radar, Swiss, Organic)
-- Semantic variable system (~35 variables)
-- Legacy component cleanup
-
-**Current Schema (research_sessions):**
-- Sessions have template_type, query, status, parameters
-- Findings have type, content, confidence_score, evidence
-- Sources have url, title, domain, credibility_score
-- No table for unresearched topics (v2 adds this)
-
-**v2 Schema Additions:**
+**Database Schema:**
 - `data_sources` — 10 source definitions (Twitter, BBC, etc.)
-- `research_topics` — Topics discovered but not yet researched
+- `research_topics` — Topics with status, session_id link
+- `research_sessions` — Sessions with template_type, findings, sources
+
+**API Routes:**
+- `POST /api/topics/discover` — LLM discovery with rate limiting
+- `POST /api/topics/{id}/research` — Initiate research (202 response)
+- `GET /api/topics/status` — Batch status for polling
 
 ## Constraints
 
-- **Performance**: 10 lists visible simultaneously without layout shift
-- **Data compatibility**: Extend Supabase schema, don't break existing tables
-- **Theme**: Swiss theme only for v2 (other themes deferred)
-- **Actor integration**: Must trigger existing Python research actor
+- **Performance**: 10 lists visible at 60fps (virtualization required)
+- **Data compatibility**: Same Supabase schema structure as current system
+- **Theme**: Swiss theme only (other themes available but not focus)
+- **Claude Code**: Headless CLI with web search enabled, local execution
+- **Backwards compatible**: Research output format matches existing structure
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Pivot from v1 explorer to v2 initiation | User priority shifted to research initiation workflow | — Pending |
-| 10-column layout for source lists | Maximize information density, minimize scrolling | — Pending |
-| Swiss theme only for v2 | Focus on functionality first, visual variety later | — Pending |
-| LLM discovery on-demand | Avoid background processing complexity | — Pending |
-| Soft delete for topics | Preserve data for audit, allow recovery | — Pending |
+| Pivot from v1 explorer to v2 initiation | User priority shifted to research initiation workflow | ✓ Good |
+| 10-column layout for source lists | Maximize information density, minimize scrolling | ✓ Good |
+| Swiss theme only for v2 | Focus on functionality first, visual variety later | ✓ Good |
+| LLM discovery on-demand | Avoid background processing complexity | ✓ Good |
+| Soft delete for topics | Preserve data for audit, allow recovery | ✓ Good |
+| useFlushSync: false for TanStack Virtual | React 19 compatibility | ✓ Good |
+| HEAD request URL validation | 34% hallucination rate from LLM | ✓ Good |
+| Semaphore for rate limiting | Fast-fail 429 responses | ✓ Good |
+| Conditional DB update for idempotency | Race condition prevention | ✓ Good |
+| Visibility API for polling | Pause on hidden tabs | ✓ Good |
 
 ---
-*Last updated: 2026-01-31 after v2 milestone start*
+*Last updated: 2026-02-01 after v3.0 milestone started*

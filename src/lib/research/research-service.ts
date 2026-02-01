@@ -9,7 +9,7 @@
 
 import { GeminiClient, Source, TokenUsage } from './gemini-client';
 import { TEMPLATE_CONFIGS, TemplateType, generateSearchQueries, extractFindings } from './templates';
-import { sendResearchCompletedEmail, sendResearchFailedEmail, isEmailConfigured } from './email-service';
+import { sendResearchCompletedEmail, sendResearchFailedEmail } from './email-service';
 import {
   createActorSession,
   updateActorSession,
@@ -117,14 +117,12 @@ export class ResearchService {
           progress_percent: 0,
         });
       } catch (e) {
-        console.warn('Failed to create session in database:', e);
         warnings.push('Session persistence unavailable - results will not be recoverable');
       }
     }
 
     try {
       // Phase 1: Generate search queries
-      console.log('Phase 1: Generating search queries...');
       const searchQueries = await this.generateQueries(query, templateType, maxSearches, granularity);
 
       if (!searchQueries.length) {
@@ -132,10 +130,7 @@ export class ResearchService {
         return this.buildErrorResult(sessionId, query, templateType, errors, startTime);
       }
 
-      console.log(`Generated ${searchQueries.length} search queries`);
-
       // Phase 2: Execute grounded searches
-      console.log('Phase 2: Executing grounded web searches...');
       if (persistToDb) {
         await updateActorSession(sessionId, { progress_phase: 'searching', progress_percent: 20 });
       }
@@ -149,7 +144,6 @@ export class ResearchService {
 
       for (let i = 0; i < searchQueries.length; i++) {
         const searchQuery = searchQueries[i];
-        console.log(`  [${i + 1}/${searchQueries.length}] ${searchQuery.slice(0, 50)}...`);
 
         // Update progress during searches
         if (persistToDb && i % 2 === 0) {
@@ -176,11 +170,8 @@ export class ResearchService {
         } catch (e) {
           const errorMsg = e instanceof Error ? e.message : String(e);
           warnings.push(`Search failed for '${searchQuery.slice(0, 30)}...': ${errorMsg}`);
-          console.warn(`  Search failed: ${errorMsg}`);
         }
       }
-
-      console.log(`Found ${allSources.length} unique sources`);
 
       // Phase 3: Assess source credibility
       const sourcesWithCredibility = allSources.map(s => ({
@@ -190,7 +181,6 @@ export class ResearchService {
       }));
 
       // Phase 4: Extract findings
-      console.log('Phase 4: Extracting findings...');
       if (persistToDb) {
         await updateActorSession(sessionId, { progress_phase: 'extracting_findings', progress_percent: 55 });
       }
@@ -212,10 +202,7 @@ export class ResearchService {
         }));
       });
 
-      console.log(`Extracted ${findings.length} findings`);
-
       // Phase 5: Multi-perspective analysis
-      console.log('Phase 5: Running perspective analysis...');
       if (persistToDb) {
         await updateActorSession(sessionId, { progress_phase: 'analyzing_perspectives', progress_percent: 70 });
       }
@@ -237,12 +224,9 @@ export class ResearchService {
         }
       }
 
-      console.log(`Generated ${perspectives.length} perspective analyses`);
-
       // Phase 6: Generate report (optional)
       let reportMarkdown: string | undefined;
       if (generateReport) {
-        console.log('Phase 6: Generating report...');
         if (persistToDb) {
           await updateActorSession(sessionId, { progress_phase: 'generating_report', progress_percent: 90 });
         }
@@ -282,7 +266,6 @@ export class ResearchService {
 
       // Save results to database for recovery
       if (persistToDb) {
-        console.log('Saving results to database...');
         try {
           await Promise.all([
             saveActorFindings(sessionId, findings.map(f => ({
@@ -317,14 +300,12 @@ export class ResearchService {
             total_cost_usd: this.totalCost,
           });
         } catch (e) {
-          console.warn('Failed to save results to database:', e);
           warnings.push('Failed to persist results - session may not be recoverable');
         }
       }
 
       // Send email notification if configured
       if (sendEmail && userEmail) {
-        console.log(`Sending completion email to ${userEmail}...`);
         try {
           const emailResult = await sendResearchCompletedEmail(userEmail, {
             sessionId,
@@ -341,7 +322,6 @@ export class ResearchService {
             warnings.push(`Email notification failed: ${emailResult.error}`);
           }
         } catch (e) {
-          console.warn('Failed to send email:', e);
           warnings.push('Email notification failed');
         }
       }

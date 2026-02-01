@@ -5,7 +5,7 @@
  * web search grounding capabilities.
  */
 
-import { genkit, z } from 'genkit';
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 
 export interface Source {
@@ -170,7 +170,7 @@ export class GeminiClient {
             try {
               data = JSON.parse(jsonMatch[0]);
             } catch {
-              console.warn('Failed to parse JSON from response');
+              // JSON parsing failed - data remains null
             }
           }
         }

@@ -27,7 +27,6 @@ export async function sendResearchCompletedEmail(
   data: ResearchEmailData
 ): Promise<{ success: boolean; error?: string }> {
   if (!resend) {
-    console.warn('Email service not configured - RESEND_API_KEY not set');
     return { success: false, error: 'Email service not configured' };
   }
 

@@ -60,6 +60,28 @@ from .transform import (
     extract_and_deduplicate_sources,
     enrich_findings_with_ids_and_sources,
 )
+from .bayesian_confidence import (
+    BayesianConfidenceCalculator,
+    ConfidenceExplanation,
+    EvidenceNode,
+    EvidenceType,
+    calculate_bayesian_confidence,
+    calculate_source_credibility,
+)
+from .phases import (
+    Phase,
+    PhaseResult,
+    PhaseStatus,
+    PhaseError,
+    ResearchContext,
+    ResearchPipeline,
+    QueryGenerationPhase,
+    WebSearchPhase,
+    CredibilityAssessmentPhase,
+    FindingExtractionPhase,
+    PerspectiveAnalysisPhase,
+    IntelligenceAnalysisPhase,
+)
 
 __all__ = [
     "OCRService",
@@ -118,4 +140,24 @@ __all__ = [
     "enrich_source_credibility",
     "extract_and_deduplicate_sources",
     "enrich_findings_with_ids_and_sources",
+    # Bayesian Confidence
+    "BayesianConfidenceCalculator",
+    "ConfidenceExplanation",
+    "EvidenceNode",
+    "EvidenceType",
+    "calculate_bayesian_confidence",
+    "calculate_source_credibility",
+    # Phase-based Pipeline
+    "Phase",
+    "PhaseResult",
+    "PhaseStatus",
+    "PhaseError",
+    "ResearchContext",
+    "ResearchPipeline",
+    "QueryGenerationPhase",
+    "WebSearchPhase",
+    "CredibilityAssessmentPhase",
+    "FindingExtractionPhase",
+    "PerspectiveAnalysisPhase",
+    "IntelligenceAnalysisPhase",
 ]

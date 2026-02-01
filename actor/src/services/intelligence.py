@@ -542,7 +542,7 @@ class IntelligenceAnalyzer:
                     tech_metrics.append({
                         "metric": data.get("technology") or data.get("product"),
                         "value": data.get("adoption_rate") or data.get("growth_percentage") or "N/A",
-                        "context": f.get("summary", "")[:80],
+                        "context": f.get("analysis") or f.get("summary", ""),
                     })
 
         # Generate headline
@@ -594,7 +594,7 @@ class IntelligenceAnalyzer:
                     fin_metrics.append({
                         "metric": metric_name,
                         "value": str(metric_value),
-                        "context": f.get("summary", "")[:80],
+                        "context": f.get("analysis") or f.get("summary", ""),
                     })
 
         # Generate headline
@@ -646,7 +646,7 @@ class IntelligenceAnalyzer:
                     strat_metrics.append({
                         "metric": metric_name,
                         "value": str(metric_value),
-                        "context": f.get("summary", "")[:80],
+                        "context": f.get("analysis") or f.get("summary", ""),
                     })
 
         # Generate headline

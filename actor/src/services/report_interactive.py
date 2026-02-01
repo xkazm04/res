@@ -263,14 +263,14 @@ def _generate_decision_summary_html(result: Dict[str, Any], findings: List[Dict]
     # Extract key assumptions from high-confidence positive findings
     assumptions = []
     for f in bullish[:3]:
-        summary = f.get("summary") or f.get("content", "")[:80]
+        summary = f.get("summary") or f.get("content", "")[:200]
         if summary:
             assumptions.append(html_mod.escape(summary))
 
     # Extract kill criteria from risks and warnings
     kill_criteria = []
     for f in (bearish + red_flags)[:3]:
-        summary = f.get("summary") or f.get("content", "")[:80]
+        summary = f.get("summary") or f.get("content", "")[:200]
         if summary:
             kill_criteria.append(html_mod.escape(summary))
 
@@ -278,7 +278,7 @@ def _generate_decision_summary_html(result: Dict[str, Any], findings: List[Dict]
     short_seller = next((p for p in perspectives if "short" in p.get("perspective_type", "").lower()), None)
     if short_seller:
         for warning in short_seller.get("warnings", [])[:2]:
-            kill_criteria.append(html_mod.escape(warning[:80]))
+            kill_criteria.append(html_mod.escape(warning))
 
     # Build assumptions HTML
     assumptions_html = ""
@@ -363,7 +363,7 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
     total_tokens = cost.get("total_tokens", 0)
 
     # Collect predictions with source attribution
-    all_predictions = []
+    raw_predictions = []
     for p in perspectives:
         perspective_type = p.get("perspective_type", "analyst")
         for pred in p.get("predictions", []):
@@ -372,7 +372,33 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
                 pred_with_source["source_perspective"] = perspective_type
             else:
                 pred_with_source = {"prediction": str(pred), "source_perspective": perspective_type}
-            all_predictions.append(pred_with_source)
+            raw_predictions.append(pred_with_source)
+
+    # Deduplicate predictions by grouping similar ones
+    seen_predictions = {}
+    for pred in raw_predictions:
+        pred_text = pred.get("prediction", "")
+        # Create a normalized key for comparison (first 50 chars, lowercase, stripped)
+        key = pred_text[:50].lower().strip()
+        if key in seen_predictions:
+            # Add this perspective to existing prediction
+            existing = seen_predictions[key]
+            existing_perspectives = existing.get("agreeing_perspectives", [existing.get("source_perspective", "analyst")])
+            new_perspective = pred.get("source_perspective", "analyst")
+            if new_perspective not in existing_perspectives:
+                existing_perspectives.append(new_perspective)
+            existing["agreeing_perspectives"] = existing_perspectives
+            # Keep the higher confidence
+            new_conf = pred.get("confidence", "medium")
+            existing_conf = existing.get("confidence", "medium")
+            conf_order = {"high": 3, "medium": 2, "low": 1}
+            if conf_order.get(new_conf, 2) > conf_order.get(existing_conf, 2):
+                existing["confidence"] = new_conf
+        else:
+            pred["agreeing_perspectives"] = [pred.get("source_perspective", "analyst")]
+            seen_predictions[key] = pred
+
+    all_predictions = list(seen_predictions.values())
 
     # Get intelligence analysis results
     contradictions = result.get("contradictions", [])
@@ -396,9 +422,25 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
         if extracted.get("source_text"):
             evidence_items.append({"type": "source_text", "text": extracted.get("source_text")[:300]})
 
+        # Extract Bayesian confidence explanation if available
+        conf_explanation = f.get("confidence_explanation", {})
+        conf_narrative = f.get("confidence_narrative", "")
+
+        # Build evidence chain summary for display
+        evidence_chain = []
+        for node in conf_explanation.get("evidence_chain", []):
+            evidence_chain.append({
+                "type": node.get("evidence_type", ""),
+                "name": node.get("name", ""),
+                "prior": node.get("prior", 0),
+                "posterior": node.get("posterior", 0),
+                "explanation": node.get("explanation", ""),
+            })
+
         findings_data.append({
             "id": i, "type": f.get("finding_type", "other"),
-            "summary": f.get("summary") or f.get("content", "")[:80],
+            "summary": f.get("summary") or f.get("content", "")[:200],
+            "analysis": f.get("analysis", ""),  # Expert analytical commentary
             "content": f.get("content", ""), "confidence": conf,
             "conf_label": "high" if conf >= 0.8 else "medium" if conf >= 0.6 else "low",
             "date": f.get("date_referenced") or f.get("date_range") or "",
@@ -410,6 +452,17 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
                 "location": extracted.get("location", ""),
                 "metric": extracted.get("metric", ""),
             },
+            # Bayesian confidence explanation
+            "confidence_explanation": {
+                "base_confidence": conf_explanation.get("base_confidence", conf),
+                "final_confidence": conf_explanation.get("final_confidence", conf),
+                "summary": conf_explanation.get("summary", ""),
+                "evidence_chain": evidence_chain,
+                "what_would_increase": conf_explanation.get("what_would_increase", []),
+                "what_would_decrease": conf_explanation.get("what_would_decrease", []),
+            },
+            "confidence_narrative": conf_narrative,
+            "showConfExplanation": False,  # Track expanded state
         })
 
     sources_data = []
@@ -452,6 +505,8 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
             supporting_sources = pred.get("supporting_sources", [])
             if isinstance(supporting_sources, str):
                 supporting_sources = [supporting_sources]
+            # Get agreeing perspectives (from deduplication)
+            agreeing = pred.get("agreeing_perspectives", [pred.get("source_perspective", "analyst")])
             predictions_data.append({
                 "id": i,
                 "prediction": pred.get("prediction", ""),
@@ -459,13 +514,16 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
                 "confidence": conf_label,
                 "timeline": pred.get("timeline", ""),
                 "source_perspective": pred.get("source_perspective", "analyst"),
+                "agreeing_perspectives": agreeing,
+                "consensus_count": len(agreeing),
                 "supporting_sources": supporting_sources[:3],
             })
         else:
             predictions_data.append({
                 "id": i, "prediction": str(pred), "rationale": "",
                 "confidence": "medium", "timeline": "",
-                "source_perspective": "analyst", "supporting_sources": []
+                "source_perspective": "analyst", "agreeing_perspectives": ["analyst"],
+                "consensus_count": 1, "supporting_sources": []
             })
 
     findings_json = json.dumps(findings_data)
@@ -479,7 +537,7 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
     # Red flags alert HTML
     red_flags_html = ""
     if red_flags:
-        rf_items = ''.join([f'<li>{html_mod.escape(f.get("summary") or f.get("content", "")[:120])}</li>' for f in red_flags[:4]])
+        rf_items = ''.join([f'<li>{html_mod.escape(f.get("summary") or f.get("content", "")[:250])}</li>' for f in red_flags[:4]])
         red_flags_html = f'<div class="alert-banner"><div class="alert-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Critical Findings Detected</div><ul class="alert-list">{rf_items}</ul></div>'
 
     # Executive Decision Summary HTML - FIRST section for busy decision-makers
@@ -493,12 +551,12 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
                 <div class="contradiction-findings">
                     <div class="contradiction-finding">
                         <div class="contradiction-finding-id">{html_mod.escape(c.get("finding_a_id", ""))}</div>
-                        {html_mod.escape(c.get("finding_a_summary", "")[:120])}
+                        {html_mod.escape(c.get("finding_a_summary", ""))}
                     </div>
                     <div class="contradiction-vs">VS</div>
                     <div class="contradiction-finding">
                         <div class="contradiction-finding-id">{html_mod.escape(c.get("finding_b_id", ""))}</div>
-                        {html_mod.escape(c.get("finding_b_summary", "")[:120])}
+                        {html_mod.escape(c.get("finding_b_summary", ""))}
                     </div>
                 </div>
                 <div class="contradiction-desc">{html_mod.escape(c.get("description", ""))}</div>
@@ -529,7 +587,7 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
                     <div class="role-icon {role}">{role.upper()[:3]}</div>
                     <div>
                         <div class="role-title">{html_mod.escape(data.get("role_title", role.upper()))}</div>
-                        <div class="role-headline">{html_mod.escape(data.get("headline", "")[:80])}</div>
+                        <div class="role-headline">{html_mod.escape(data.get("headline", ""))}</div>
                     </div>
                 </div>
                 <div class="role-summary-body">
@@ -550,6 +608,91 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
             </div>''')
         role_summaries_html = '<div class="role-summary-grid">' + ''.join(role_cards) + '</div>'
 
+    # Generate Kill Criteria section HTML
+    kill_criteria_html = ""
+    kill_criteria_data = result.get("kill_criteria", {})
+    if kill_criteria_data and kill_criteria_data.get("criteria"):
+        criteria_items = ''.join([
+            f'''<div class="kill-criteria-item">
+                <div class="kill-trigger">{html_mod.escape(c.get("trigger", ""))}</div>
+                <div class="kill-details">
+                    <span class="kill-threshold">{html_mod.escape(c.get("threshold", ""))}</span>
+                    <span class="kill-severity severity-{c.get("severity", "medium")}">{c.get("severity", "medium")}</span>
+                </div>
+                <div class="kill-action">{html_mod.escape(c.get("action", "Review position"))}</div>
+            </div>'''
+            for c in kill_criteria_data.get("criteria", [])[:5]
+        ])
+        kill_criteria_html = f'''
+        <div class="kill-criteria-section">
+            <div class="kill-criteria-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Kill Criteria - Exit Position If:
+            </div>
+            <div class="kill-criteria-body">
+                {criteria_items}
+            </div>
+        </div>
+        '''
+
+    # Generate Ecosystem Analysis section HTML
+    ecosystem_html = ""
+    ecosystem_data = result.get("ecosystem_analysis", {})
+    if ecosystem_data:
+        eco_sections = []
+
+        if ecosystem_data.get("customers"):
+            customers_html = ''.join([f'<li>{html_mod.escape(c)}</li>' for c in ecosystem_data["customers"][:5]])
+            eco_sections.append(f'<div class="ecosystem-card"><div class="ecosystem-card-title">Top Customers</div><ul>{customers_html}</ul></div>')
+
+        if ecosystem_data.get("competitors"):
+            competitors_html = ''.join([f'<li>{html_mod.escape(c)}</li>' for c in ecosystem_data["competitors"][:5]])
+            eco_sections.append(f'<div class="ecosystem-card"><div class="ecosystem-card-title">Key Competitors</div><ul>{competitors_html}</ul></div>')
+
+        if ecosystem_data.get("suppliers"):
+            suppliers_html = ''.join([f'<li>{html_mod.escape(s)}</li>' for s in ecosystem_data["suppliers"][:5]])
+            eco_sections.append(f'<div class="ecosystem-card"><div class="ecosystem-card-title">Critical Suppliers</div><ul>{suppliers_html}</ul></div>')
+
+        if eco_sections:
+            ecosystem_html = f'''
+            <div class="ecosystem-section">
+                <div class="ecosystem-header">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                    Ecosystem Analysis
+                </div>
+                <div class="ecosystem-grid">
+                    {''.join(eco_sections)}
+                </div>
+            </div>
+            '''
+
+    # Generate Bear Case section from short_seller perspective
+    bear_case_html = ""
+    short_seller_perspective = next((p for p in perspectives if p.get("perspective_type") == "short_seller"), None)
+    if short_seller_perspective and short_seller_perspective.get("bear_case"):
+        bc = short_seller_perspective["bear_case"]
+        kill_signals_html = ''.join([f'<li>{html_mod.escape(s)}</li>' for s in bc.get("kill_signals", [])[:5]])
+        bear_case_html = f'''
+        <div class="bear-case-section">
+            <div class="bear-case-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Bear Case ({int(bc.get("probability", 0.25) * 100)}% probability)
+            </div>
+            <div class="bear-case-body">
+                <div class="bear-case-summary">{html_mod.escape(bc.get("summary", ""))}</div>
+                <div class="bear-case-details">
+                    <div><strong>Trigger:</strong> {html_mod.escape(bc.get("trigger", ""))}</div>
+                    <div><strong>Magnitude:</strong> {html_mod.escape(bc.get("magnitude", ""))}</div>
+                    <div><strong>Timeline:</strong> {html_mod.escape(bc.get("timeline", ""))}</div>
+                </div>
+                <div class="bear-case-signals">
+                    <strong>Kill Signals to Watch:</strong>
+                    <ul>{kill_signals_html}</ul>
+                </div>
+            </div>
+        </div>
+        '''
+
     return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -566,7 +709,7 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
         .main-header {{ background: white; border-bottom: 1px solid #e2e8f0; padding: 1.25rem 2rem; position: sticky; top: 0; z-index: 10; }}
         .main-header h1 {{ font-size: 1.25rem; font-weight: 600; color: #1e293b; line-height: 1.4; }}
         .main-header .template-badge {{ display: inline-block; padding: 0.2rem 0.6rem; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; margin-left: 0.75rem; vertical-align: middle; }}
-        .main-content {{ padding: 1.5rem 2rem; }}
+        .main-content {{ padding: 1.5rem 2rem; max-width: 1200px; }}
         .logo {{ font-size: 1rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); }}
         .logo svg {{ width: 22px; height: 22px; }}
         .nav-section {{ margin-bottom: 1.25rem; }}
@@ -610,21 +753,51 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
         .findings-table .finding-content-cell strong {{ color: #1e293b; font-weight: 600; display: block; margin-bottom: 0.25rem; }}
         .findings-table .finding-date {{ min-width: 90px; color: #64748b; font-size: 0.75rem; white-space: nowrap; }}
         .findings-table .finding-conf {{ min-width: 60px; text-align: center; }}
-        .finding-type-badge {{ padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.65rem; text-transform: uppercase; font-weight: 600; background: #e2e8f0; color: #475569; white-space: nowrap; }}
+        .finding-type-badge {{ display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.65rem; text-transform: uppercase; font-weight: 600; background: #e2e8f0; color: #475569; white-space: nowrap; }}
         .finding-type-badge.red_flag, .finding-type-badge.suspicious_element {{ background: #fee2e2; color: #991b1b; }}
+        .finding-type-badge.risk, .finding-type-badge.bearish_signal {{ background: #fef3c7; color: #92400e; }}
+        .finding-type-badge.bullish_signal, .finding-type-badge.opportunity {{ background: #d1fae5; color: #065f46; }}
         .finding-type-badge.prediction {{ background: #dbeafe; color: #1e40af; }}
         .finding-type-badge.recommendation {{ background: #d1fae5; color: #065f46; }}
+        .finding-type-badge.key_fact, .finding-type-badge.neutral {{ background: #e0e7ff; color: #4338ca; }}
+        .finding-type-badge.competitive_analysis {{ background: #fae8ff; color: #a21caf; }}
+        .finding-type-badge.technology_trend, .finding-type-badge.feature_comparison {{ background: #cffafe; color: #0891b2; }}
         .conf-badge {{ padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.65rem; font-weight: 600; }}
         .conf-high {{ background: #d1fae5; color: #065f46; }}
         .conf-medium {{ background: #fef3c7; color: #92400e; }}
         .conf-low {{ background: #f1f5f9; color: #64748b; }}
+        .conf-clickable {{ cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.25rem; }}
+        .conf-clickable:hover {{ filter: brightness(0.95); transform: scale(1.05); }}
+        .conf-info-icon {{ width: 12px; height: 12px; opacity: 0.6; }}
+        .conf-clickable:hover .conf-info-icon {{ opacity: 1; }}
+        /* Confidence Explanation Styles */
+        .confidence-explanation {{ margin-top: 0.75rem; padding: 0.75rem; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.8rem; }}
+        .conf-explanation-header {{ font-size: 0.75rem; color: #475569; margin-bottom: 0.5rem; }}
+        .conf-explanation-summary {{ color: #1e293b; margin-bottom: 0.5rem; line-height: 1.4; }}
+        .conf-explanation-chain {{ margin-bottom: 0.5rem; }}
+        .conf-chain-title {{ font-size: 0.7rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 0.4rem; }}
+        .conf-chain-node {{ display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; padding: 0.3rem 0.5rem; background: white; border-radius: 4px; margin-bottom: 0.25rem; border-left: 3px solid #e2e8f0; }}
+        .conf-node-name {{ font-weight: 500; color: #334155; }}
+        .conf-node-change {{ font-family: monospace; font-size: 0.75rem; padding: 0.1rem 0.4rem; border-radius: 4px; }}
+        .conf-node-change.positive {{ background: #dcfce7; color: #15803d; }}
+        .conf-node-change.negative {{ background: #fee2e2; color: #b91c1c; }}
+        .conf-node-change.neutral {{ background: #f1f5f9; color: #64748b; }}
+        .conf-node-explain {{ font-size: 0.7rem; color: #64748b; flex-basis: 100%; margin-top: 0.2rem; font-style: italic; }}
+        .conf-what-would {{ margin-top: 0.5rem; }}
+        .conf-what-title {{ font-size: 0.7rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 0.3rem; }}
+        .conf-what-item {{ padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-bottom: 0.2rem; }}
+        .conf-what-item.positive {{ background: #f0fdf4; color: #166534; border-left: 2px solid #22c55e; }}
+        .conf-what-item.negative {{ background: #fef2f2; color: #991b1b; border-left: 2px solid #ef4444; }}
         .finding-sources-inline {{ margin-top: 0.5rem; font-size: 0.75rem; color: #64748b; }}
         .finding-sources-inline a {{ color: #3b82f6; text-decoration: none; }}
         .finding-sources-inline a:hover {{ text-decoration: underline; }}
-        .perspective-card {{ border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 0.75rem; }}
-        .perspective-header {{ padding: 0.75rem 1rem; background: linear-gradient(135deg, #f8fafc, #f1f5f9); cursor: pointer; display: flex; align-items: center; gap: 0.75rem; }}
-        .perspective-type {{ font-weight: 600; color: #6366f1; flex: 1; text-transform: capitalize; }}
-        .perspective-body {{ padding: 1rem; }}
+        .perspective-card {{ border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }}
+        .perspective-header {{ padding: 0.75rem 1rem; background: linear-gradient(135deg, #f8fafc, #f1f5f9); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }}
+        .perspective-header svg {{ width: 16px; height: 16px; flex-shrink: 0; color: #94a3b8; transition: transform 0.2s ease; }}
+        .perspective-header svg.open {{ transform: rotate(90deg); }}
+        .finding-expand {{ width: 16px; height: 16px; flex-shrink: 0; }}
+        .perspective-type {{ font-weight: 600; color: #6366f1; flex: 1; text-transform: capitalize; font-size: 0.9rem; }}
+        .perspective-body {{ padding: 1rem; border-top: 1px solid #e2e8f0; }}
         .perspective-analysis {{ color: #475569; font-size: 0.875rem; margin-bottom: 1rem; line-height: 1.7; }}
         .perspective-section {{ margin-bottom: 0.75rem; }}
         .perspective-section-title {{ font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 0.5rem; }}
@@ -690,6 +863,47 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
         .alert-title svg {{ width: 18px; height: 18px; }}
         .alert-list {{ list-style: none; color: #7f1d1d; font-size: 0.85rem; }}
         .alert-list li {{ padding: 0.25rem 0; }}
+
+        /* Kill Criteria Section */
+        .kill-criteria-section {{ background: linear-gradient(135deg, #fef3c7, #fde68a); border: 1px solid #fbbf24; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }}
+        .kill-criteria-header {{ color: #b45309; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }}
+        .kill-criteria-header svg {{ width: 18px; height: 18px; }}
+        .kill-criteria-body {{ display: grid; gap: 0.5rem; }}
+        .kill-criteria-item {{ background: white; border-radius: 6px; padding: 0.75rem; border-left: 3px solid #f59e0b; }}
+        .kill-trigger {{ font-weight: 600; color: #1e293b; font-size: 0.85rem; margin-bottom: 0.25rem; }}
+        .kill-details {{ display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.25rem; }}
+        .kill-threshold {{ font-size: 0.75rem; color: #6b7280; }}
+        .kill-severity {{ font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 9999px; text-transform: uppercase; font-weight: 600; }}
+        .kill-severity.severity-high {{ background: #fee2e2; color: #dc2626; }}
+        .kill-severity.severity-medium {{ background: #fef3c7; color: #d97706; }}
+        .kill-severity.severity-low {{ background: #d1fae5; color: #059669; }}
+        .kill-action {{ font-size: 0.75rem; color: #4b5563; font-style: italic; }}
+
+        /* Ecosystem Section */
+        .ecosystem-section {{ background: linear-gradient(135deg, #ecfdf5, #d1fae5); border: 1px solid #6ee7b7; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }}
+        .ecosystem-header {{ color: #047857; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }}
+        .ecosystem-header svg {{ width: 18px; height: 18px; }}
+        .ecosystem-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }}
+        .ecosystem-card {{ background: white; border-radius: 6px; padding: 0.75rem; border-left: 3px solid #10b981; }}
+        .ecosystem-card-title {{ font-weight: 600; color: #1e293b; font-size: 0.8rem; margin-bottom: 0.5rem; }}
+        .ecosystem-card ul {{ list-style: none; padding: 0; margin: 0; }}
+        .ecosystem-card li {{ font-size: 0.75rem; color: #4b5563; padding: 0.2rem 0; border-bottom: 1px solid #f3f4f6; }}
+        .ecosystem-card li:last-child {{ border-bottom: none; }}
+
+        /* Bear Case Section */
+        .bear-case-section {{ background: linear-gradient(135deg, #fef2f2, #fecaca); border: 1px solid #f87171; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }}
+        .bear-case-header {{ color: #b91c1c; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }}
+        .bear-case-header svg {{ width: 18px; height: 18px; }}
+        .bear-case-body {{ background: white; border-radius: 6px; padding: 1rem; }}
+        .bear-case-summary {{ font-weight: 600; color: #1e293b; font-size: 0.9rem; margin-bottom: 0.75rem; }}
+        .bear-case-details {{ display: grid; gap: 0.5rem; margin-bottom: 0.75rem; }}
+        .bear-case-details div {{ font-size: 0.8rem; color: #4b5563; }}
+        .bear-case-details strong {{ color: #1e293b; }}
+        .bear-case-signals {{ font-size: 0.8rem; }}
+        .bear-case-signals strong {{ color: #1e293b; }}
+        .bear-case-signals ul {{ list-style: disc; padding-left: 1.25rem; margin-top: 0.25rem; color: #dc2626; }}
+        .bear-case-signals li {{ padding: 0.1rem 0; }}
+
         .empty-state {{ text-align: center; padding: 3rem 1rem; color: #94a3b8; }}
         .evidence-drawer {{ background: #f8fafc; border-radius: 6px; padding: 0.75rem; margin-top: 0.75rem; border-left: 3px solid #6366f1; }}
         .evidence-drawer-title {{ font-size: 0.7rem; font-weight: 600; color: #6366f1; text-transform: uppercase; margin-bottom: 0.5rem; }}
@@ -745,6 +959,21 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
         [x-cloak] {{ display: none !important; }}
         .slide-enter {{ animation: slideIn 0.2s ease-out; }}
         @keyframes slideIn {{ from {{ opacity: 0; transform: translateY(-10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+        /* Global SVG sizing for inline icons */
+        .main-content svg:not(.finding-expand) {{ max-width: 20px; max-height: 20px; }}
+        .section svg {{ width: 16px; height: 16px; flex-shrink: 0; }}
+        /* Improved section spacing */
+        .section + .section {{ margin-top: 1rem; }}
+        .section-body > table {{ margin: 0; }}
+        /* Better predictions and perspectives padding */
+        .predictions-list {{ padding: 0.5rem 0; }}
+        .prediction-card {{ margin-bottom: 0.75rem; }}
+        .prediction-card:last-child {{ margin-bottom: 0; }}
+        /* Role summary improvements */
+        .role-summary-grid {{ margin-top: 0.5rem; }}
+        .role-section:last-child {{ margin-bottom: 0; }}
+        /* Confidence badge sizing */
+        .conf-badge {{ display: inline-flex; align-items: center; justify-content: center; min-width: 45px; }}
     </style>
 </head>
 <body>
@@ -810,12 +1039,6 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
             </header>
 
             <div class="main-content">
-                {decision_summary_html}
-
-                {red_flags_html}
-
-                {contradictions_html}
-
             <div class="toolbar" x-show="activeTab !== 'overview' && activeTab !== 'intelligence'">
                 <div class="search-box">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -838,6 +1061,18 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
 
             <!-- Overview Tab -->
             <div x-show="activeTab === 'overview'" x-cloak class="slide-enter">
+                {decision_summary_html}
+
+                {kill_criteria_html}
+
+                {bear_case_html}
+
+                {ecosystem_html}
+
+                {red_flags_html}
+
+                {contradictions_html}
+
                 <div class="section">
                     <div class="section-header"><span class="section-title">Key Findings</span><span class="section-count" x-text="findings.length + ' total'"></span></div>
                     <div class="section-body">
@@ -955,9 +1190,47 @@ def generate_interactive_html(result: Dict[str, Any], title: str, current_date: 
                                                     <span><a :href="src.url" target="_blank" x-text="src.title || 'Source'"></a><span x-show="idx < finding.sources.length - 1">, </span></span>
                                                 </template>
                                             </div>
+                                            <!-- Confidence Explanation (Bayesian) - expandable -->
+                                            <div class="confidence-explanation" x-show="finding.showConfExplanation" x-cloak>
+                                                <div class="conf-explanation-header">
+                                                    <strong>Why this confidence?</strong>
+                                                </div>
+                                                <div class="conf-explanation-summary" x-show="finding.confidence_explanation.summary" x-text="finding.confidence_explanation.summary"></div>
+                                                <div class="conf-explanation-chain" x-show="finding.confidence_explanation.evidence_chain.length > 0">
+                                                    <div class="conf-chain-title">Evidence Chain:</div>
+                                                    <template x-for="node in finding.confidence_explanation.evidence_chain" :key="node.name">
+                                                        <div class="conf-chain-node">
+                                                            <span class="conf-node-name" x-text="node.name"></span>
+                                                            <span class="conf-node-change" :class="node.posterior > node.prior ? 'positive' : node.posterior < node.prior ? 'negative' : 'neutral'">
+                                                                <span x-text="Math.round(node.prior * 100) + '%'"></span>
+                                                                <span>&rarr;</span>
+                                                                <span x-text="Math.round(node.posterior * 100) + '%'"></span>
+                                                            </span>
+                                                            <span class="conf-node-explain" x-show="node.explanation" x-text="node.explanation"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                                <div class="conf-what-would" x-show="finding.confidence_explanation.what_would_increase.length > 0">
+                                                    <div class="conf-what-title">To increase confidence:</div>
+                                                    <template x-for="item in finding.confidence_explanation.what_would_increase.slice(0, 3)" :key="item">
+                                                        <div class="conf-what-item positive" x-text="item"></div>
+                                                    </template>
+                                                </div>
+                                                <div class="conf-what-would" x-show="finding.confidence_explanation.what_would_decrease.length > 0">
+                                                    <div class="conf-what-title">Risk factors:</div>
+                                                    <template x-for="item in finding.confidence_explanation.what_would_decrease.slice(0, 3)" :key="item">
+                                                        <div class="conf-what-item negative" x-text="item"></div>
+                                                    </template>
+                                                </div>
+                                            </div>
                                         </td>
                                         <td class="finding-date" x-text="finding.date || '-'"></td>
-                                        <td class="finding-conf"><span class="conf-badge" :class="'conf-' + finding.conf_label" x-text="Math.round(finding.confidence * 100) + '%'"></span></td>
+                                        <td class="finding-conf">
+                                            <span class="conf-badge conf-clickable" :class="'conf-' + finding.conf_label" @click="finding.showConfExplanation = !finding.showConfExplanation" :title="finding.confidence_narrative || 'Click for details'">
+                                                <span x-text="Math.round(finding.confidence * 100) + '%'"></span>
+                                                <svg class="conf-info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                            </span>
+                                        </td>
                                     </tr>
                                 </template>
                             </tbody>

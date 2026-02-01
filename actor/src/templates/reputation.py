@@ -3,9 +3,145 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from .base import BaseTemplate
+from .base import BaseTemplate, TemplateConfig, FindingTypeConfig, FindingType
 from ..services.report_components import (
-    ComponentType, ComponentConfig, ReportHints, get_report_hints
+    ComponentType, ReportHints
+)
+
+
+# ========== FINDING TYPE ENUM ==========
+
+class ReputationFindingType(FindingType):
+    """Valid finding types for reputation check research."""
+    TRUST_SIGNAL = "trust_signal"
+    WARNING_SIGN = "warning_sign"
+    COMPLAINT_PATTERN = "complaint_pattern"
+    VERIFICATION_STATUS = "verification_status"
+    SENTIMENT_TREND = "sentiment_trend"
+    COMPARISON_BENCHMARK = "comparison_benchmark"
+
+
+# ========== TEMPLATE CONFIGURATION ==========
+
+REPUTATION_CONFIG = TemplateConfig(
+    search_intro="You are a consumer protection researcher helping someone verify if an entity is trustworthy.",
+    search_angles=[
+        {
+            "name": "SCAM & FRAUD REPORTS",
+            "items": [
+                "Scam reports, fraud allegations",
+                "BBB complaints, FTC reports",
+                "Consumer protection warnings",
+            ]
+        },
+        {
+            "name": "REVIEWS & COMPLAINTS",
+            "items": [
+                "Customer reviews across multiple platforms",
+                "Complaint patterns and common issues",
+                "Response to complaints",
+            ]
+        },
+        {
+            "name": "LEGITIMACY VERIFICATION",
+            "items": [
+                "Business registration, licenses",
+                "Physical address verification",
+                "Contact information validity",
+            ]
+        },
+        {
+            "name": "ONLINE PRESENCE",
+            "items": [
+                "Website age, domain history",
+                "Social media presence and engagement",
+                "Professional profiles (LinkedIn, industry directories)",
+            ]
+        },
+        {
+            "name": "INDUSTRY REPUTATION",
+            "items": [
+                "Industry association membership",
+                "Awards, certifications",
+                "Peer recognition",
+            ]
+        },
+        {
+            "name": "NEWS & MEDIA",
+            "items": [
+                "News coverage (positive and negative)",
+                "Investigations or exposés",
+                "Press releases vs. independent coverage",
+            ]
+        },
+    ],
+    search_depth_guidance={
+        "quick": "Focus on 3-4 angles (scam reports, reviews, legitimacy)",
+        "standard": "Cover 5-6 angles",
+        "deep": "Comprehensive coverage",
+    },
+
+    extraction_intro="You are a consumer protection analyst checking if an entity is trustworthy.",
+    finding_types=[
+        FindingTypeConfig(
+            name="trust_signal",
+            display_name="Trust Signal",
+            description="Positive indicators of legitimacy. Must be verifiable, not self-reported.",
+            extracted_data_schema='{"signal_type": "", "verification_status": "verified/unverified/self_reported", "source": "", "strength": "strong/moderate/weak"}',
+            analysis_fallback="This trust signal provides evidence of legitimacy that can be verified.",
+        ),
+        FindingTypeConfig(
+            name="warning_sign",
+            display_name="Warning Sign",
+            description="Red flags and concerns. Be specific about what's concerning and why.",
+            extracted_data_schema='{"warning_type": "", "severity": "critical/significant/minor", "evidence": "", "recommendation": ""}',
+            analysis_fallback="This warning sign warrants caution and further investigation.",
+        ),
+        FindingTypeConfig(
+            name="complaint_pattern",
+            display_name="Complaint Pattern",
+            description="Recurring issues reported by multiple people",
+            extracted_data_schema='{"complaint_type": "", "frequency": "many/several/few", "resolution": "resolved/unresolved/mixed", "sources": []}',
+            analysis_fallback="This complaint pattern indicates systemic issues that affect multiple customers.",
+        ),
+        FindingTypeConfig(
+            name="verification_status",
+            display_name="Verification Status",
+            description="Credentials, licenses, certifications",
+            extracted_data_schema='{"credential": "", "issuer": "", "status": "valid/expired/unverifiable/fake", "verification_url": ""}',
+            analysis_fallback="This verification status helps establish whether claims are legitimate.",
+        ),
+        FindingTypeConfig(
+            name="sentiment_trend",
+            display_name="Sentiment Trend",
+            description="How perception has changed over time",
+            extracted_data_schema='{"direction": "improving/declining/stable", "timeframe": "", "key_events": [], "current_sentiment": "positive/negative/mixed"}',
+            analysis_fallback="This sentiment trend indicates how the entity's reputation has evolved.",
+        ),
+        FindingTypeConfig(
+            name="comparison_benchmark",
+            display_name="Comparison Benchmark",
+            description="How they compare to similar entities",
+            extracted_data_schema='{"benchmark": "", "rating": "above_average/average/below_average", "comparison_basis": ""}',
+            analysis_fallback="This comparison helps contextualize the entity's performance relative to peers.",
+        ),
+    ],
+    analysis_instruction="""YOUR EXPERT REPUTATION ANALYSIS (REQUIRED - 2-4 sentences) explaining:
+  * WHY this signal matters for assessing trustworthiness
+  * What this PATTERN indicates about the entity's practices
+  * How this COMPARES to typical behavior of legitimate vs problematic actors
+  * What SPECIFIC RISKS or assurances this provides""",
+    extraction_guidelines="""CRITICAL: The "analysis" field must provide substantive assessment reasoning, not just describe the finding.
+Good example: "This pattern of unresolved complaints is a major red flag because legitimate companies typically respond to BBB complaints within 14 days. The consistent theme of delayed refunds suggests systemic cash flow issues or intentional delay tactics. Companies with this complaint volume and non-response rate have a 78% correlation with eventual enforcement action."
+
+IMPORTANT:
+- WARNING SIGNS are the most important - surface these first
+- Be skeptical of self-reported credentials
+- Note if reviews appear fake or manipulated
+- Distinguish between isolated incidents and patterns""",
+
+    priority_finding_types=["warning_sign", "complaint_pattern", "verification_status", "trust_signal", "sentiment_trend", "comparison_benchmark"],
+    grouping_order=["warning_sign", "complaint_pattern", "trust_signal", "verification_status", "sentiment_trend", "comparison_benchmark"],
 )
 
 
@@ -19,6 +155,9 @@ class ReputationTemplate(BaseTemplate):
     template_id = "reputation"
     template_name = "Reputation Check"
     description = "Verify legitimacy and trustworthiness - scam detection, reviews, and trust signals"
+
+    # Data-driven configuration
+    config = REPUTATION_CONFIG
 
     # Report hints for component-based rendering
     report_hints = ReportHints(
@@ -64,154 +203,6 @@ class ReputationTemplate(BaseTemplate):
         "expert_sanity_check": "standard",
         "source_quality": "thorough",
     }
-
-    async def generate_search_queries(
-        self,
-        query: str,
-        max_searches: int,
-        granularity: str = "standard",
-    ) -> List[str]:
-        """Generate search queries for reputation check research."""
-        prompt = f"""
-You are a consumer protection researcher helping someone verify if an entity is trustworthy.
-
-Subject to Check: {query}
-
-Depth Level: {granularity}
-
-Generate search queries to determine if this entity is legitimate and trustworthy. Cover:
-
-1. SCAM & FRAUD REPORTS
-   - Scam reports, fraud allegations
-   - BBB complaints, FTC reports
-   - Consumer protection warnings
-
-2. REVIEWS & COMPLAINTS
-   - Customer reviews across multiple platforms
-   - Complaint patterns and common issues
-   - Response to complaints
-
-3. LEGITIMACY VERIFICATION
-   - Business registration, licenses
-   - Physical address verification
-   - Contact information validity
-
-4. ONLINE PRESENCE
-   - Website age, domain history
-   - Social media presence and engagement
-   - Professional profiles (LinkedIn, industry directories)
-
-5. INDUSTRY REPUTATION
-   - Industry association membership
-   - Awards, certifications
-   - Peer recognition
-
-6. NEWS & MEDIA
-   - News coverage (positive and negative)
-   - Investigations or exposés
-   - Press releases vs. independent coverage
-
-For a "{granularity}" depth level:
-- "quick": Focus on 3-4 angles (scam reports, reviews, legitimacy)
-- "standard": Cover 5-6 angles
-- "deep": Comprehensive coverage
-
-Return a JSON array of exactly {max_searches} search query strings.
-Include "scam", "reviews", "complaints", "legitimate" in relevant queries.
-"""
-
-        result = await self._call_gemini_json(prompt)
-
-        if isinstance(result, list):
-            return result[:max_searches]
-        return []
-
-    async def extract_findings(
-        self,
-        query: str,
-        sources: List[Dict[str, Any]],
-        synthesized_content: str,
-        granularity: str = "standard",
-    ) -> List[Dict[str, Any]]:
-        """Extract reputation check findings."""
-        source_context = "\n\n".join([
-            f"Source: {s.get('title', 'Unknown')} ({s.get('url', '')})\n"
-            f"Domain: {s.get('domain', '')}"
-            for s in sources[:20]
-        ])
-
-        prompt = f"""
-You are a consumer protection analyst checking if an entity is trustworthy.
-
-Subject: {query}
-
-Synthesized Research Content:
-{synthesized_content[:16000]}
-
-Sources Referenced:
-{source_context}
-
-Extract findings in these categories:
-
-1. TRUST_SIGNAL (finding_type: "trust_signal")
-   - Positive indicators of legitimacy
-   - Must be verifiable, not self-reported
-   - extracted_data: {{"signal_type": "", "verification_status": "verified/unverified/self_reported", "source": "", "strength": "strong/moderate/weak"}}
-
-2. WARNING_SIGN (finding_type: "warning_sign")
-   - Red flags and concerns
-   - Be specific about what's concerning and why
-   - extracted_data: {{"warning_type": "", "severity": "critical/significant/minor", "evidence": "", "recommendation": ""}}
-
-3. COMPLAINT_PATTERN (finding_type: "complaint_pattern")
-   - Recurring issues reported by multiple people
-   - extracted_data: {{"complaint_type": "", "frequency": "many/several/few", "resolution": "resolved/unresolved/mixed", "sources": []}}
-
-4. VERIFICATION_STATUS (finding_type: "verification_status")
-   - Credentials, licenses, certifications
-   - extracted_data: {{"credential": "", "issuer": "", "status": "valid/expired/unverifiable/fake", "verification_url": ""}}
-
-5. SENTIMENT_TREND (finding_type: "sentiment_trend")
-   - How perception has changed over time
-   - extracted_data: {{"direction": "improving/declining/stable", "timeframe": "", "key_events": [], "current_sentiment": "positive/negative/mixed"}}
-
-6. COMPARISON_BENCHMARK (finding_type: "comparison_benchmark")
-   - How they compare to similar entities
-   - extracted_data: {{"benchmark": "", "rating": "above_average/average/below_average", "comparison_basis": ""}}
-
-For each finding, return:
-- finding_type: One of the types above
-- content: Detailed finding with specific evidence
-- summary: One concise sentence (what users see first)
-- confidence_score: 0.0-1.0 based on source quality and corroboration
-- temporal_context: 'past', 'present', 'ongoing'
-- extracted_data: Structured data for the finding type
-
-IMPORTANT:
-- WARNING SIGNS are the most important - surface these first
-- Be skeptical of self-reported credentials
-- Note if reviews appear fake or manipulated
-- Distinguish between isolated incidents and patterns
-
-Return as JSON array. Help the user avoid scams and bad actors.
-"""
-
-        result = await self._call_gemini_json(prompt)
-
-        findings = []
-        if isinstance(result, list):
-            for f in result:
-                if isinstance(f, dict):
-                    findings.append({
-                        "finding_type": f.get("finding_type", "fact"),
-                        "content": f.get("content", ""),
-                        "summary": f.get("summary"),
-                        "confidence_score": f.get("confidence_score", 0.5),
-                        "temporal_context": f.get("temporal_context", "present"),
-                        "extracted_data": f.get("extracted_data"),
-                    })
-
-        return findings
 
     def get_supported_report_variants(self) -> List[str]:
         """Reputation check supports trust_report variant."""
@@ -304,42 +295,3 @@ Return as JSON array. Help the user avoid scams and bad actors.
             sections.append("")
 
         return "\n".join(sections)
-
-    def _get_priority_findings(self, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Reputation check prioritizes warnings and complaint patterns."""
-        priority_types = ["warning_sign", "complaint_pattern", "verification_status",
-                        "trust_signal", "sentiment_trend", "comparison_benchmark"]
-        prioritized = []
-
-        for ftype in priority_types:
-            type_findings = [f for f in findings if f.get("finding_type") == ftype]
-            prioritized.extend(sorted(
-                type_findings,
-                key=lambda x: x.get("confidence_score", 0),
-                reverse=True
-            ))
-
-        remaining = [f for f in findings if f not in prioritized]
-        prioritized.extend(sorted(remaining, key=lambda x: x.get("confidence_score", 0), reverse=True))
-
-        return prioritized
-
-    def _group_findings(self, findings: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
-        """Group findings with reputation check priority order."""
-        order = ["warning_sign", "complaint_pattern", "trust_signal",
-                "verification_status", "sentiment_trend", "comparison_benchmark"]
-        grouped: Dict[str, List[Dict[str, Any]]] = {}
-
-        for ftype in order:
-            type_findings = [f for f in findings if f.get("finding_type") == ftype]
-            if type_findings:
-                grouped[ftype] = type_findings
-
-        for f in findings:
-            ftype = f.get("finding_type", "other")
-            if ftype not in grouped:
-                grouped[ftype] = []
-            if f not in grouped.get(ftype, []):
-                grouped.setdefault(ftype, []).append(f)
-
-        return grouped

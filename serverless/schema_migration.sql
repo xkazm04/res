@@ -209,3 +209,32 @@ SELECT
     'data_sources seeded' as change,
     COUNT(*) as source_count
 FROM data_sources;
+
+-- ============================================
+-- THEMATIC GROUPING FOR RESEARCH SESSIONS
+-- Added: 2026-02-01
+-- ============================================
+
+-- 19. Add thematic_group column to research_sessions
+-- Allows grouping sessions by theme within templates (e.g., "Jeffrey Epstein", "Cryptocurrency")
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'research_sessions'
+        AND column_name = 'thematic_group'
+    ) THEN
+        ALTER TABLE research_sessions ADD COLUMN thematic_group TEXT;
+    END IF;
+END $$;
+
+-- 20. Create index for thematic group queries
+CREATE INDEX IF NOT EXISTS idx_sessions_thematic_group
+ON research_sessions(thematic_group);
+
+-- 21. Verify thematic_group column
+SELECT
+    'thematic_group column exists' as change,
+    column_name, data_type
+FROM information_schema.columns
+WHERE table_name = 'research_sessions' AND column_name = 'thematic_group';

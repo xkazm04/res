@@ -77,6 +77,8 @@ export interface ResearchSession {
   parameters: Record<string, unknown>;
   claim_count: number;
   source_count: number;
+  /** Thematic group for grouping sessions within templates (e.g., "Jeffrey Epstein", "Cryptocurrency") */
+  thematic_group?: string;
   created_at: string;
   updated_at: string;
   completed_at?: string;

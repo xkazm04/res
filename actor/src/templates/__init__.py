@@ -2,17 +2,28 @@
 
 from typing import Dict, Type
 
-from .base import BaseTemplate
-from .investigative import InvestigativeTemplate
-from .financial import FinancialTemplate
-from .competitive import CompetitiveTemplate
-from .legal import LegalTemplate
-from .tech_market import TechMarketTemplate
-from .contract import ContractTemplate
-from .understanding import UnderstandingTemplate
-from .due_diligence import DueDiligenceTemplate
-from .purchase_decision import PurchaseDecisionTemplate
-from .reputation import ReputationTemplate
+from .base import (
+    BaseTemplate,
+    FindingType,
+    validate_finding_types,
+    validates_finding_types,
+    # Report Builder
+    ReportBuilder,
+    ReportVariantSpec,
+    SectionSpec,
+    AssessmentSpec,
+    MarkdownBuilder,
+)
+from .investigative import InvestigativeTemplate, InvestigativeFindingType
+from .financial import FinancialTemplate, FinancialFindingType
+from .competitive import CompetitiveTemplate, CompetitiveFindingType
+from .legal import LegalTemplate, LegalFindingType
+from .tech_market import TechMarketTemplate, TechMarketFindingType
+from .contract import ContractTemplate, ContractFindingType
+from .understanding import UnderstandingTemplate, UnderstandingFindingType
+from .due_diligence import DueDiligenceTemplate, DueDiligenceFindingType
+from .purchase_decision import PurchaseDecisionTemplate, PurchaseDecisionFindingType
+from .reputation import ReputationTemplate, ReputationFindingType
 
 # Template registry
 TEMPLATES: Dict[str, Type[BaseTemplate]] = {
@@ -36,7 +47,18 @@ def get_template(template_type: str) -> BaseTemplate:
 
 
 __all__ = [
+    # Base classes and utilities
     "BaseTemplate",
+    "FindingType",
+    "validate_finding_types",
+    "validates_finding_types",
+    # Report Builder
+    "ReportBuilder",
+    "ReportVariantSpec",
+    "SectionSpec",
+    "AssessmentSpec",
+    "MarkdownBuilder",
+    # Templates
     "InvestigativeTemplate",
     "FinancialTemplate",
     "CompetitiveTemplate",
@@ -47,6 +69,18 @@ __all__ = [
     "DueDiligenceTemplate",
     "PurchaseDecisionTemplate",
     "ReputationTemplate",
+    # Finding Type Enums
+    "InvestigativeFindingType",
+    "FinancialFindingType",
+    "CompetitiveFindingType",
+    "LegalFindingType",
+    "TechMarketFindingType",
+    "ContractFindingType",
+    "UnderstandingFindingType",
+    "DueDiligenceFindingType",
+    "PurchaseDecisionFindingType",
+    "ReputationFindingType",
+    # Registry
     "get_template",
     "TEMPLATES",
 ]

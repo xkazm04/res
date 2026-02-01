@@ -20,6 +20,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { getTemplate, getAvailableTemplates } from '../src/templates/configs';
 
 // Inline the types to avoid import issues with execa transitive deps
 type Granularity = 'quick' | 'standard' | 'deep';
@@ -258,29 +259,16 @@ async function main(): Promise<void> {
   }
   const granularity = granularityArg;
 
-  // Try to load template config
-  let config: TemplateConfig;
-  try {
-    const configPath = path.join(process.cwd(), 'src/templates/configs', templateId);
-    const configModule = await import(configPath);
-
-    // Handle various export patterns
-    config = configModule.default
-      || configModule[`${templateId}Config`]
-      || configModule.config
-      || configModule;
-
-    // Validate it looks like a config
-    if (!config.templateId || !config.templateName) {
-      throw new Error('Invalid config structure');
+  // Load template config from registry
+  const config = getTemplate(templateId);
+  if (!config) {
+    console.error(`Error: Template "${templateId}" not found.\n`);
+    console.error('Available templates:');
+    for (const t of getAvailableTemplates()) {
+      console.error(`  - ${t}`);
     }
-  } catch {
-    console.error(`Error: Template "${templateId}" not found or invalid.\n`);
-    console.error('Available templates (after migration):');
-    AVAILABLE_TEMPLATES.forEach(t => console.error(`  - ${t}`));
     console.error('');
-    console.error('Note: Template configs are created in Phase 14.');
-    console.error('For now, use this script after migrating a template.\n');
+    console.error('Note: Templates must be migrated and registered in Phase 14.');
     process.exit(1);
   }
 

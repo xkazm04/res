@@ -88,6 +88,44 @@ export const investigativeConfig: TemplateConfig = {
         'Coverage patterns and omissions',
       ],
     },
+    {
+      name: 'NARRATIVE ARCHAEOLOGY',
+      items: [
+        'First appearance of key talking points and claims - trace to origin',
+        'Evolution of story framing over time across different outlets',
+        'Sources that covered vs systematically ignored this story',
+        'Fact-checks: who funded them, what methodology, any conflicts',
+        'PR firms and communications consultants involved',
+      ],
+    },
+    {
+      name: 'INCENTIVE MAPPING',
+      items: [
+        'Financial beneficiaries of current dominant narrative',
+        'Career incentives and revolving doors for key spokespeople',
+        'Funding sources for research, think tanks, and experts cited',
+        'Regulatory capture indicators and agency-industry relationships',
+        'Political donations and lobbying by involved parties',
+      ],
+    },
+    {
+      name: 'TEMPORAL ANALYSIS',
+      items: [
+        'What else happened on the same day that received less coverage',
+        'Timing of announcements relative to other events (Friday news dumps)',
+        'Long-term patterns that short-term coverage obscures',
+        'Seasonal or cyclical patterns in similar events',
+      ],
+    },
+    {
+      name: 'NETWORK INFERENCE',
+      items: [
+        'Board memberships, advisory roles shared between actors',
+        'Conference co-appearances, co-authorships, joint ventures',
+        'Funding flows through foundations, NGOs, and intermediaries',
+        'Social connections: school ties, club memberships, family',
+      ],
+    },
   ],
 
   searchDepthGuidance: {
@@ -171,6 +209,66 @@ export const investigativeConfig: TemplateConfig = {
       analysisFallback:
         'This information gap limits our ability to draw complete conclusions and should be addressed.',
     },
+    {
+      name: 'narrative_frame',
+      displayName: 'Narrative Frame',
+      description:
+        'How the story is being framed and told. Includes: dominant narrative, framing choices, language patterns (passive voice, euphemisms), emotional appeals, what is emphasized vs minimized.',
+      extractedDataSchema:
+        '{"dominant_frame": "...", "framing_techniques": [...], "language_patterns": [...], "emphasized": [...], "minimized": [...]}',
+      analysisFallback:
+        'This framing choice shapes how audiences interpret events and may obscure alternative interpretations.',
+    },
+    {
+      name: 'incentive_alignment',
+      displayName: 'Incentive Alignment',
+      description:
+        'Who benefits from this claim or narrative being believed. Follow the money and career incentives. Note conflicts of interest.',
+      extractedDataSchema:
+        '{"beneficiaries": [...], "incentive_type": "financial/career/political/reputational", "conflicts_of_interest": [...], "cui_bono": "..."}',
+      analysisFallback:
+        'Understanding who benefits from a narrative reveals potential bias and motivation.',
+    },
+    {
+      name: 'historical_parallel',
+      displayName: 'Historical Parallel',
+      description:
+        'Similar past events or patterns. Playbook recognition - has this type of situation played out before? What happened then?',
+      extractedDataSchema:
+        '{"historical_event": "...", "date": "...", "similarity_score": 0.8, "key_parallels": [...], "key_differences": [...], "outcome_then": "..."}',
+      analysisFallback:
+        'Historical patterns often repeat; understanding precedents illuminates likely trajectories.',
+    },
+    {
+      name: 'suspicious_timing',
+      displayName: 'Suspicious Timing',
+      description:
+        'Events with convenient timing. What else happened simultaneously? Friday news dumps, holiday releases, distraction events.',
+      extractedDataSchema:
+        '{"event": "...", "timing": "...", "concurrent_events": [...], "potential_distraction_from": "...", "pattern_type": "news_dump/distraction/preemption"}',
+      analysisFallback:
+        'Timing of disclosures and events often reveals strategic intent.',
+    },
+    {
+      name: 'coverage_asymmetry',
+      displayName: 'Coverage Asymmetry',
+      description:
+        'Same event covered very differently by different sources. What do some sources include that others omit? Systematic patterns.',
+      extractedDataSchema:
+        '{"event": "...", "source_a": "...", "source_b": "...", "included_by_a_only": [...], "included_by_b_only": [...], "framing_difference": "..."}',
+      analysisFallback:
+        'Differential coverage reveals editorial biases and potentially coordinated narratives.',
+    },
+    {
+      name: 'network_inference',
+      displayName: 'Network Inference',
+      description:
+        'Implied relationships not explicitly documented. Shared board seats, funding connections, social ties, professional networks.',
+      extractedDataSchema:
+        '{"actor_a": "...", "actor_b": "...", "connection_type": "board/funding/social/professional", "intermediaries": [...], "strength": "strong/moderate/weak"}',
+      analysisFallback:
+        'Informal networks often explain coordinated behavior that formal relationships cannot.',
+    },
   ],
 
   extractionGuidelines: `CRITICAL: The "analysis" field must provide substantive reasoning, not just restate the finding.
@@ -195,6 +293,9 @@ IMPORTANT:
     'actor',
     'relationship',
     'pattern',
+    'narrative_frame',
+    'incentive_alignment',
+    'network_inference',
   ],
   groupingOrder: [
     'financial',
@@ -203,17 +304,27 @@ IMPORTANT:
     'evidence',
     'event',
     'pattern',
+    'narrative_frame',
+    'incentive_alignment',
+    'historical_parallel',
+    'suspicious_timing',
+    'coverage_asymmetry',
+    'network_inference',
     'gap',
   ],
 
   // ---- Perspectives ----
-  // 5 expert perspectives for deep investigative analysis
+  // 9 expert perspectives for deep investigative analysis
   perspectives: [
     'forensic_financial', // Follow the money, fraud detection
     'power_network', // Map influence networks and institutional capture
     'psychological_behavioral', // Analyze motivations and credibility
     'legal_liability', // Assess legal exposure and enforcement risk
     'geopolitical_strategic', // Strategic interests and power dynamics
+    'narrative_analyst', // How stories are framed, meta-narrative analysis
+    'incentive_mapper', // Cui bono analysis, follow the money
+    'historical_pattern', // Pattern recognition across time
+    'omission_detective', // What's NOT being reported and why
   ],
 
   // ---- Verification ----

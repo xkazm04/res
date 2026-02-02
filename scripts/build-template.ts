@@ -124,6 +124,18 @@ function buildPerspectivesSection(perspectives: string[]): string {
   return perspectives.map((p, i) => `${i + 1}. ${p}`).join('\n');
 }
 
+/**
+ * Try to read a section file, returning empty string if not found.
+ */
+function tryReadSection(relativePath: string): string {
+  const sectionsDir = path.join(process.cwd(), 'src/templates/sections');
+  const fullPath = path.join(sectionsDir, relativePath);
+  if (!fs.existsSync(fullPath)) {
+    return '';
+  }
+  return fs.readFileSync(fullPath, 'utf-8');
+}
+
 function buildResearchPrompt(
   config: TemplateConfig,
   query: string,
@@ -135,7 +147,15 @@ function buildResearchPrompt(
   const findingTypesSection = buildFindingTypesSection(config.findingTypes);
   const perspectivesSection = buildPerspectivesSection(perspectives);
 
-  return [
+  // Read section files
+  const webSearchSection = tryReadSection('phases/web-search.md') || 'Search for relevant, recent, and authoritative sources.';
+  const credibilitySection = tryReadSection('phases/credibility.md') || 'Assess source credibility and cross-reference claims.';
+  const perspectivesPhaseSection = tryReadSection('phases/perspectives.md') || 'Analyze findings from each perspective.';
+  const intelligenceSection = tryReadSection('phases/intelligence.md') || 'Synthesize findings into actionable intelligence.';
+  const metaAnalysisSection = tryReadSection('phases/meta-analysis.md');
+  const outputFormatSection = tryReadSection('common/output-format.md');
+
+  const sections = [
     `# Research Task: ${query}`,
     '',
     `**Template:** ${config.templateName}`,
@@ -144,6 +164,7 @@ function buildResearchPrompt(
     '',
     '---',
     '',
+    // Phase 1: Query Generation (inline, no section file - template-specific)
     '## Phase 1: Query Generation',
     '',
     config.searchIntro,
@@ -158,21 +179,21 @@ function buildResearchPrompt(
     '',
     '---',
     '',
-    '## Phase 2: Web Search',
+    // Phase 2: Web Search - use section file (includes its own header)
+    webSearchSection || '## Phase 2: Web Search\n\nSearch for relevant, recent, and authoritative sources.',
     '',
-    `Execute up to **${granularityConfig.maxSearches}** web searches.`,
-    'Use the WebSearch tool to gather current information.',
-    '',
-    '---',
-    '',
-    '## Phase 3: Credibility Assessment',
-    '',
-    `Verification level: **${granularityConfig.verificationLevel}**`,
-    '',
-    'Assess source credibility and cross-reference claims.',
+    `**Resource limit:** Execute up to **${granularityConfig.maxSearches}** web searches.`,
     '',
     '---',
     '',
+    // Phase 3: Credibility - use section file (includes its own header)
+    credibilitySection || '## Phase 3: Credibility Assessment\n\nAssess source credibility and cross-reference claims.',
+    '',
+    `**Verification level:** ${granularityConfig.verificationLevel}`,
+    '',
+    '---',
+    '',
+    // Phase 4: Finding Extraction (inline, template-specific)
     '## Phase 4: Finding Extraction',
     '',
     config.extractionIntro,
@@ -191,40 +212,56 @@ function buildResearchPrompt(
     '',
     '---',
     '',
-    '## Phase 5: Perspectives',
+    // Phase 5: Perspectives - use section file (includes its own header)
+    perspectivesPhaseSection || '## Phase 5: Perspective Analysis\n\nAnalyze findings from each perspective.',
     '',
-    `Generate **${granularityConfig.perspectiveCount}** expert perspectives:`,
+    `**Generate ${granularityConfig.perspectiveCount} expert perspectives:**`,
     '',
     perspectivesSection,
     '',
     '---',
     '',
-    '## Phase 6: Intelligence Analysis',
-    '',
-    'Synthesize findings into actionable intelligence.',
+    // Phase 6: Intelligence - use section file (includes its own header)
+    intelligenceSection || '## Phase 6: Intelligence Analysis\n\nSynthesize findings into actionable intelligence.',
     '',
     '---',
     '',
-    '## Output Format',
-    '',
-    `Return a JSON object with the following structure:`,
-    '',
-    '```json',
-    '{',
-    '  "query": "original query",',
-    `  "template": "${config.templateId}",`,
-    '  "status": "completed",',
-    '  "findings": [...],',
-    '  "sources": [...],',
-    '  "perspectives": [...],',
-    '  "contradictions": [],',
-    '  "knowledge_gaps": [],',
-    '  "search_queries_executed": []',
-    '}',
-    '```',
-    '',
-    'Ensure all findings include supporting sources and confidence scores.',
-  ].join('\n');
+  ];
+
+  // Add Phase 7 meta-analysis if section exists
+  if (metaAnalysisSection) {
+    sections.push(metaAnalysisSection);
+    sections.push('');
+    sections.push('---');
+    sections.push('');
+  }
+
+  // Add output format
+  if (outputFormatSection) {
+    sections.push(outputFormatSection);
+  } else {
+    sections.push('## Output Format');
+    sections.push('');
+    sections.push('Return a JSON object with the following structure:');
+    sections.push('');
+    sections.push('```json');
+    sections.push('{');
+    sections.push('  "query": "original query",');
+    sections.push(`  "template": "${config.templateId}",`);
+    sections.push('  "status": "completed",');
+    sections.push('  "findings": [...],');
+    sections.push('  "sources": [...],');
+    sections.push('  "perspectives": [...],');
+    sections.push('  "contradictions": [],');
+    sections.push('  "knowledge_gaps": [],');
+    sections.push('  "search_queries_executed": []');
+    sections.push('}');
+    sections.push('```');
+    sections.push('');
+    sections.push('Ensure all findings include supporting sources and confidence scores.');
+  }
+
+  return sections.join('\n');
 }
 
 // ============================================

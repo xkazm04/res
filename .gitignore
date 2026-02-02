@@ -45,3 +45,6 @@ next-env.d.ts
 
 # validation data (local only)
 .validations/
+
+# generated prompts (local only)
+.prompts/

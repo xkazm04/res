@@ -15,3 +15,7 @@ export type { RunOptions, RunResult } from './ClaudeRunner';
 // TemplateBuilder: Orchestrates prompt generation and execution
 export { TemplateBuilder } from './TemplateBuilder';
 export type { BuildResult, TemplateBuilderOptions } from './TemplateBuilder';
+
+// ResearchOrchestrator: Full flow with persistence
+export { ResearchOrchestrator } from './ResearchOrchestrator';
+export type { ResearchOptions, ResearchResult } from './ResearchOrchestrator';

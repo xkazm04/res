@@ -212,6 +212,13 @@ export const PERSPECTIVE_TYPE_MAP: Record<string, string> = {
   whistleblower: 'journalist',
   insider: 'network',
   connected_source: 'network',
+
+  // New analytical perspectives (deep analysis)
+  narrative_analyst: 'journalist', // Narrative analysis is journalism-adjacent
+  incentive_mapper: 'financial', // Incentive mapping is financial analysis
+  historical_pattern: 'historical', // Historical pattern recognition
+  omission_detective: 'journalist', // Omission detection is investigative journalism
+  contrarian_synthesizer: 'financial', // Contrarian views (like short_seller)
 };
 
 /**

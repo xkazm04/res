@@ -99,6 +99,21 @@ export const FINDING_TYPE_MAP: Record<string, string> = {
   // Passthrough types (already schema-compliant)
   fact: 'fact',
   claim: 'claim',
+
+  // Meta-analytical finding types (deep analysis)
+  narrative_frame: 'pattern', // Framing patterns map to pattern
+  coverage_asymmetry: 'evidence', // Differential coverage is evidence
+  incentive_alignment: 'relationship', // Incentives reveal relationships
+  suspicious_timing: 'event', // Timing is event-related
+  historical_parallel: 'pattern', // Historical patterns
+  network_inference: 'relationship', // Inferred relationships
+  omission: 'gap', // What's NOT reported is a gap
+  talking_point_origin: 'evidence', // First appearance of narratives
+  funding_trace: 'fact', // Money behind research/reports (financial)
+  regulatory_capture: 'relationship', // Regulatory relationships
+  narrative_vs_reality: 'evidence', // Discrepancy between narrative and data
+  smart_money_signal: 'evidence', // Sophisticated investor actions
+  hype_reality_gap: 'evidence', // Marketing vs technical substance
 };
 
 /**

@@ -138,6 +138,121 @@ const KnowledgeGapSchema = z.object({
 });
 
 // ============================================
+// META-ANALYSIS SCHEMAS
+// ============================================
+
+/**
+ * Cross-cutting pattern identified during meta-analysis.
+ */
+const CrossCuttingPatternSchema = z.object({
+  /** Description of the emergent pattern */
+  pattern: z.string(),
+
+  /** Finding indices or summaries that support this pattern */
+  supporting_findings: z.array(z.string()).optional(),
+
+  /** Why this pattern matters */
+  significance: z.string(),
+
+  /** Confidence in this pattern (0-1) */
+  confidence: z.number().min(0).max(1).optional(),
+});
+
+/**
+ * Omission identified during meta-analysis.
+ */
+const OmissionSchema = z.object({
+  /** What information is missing */
+  what_is_missing: z.string(),
+
+  /** Why this omission matters */
+  why_it_matters: z.string(),
+
+  /** Possible explanations for the omission */
+  possible_explanations: z.array(z.string()).optional(),
+});
+
+/**
+ * Incentive map from cui bono analysis.
+ */
+const IncentiveMapSchema = z.object({
+  /** Who benefits from the dominant narrative */
+  primary_beneficiaries: z.array(z.string()).optional(),
+
+  /** Who is harmed by the dominant narrative */
+  who_is_harmed: z.array(z.string()).optional(),
+
+  /** Undisclosed conflicts of interest */
+  undisclosed_conflicts: z.array(z.string()).optional(),
+
+  /** Summary of who benefits and how */
+  cui_bono_summary: z.string().optional(),
+});
+
+/**
+ * Historical parallel identified during meta-analysis.
+ */
+const HistoricalParallelSchema = z.object({
+  /** Description of the historical event */
+  historical_event: z.string(),
+
+  /** Date or time period of the historical event */
+  date: z.string().optional(),
+
+  /** Specific parallels to current situation */
+  parallels: z.array(z.string()).optional(),
+
+  /** What happened in the historical case */
+  outcome_then: z.string().optional(),
+
+  /** What this suggests for the current situation */
+  implication_now: z.string().optional(),
+});
+
+/**
+ * Contrarian case - strongest argument against consensus.
+ */
+const ContrarianCaseSchema = z.object({
+  /** The strongest counter-argument to the consensus view */
+  strongest_counter_argument: z.string(),
+
+  /** Weak points in the evidence supporting consensus */
+  weak_points_in_evidence: z.array(z.string()).optional(),
+
+  /** Alternative explanation for the facts */
+  alternative_explanation: z.string().optional(),
+});
+
+/**
+ * Meta-analysis schema - higher-order insights from Phase 7.
+ */
+const MetaAnalysisSchema = z.object({
+  /** Cross-cutting patterns across findings */
+  cross_cutting_patterns: z.array(CrossCuttingPatternSchema).optional(),
+
+  /** Notable omissions in coverage */
+  omissions: z.array(OmissionSchema).optional(),
+
+  /** Incentive mapping (cui bono) */
+  incentive_map: IncentiveMapSchema.optional(),
+
+  /** Historical parallels */
+  historical_parallels: z.array(HistoricalParallelSchema).optional(),
+
+  /** Contrarian case (steel man opposition) */
+  contrarian_case: ContrarianCaseSchema.optional(),
+
+  /** Key questions that remain unanswered */
+  key_unanswered_questions: z.array(z.string()).optional(),
+
+  /** Overall confidence in meta-analysis (0-1) */
+  synthesis_confidence: z.number().min(0).max(1).optional(),
+
+  /** 2-3 paragraph synthesis summary */
+  synthesis_summary: z.string().optional(),
+});
+
+// ============================================
 // MAIN SCHEMA
 // ============================================
 
@@ -173,6 +288,9 @@ export const ActorOutputSchema = z.object({
   /** Identified knowledge gaps (optional) */
   knowledge_gaps: z.array(KnowledgeGapSchema).optional(),
 
+  /** Meta-analysis - higher-order insights (optional, required for standard/deep) */
+  meta_analysis: MetaAnalysisSchema.optional(),
+
   /** Search queries that were executed (optional) */
   search_queries_executed: z.array(z.string()).optional(),
 });
@@ -198,6 +316,9 @@ export type ActorContradiction = z.infer<typeof ContradictionSchema>;
 
 /** Knowledge gap type from schema */
 export type ActorKnowledgeGap = z.infer<typeof KnowledgeGapSchema>;
+
+/** Meta-analysis type from schema */
+export type ActorMetaAnalysis = z.infer<typeof MetaAnalysisSchema>;
 
 // ============================================
 // JSON SCHEMA EXPORT
@@ -289,6 +410,71 @@ export function getActorOutputJsonSchema(): object {
             suggested_queries: { type: 'array', items: { type: 'string' } },
           },
           required: ['gap_type', 'description', 'priority'],
+        },
+      },
+      meta_analysis: {
+        type: 'object',
+        properties: {
+          cross_cutting_patterns: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                pattern: { type: 'string' },
+                supporting_findings: { type: 'array', items: { type: 'string' } },
+                significance: { type: 'string' },
+                confidence: { type: 'number', minimum: 0, maximum: 1 },
+              },
+              required: ['pattern', 'significance'],
+            },
+          },
+          omissions: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                what_is_missing: { type: 'string' },
+                why_it_matters: { type: 'string' },
+                possible_explanations: { type: 'array', items: { type: 'string' } },
+              },
+              required: ['what_is_missing', 'why_it_matters'],
+            },
+          },
+          incentive_map: {
+            type: 'object',
+            properties: {
+              primary_beneficiaries: { type: 'array', items: { type: 'string' } },
+              who_is_harmed: { type: 'array', items: { type: 'string' } },
+              undisclosed_conflicts: { type: 'array', items: { type: 'string' } },
+              cui_bono_summary: { type: 'string' },
+            },
+          },
+          historical_parallels: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                historical_event: { type: 'string' },
+                date: { type: 'string' },
+                parallels: { type: 'array', items: { type: 'string' } },
+                outcome_then: { type: 'string' },
+                implication_now: { type: 'string' },
+              },
+              required: ['historical_event'],
+            },
+          },
+          contrarian_case: {
+            type: 'object',
+            properties: {
+              strongest_counter_argument: { type: 'string' },
+              weak_points_in_evidence: { type: 'array', items: { type: 'string' } },
+              alternative_explanation: { type: 'string' },
+            },
+            required: ['strongest_counter_argument'],
+          },
+          key_unanswered_questions: { type: 'array', items: { type: 'string' } },
+          synthesis_confidence: { type: 'number', minimum: 0, maximum: 1 },
+          synthesis_summary: { type: 'string' },
         },
       },
       search_queries_executed: {

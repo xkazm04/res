@@ -333,7 +333,7 @@ async function main() {
   const query = args[1];
   const granularityArg = args.find((a) => ['quick', 'standard', 'deep'].includes(a));
   const granularity: Granularity = isValidGranularity(granularityArg || '')
-    ? granularityArg
+    ? (granularityArg as Granularity)
     : 'standard';
   const saveToDb = !args.includes('--no-db');
 

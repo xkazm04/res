@@ -37,10 +37,9 @@ export const templates: Record<string, TemplateConfig> = {
   investigative: investigativeConfig,
   purchase_decision: purchaseDecisionConfig,
   understanding: understandingConfig,
-  // Additional templates will be added in Phase 14:
-  // legal: legalConfig,
-  // contract: contractConfig,
-  // reputation: reputationConfig,
+  legal: legalConfig,
+  contract: contractConfig,
+  reputation: reputationConfig,
 };
 
 // ============================================
@@ -98,3 +97,6 @@ export { dueDiligenceConfig } from './due_diligence';
 export { investigativeConfig } from './investigative';
 export { purchaseDecisionConfig } from './purchase_decision';
 export { understandingConfig } from './understanding';
+export { legalConfig } from './legal';
+export { contractConfig } from './contract';
+export { reputationConfig } from './reputation';

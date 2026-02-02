@@ -93,6 +93,24 @@ export const financialConfig: TemplateConfig = {
         'Contrarian analysis and critiques',
       ],
     },
+    {
+      name: 'NARRATIVE VS REALITY',
+      items: [
+        'Management narrative vs actual financial performance',
+        'Analyst consensus vs contrarian positions and their track records',
+        'PR announcements vs SEC filing disclosures (10-K risk factors)',
+        'Conference call tone vs written guidance',
+      ],
+    },
+    {
+      name: 'SMART MONEY TRACKING',
+      items: [
+        'Institutional ownership changes and timing',
+        'Insider transactions relative to public statements',
+        'Short interest changes and timing',
+        '13F filings from successful investors',
+      ],
+    },
   ],
 
   searchDepthGuidance: {
@@ -165,6 +183,26 @@ export const financialConfig: TemplateConfig = {
       analysisFallback:
         'This forward-looking indicator may help inform investment timing decisions.',
     },
+    {
+      name: 'narrative_vs_reality',
+      displayName: 'Narrative vs Reality',
+      description:
+        'Discrepancy between public narrative and underlying data. Management spin vs SEC filings, analyst hype vs fundamentals.',
+      extractedDataSchema:
+        '{"public_narrative": "...", "underlying_reality": "...", "discrepancy": "...", "source_of_reality": "..."}',
+      analysisFallback:
+        'Gaps between narrative and reality often precede price corrections.',
+    },
+    {
+      name: 'smart_money_signal',
+      displayName: 'Smart Money Signal',
+      description:
+        'Actions by sophisticated investors that contradict public sentiment. Insider transactions, institutional moves.',
+      extractedDataSchema:
+        '{"actor": "...", "action": "buy/sell", "timing": "...", "contradicts": "...", "track_record": "..."}',
+      analysisFallback:
+        'Sophisticated investors often act before information becomes public.',
+    },
   ],
 
   extractionGuidelines: `CRITICAL: The "analysis" field must provide substantive reasoning, not just describe the finding.
@@ -188,6 +226,8 @@ IMPORTANT:
     'red_flag',
     'financial_metric',
     'prediction',
+    'narrative_vs_reality',
+    'smart_money_signal',
   ],
   groupingOrder: [
     'bullish_signal',
@@ -196,6 +236,8 @@ IMPORTANT:
     'risk',
     'red_flag',
     'prediction',
+    'narrative_vs_reality',
+    'smart_money_signal',
   ],
 
   // ---- Perspectives ----
@@ -206,6 +248,7 @@ IMPORTANT:
     'quantitative_risk', // Tail risks, stress testing, correlations
     'activist_investor', // Value creation levers, governance, catalysts
     'macro_strategist', // Economic cycles, policy risks, global context
+    'narrative_analyst', // Analyze management narrative vs reality
   ],
 
   // ---- Verification ----

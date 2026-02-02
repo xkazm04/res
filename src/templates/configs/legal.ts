@@ -112,6 +112,15 @@ export const legalConfig: TemplateConfig = {
         'Judicial appointment impacts',
       ],
     },
+    {
+      name: 'REGULATORY CAPTURE ANALYSIS',
+      items: [
+        'Revolving door between regulators and regulated entities',
+        'Funding sources for legal scholarship and amicus briefs',
+        'Lobbying expenditures related to relevant regulations',
+        'Agency enforcement patterns and potential selective enforcement',
+      ],
+    },
   ],
 
   searchDepthGuidance: {
@@ -195,6 +204,16 @@ export const legalConfig: TemplateConfig = {
       analysisFallback:
         'This gap in legal research should be addressed before reaching final conclusions.',
     },
+    {
+      name: 'regulatory_capture',
+      displayName: 'Regulatory Capture',
+      description:
+        'Evidence of regulatory agencies serving regulated industries. Revolving door, selective enforcement, industry-favorable interpretations.',
+      extractedDataSchema:
+        '{"agency": "...", "industry": "...", "capture_indicator": "...", "evidence": "...", "impact": "..."}',
+      analysisFallback:
+        'Regulatory capture undermines the protective function of regulation.',
+    },
   ],
 
   extractionGuidelines: `CRITICAL: The "analysis" field must provide substantive legal reasoning, not just describe the finding.
@@ -213,8 +232,8 @@ IMPORTANT:
   * How this COMPARES to similar cases or regulatory interpretations`,
 
   // ---- Ordering & Grouping ----
-  priorityFindingTypes: ['evidence', 'fact', 'event', 'pattern', 'claim'],
-  groupingOrder: ['evidence', 'fact', 'event', 'claim', 'pattern', 'relationship', 'gap'],
+  priorityFindingTypes: ['evidence', 'fact', 'event', 'pattern', 'claim', 'regulatory_capture'],
+  groupingOrder: ['evidence', 'fact', 'event', 'claim', 'pattern', 'relationship', 'regulatory_capture', 'gap'],
 
   // ---- Perspectives ----
   perspectives: [

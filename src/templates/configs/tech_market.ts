@@ -81,6 +81,15 @@ export const techMarketConfig: TemplateConfig = {
         'Include analyst predictions and market forecasts',
       ],
     },
+    {
+      name: 'HYPE VS SUBSTANCE',
+      items: [
+        'Venture funding announcements vs actual product traction',
+        'Conference keynote claims vs independent benchmarks',
+        'Developer sentiment (HN, Reddit) vs marketing claims',
+        'Open source activity metrics vs announced partnerships',
+      ],
+    },
   ],
 
   searchDepthGuidance: {
@@ -153,6 +162,16 @@ export const techMarketConfig: TemplateConfig = {
         '{"issue": "...", "severity": "high|medium|low", "affected_projects": [...], "evidence": "..."}',
       analysisFallback: 'This red flag indicates potential concerns that warrant monitoring.',
     },
+    {
+      name: 'hype_reality_gap',
+      displayName: 'Hype Reality Gap',
+      description:
+        'Discrepancy between marketing/PR and actual technical substance. Vaporware detection, benchmark gaming, partnership theater.',
+      extractedDataSchema:
+        '{"claimed": "...", "actual": "...", "gap_type": "vaporware/benchmark_gaming/partnership_theater", "evidence": "..."}',
+      analysisFallback:
+        'Identifying hype-reality gaps helps separate signal from noise in tech markets.',
+    },
   ],
 
   extractionGuidelines: `CRITICAL: The "analysis" field must provide substantive reasoning, not just describe the finding.
@@ -176,6 +195,7 @@ IMPORTANT:
     'financial_metric',
     'market_trend',
     'red_flag',
+    'hype_reality_gap',
   ],
   groupingOrder: [
     'prediction',
@@ -184,6 +204,7 @@ IMPORTANT:
     'financial_metric',
     'market_trend',
     'red_flag',
+    'hype_reality_gap',
   ],
 
   // ---- Perspectives ----

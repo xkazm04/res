@@ -11,6 +11,15 @@
 
 import { TemplateConfig } from '../types';
 import { techMarketConfig } from './tech_market';
+import { financialConfig } from './financial';
+import { competitiveConfig } from './competitive';
+import { dueDiligenceConfig } from './due_diligence';
+import { investigativeConfig } from './investigative';
+import { purchaseDecisionConfig } from './purchase_decision';
+import { understandingConfig } from './understanding';
+import { legalConfig } from './legal';
+import { contractConfig } from './contract';
+import { reputationConfig } from './reputation';
 
 // ============================================
 // TEMPLATE REGISTRY
@@ -22,16 +31,16 @@ import { techMarketConfig } from './tech_market';
  */
 export const templates: Record<string, TemplateConfig> = {
   tech_market: techMarketConfig,
+  financial: financialConfig,
+  competitive: competitiveConfig,
+  due_diligence: dueDiligenceConfig,
+  investigative: investigativeConfig,
+  purchase_decision: purchaseDecisionConfig,
+  understanding: understandingConfig,
   // Additional templates will be added in Phase 14:
-  // financial: financialConfig,
-  // competitive: competitiveConfig,
-  // investigative: investigativeConfig,
-  // due_diligence: dueDiligenceConfig,
   // legal: legalConfig,
   // contract: contractConfig,
   // reputation: reputationConfig,
-  // purchase_decision: purchaseDecisionConfig,
-  // understanding: understandingConfig,
 };
 
 // ============================================
@@ -83,3 +92,9 @@ export function isValidTemplate(templateId: string): boolean {
 
 // Re-export individual configs for direct import
 export { techMarketConfig } from './tech_market';
+export { financialConfig } from './financial';
+export { competitiveConfig } from './competitive';
+export { dueDiligenceConfig } from './due_diligence';
+export { investigativeConfig } from './investigative';
+export { purchaseDecisionConfig } from './purchase_decision';
+export { understandingConfig } from './understanding';

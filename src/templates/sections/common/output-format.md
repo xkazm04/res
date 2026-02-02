@@ -55,6 +55,46 @@ Return your research results as a JSON object matching this exact structure:
       "suggested_queries": ["query1", "query2"]
     }
   ],
+  "meta_analysis": {
+    "cross_cutting_patterns": [
+      {
+        "pattern": "string (emergent pattern description)",
+        "supporting_findings": ["finding indices or summaries"],
+        "significance": "string (why this matters)",
+        "confidence": 0.7
+      }
+    ],
+    "omissions": [
+      {
+        "what_is_missing": "string",
+        "why_it_matters": "string",
+        "possible_explanations": ["string"]
+      }
+    ],
+    "incentive_map": {
+      "primary_beneficiaries": ["string"],
+      "who_is_harmed": ["string"],
+      "undisclosed_conflicts": ["string"],
+      "cui_bono_summary": "string"
+    },
+    "historical_parallels": [
+      {
+        "historical_event": "string",
+        "date": "string",
+        "parallels": ["string"],
+        "outcome_then": "string",
+        "implication_now": "string"
+      }
+    ],
+    "contrarian_case": {
+      "strongest_counter_argument": "string",
+      "weak_points_in_evidence": ["string"],
+      "alternative_explanation": "string"
+    },
+    "key_unanswered_questions": ["string"],
+    "synthesis_confidence": 0.65,
+    "synthesis_summary": "string (2-3 paragraph synthesis)"
+  },
   "search_queries_executed": ["query1", "query2", "..."]
 }
 ```
@@ -67,6 +107,7 @@ Return your research results as a JSON object matching this exact structure:
 5. **contradictions**: Only include genuine contradictions (may be empty)
 6. **knowledge_gaps**: Include 2-5 most significant gaps
 7. **search_queries_executed**: List all queries you actually ran
+8. **meta_analysis**: Required for standard/deep granularity, optional for quick
 
 ### Quality Checklist
 Before outputting, verify:

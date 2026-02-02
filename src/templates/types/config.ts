@@ -10,6 +10,26 @@
 // ============================================
 
 /**
+ * Enhanced Finding Types for Deep Analysis
+ *
+ * Beyond basic facts, these types capture meta-level insights:
+ *
+ * NARRATIVE ANALYSIS:
+ * - narrative_frame: How the story is being told, framing choices, language patterns
+ * - coverage_asymmetry: Same event covered differently by different sources
+ *
+ * INCENTIVE ANALYSIS:
+ * - incentive_alignment: Who benefits from this claim being believed
+ * - suspicious_timing: Events with convenient timing, potential distractions
+ *
+ * PATTERN ANALYSIS:
+ * - historical_parallel: Similar past events, playbook recognition
+ * - network_inference: Implied relationships not explicitly documented
+ *
+ * These complement the standard types: fact, claim, event, actor, relationship, pattern, gap, evidence
+ */
+
+/**
  * Configuration for a finding type within a template.
  * Matches Python FindingTypeConfig dataclass.
  *

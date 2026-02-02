@@ -13,3 +13,4 @@ export {
   type ResearchMetrics,
   type MetricComparison,
 } from './metrics';
+export { ValidationTracker, type ValidationRecord, type ValidationProgress } from './ValidationTracker';

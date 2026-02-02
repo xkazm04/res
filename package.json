@@ -10,7 +10,8 @@
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "build:template": "npx tsx scripts/build-template.ts",
-    "research:execute": "tsx scripts/run-research.ts"
+    "research:execute": "tsx scripts/run-research.ts",
+    "validate:research": "tsx scripts/validate-research.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

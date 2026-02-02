@@ -42,3 +42,6 @@ next-env.d.ts
 
 # planning docs (local only)
 .planning/
+
+# validation data (local only)
+.validations/

@@ -12,11 +12,12 @@
  */
 
 import * as readline from 'readline';
-import { ComparisonService } from '../src/templates/validation/ComparisonService';
+// Lazy imports for Supabase-dependent modules
+// ValidationTracker and configs don't require Supabase
 import { ValidationTracker } from '../src/templates/validation/ValidationTracker';
-import { ResearchOrchestrator } from '../src/templates/builder/ResearchOrchestrator';
 import { getAvailableTemplates } from '../src/templates/configs';
 import type { Granularity } from '../src/templates/types/granularity';
+
 
 // ============================================
 // READLINE HELPER
@@ -92,6 +93,10 @@ async function main() {
   console.log(`Template: ${templateId}`);
   console.log(`Query:    ${query}`);
   console.log('');
+
+  // Dynamically import Supabase-dependent modules
+  const { ComparisonService } = await import('../src/templates/validation/ComparisonService');
+  const { ResearchOrchestrator } = await import('../src/templates/builder/ResearchOrchestrator');
 
   const comparisonService = new ComparisonService();
   const tracker = new ValidationTracker();

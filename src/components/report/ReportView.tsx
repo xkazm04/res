@@ -1,15 +1,20 @@
 'use client';
 
-import { useState, useId, useRef, useEffect, useCallback, useTransition, lazy, Suspense } from 'react';
+import { useState, useId, useRef, useEffect, useCallback, useTransition, lazy, Suspense, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { SessionWithDetails } from '@/src/types/research';
 import { ReportThemeProvider, useThemeStyles, type ReportTheme } from './core/ThemeContext';
+import { SemanticIntentProvider } from './core/SemanticIntentContext';
 import { NavigationProvider, type TabId } from './core/NavigationContext';
+import { SectionCollapseProvider } from '@/src/hooks/useSectionCollapse';
+import { SectionControlsCompact } from './shared/SectionControls';
 import { ReportShell } from './ReportShell';
 import { ThemedSidebar } from './ThemedSidebar';
 import { tabSkeletons } from './shared/TabSkeletons';
 import { usePrefetchTabData } from '@/src/hooks/usePrefetchTabData';
 import { useSessionStats } from '@/src/hooks/useSessionStats';
+import { useCustomTabStore } from '@/src/stores/customTabStore';
+import { CustomTabComposer, CustomTabView } from './composer';
 
 // Lazy load view components for code splitting
 // Only the active tab's component is loaded, deferring ~80% of view code
@@ -29,7 +34,11 @@ interface ReportViewProps {
 export function ReportView({ session, onClose, theme = 'radar' }: ReportViewProps) {
   return (
     <ReportThemeProvider theme={theme}>
-      <ReportViewInner session={session} onClose={onClose} />
+      <SemanticIntentProvider>
+        <SectionCollapseProvider namespace={`report-${session.id}`}>
+          <ReportViewInner session={session} onClose={onClose} />
+        </SectionCollapseProvider>
+      </SemanticIntentProvider>
     </ReportThemeProvider>
   );
 }
@@ -37,10 +46,22 @@ export function ReportView({ session, onClose, theme = 'radar' }: ReportViewProp
 // Tab order for determining navigation direction
 const TAB_ORDER: TabId[] = ['overview', 'findings', 'sources', 'perspectives', 'analysis', 'entities'];
 
+type ExtendedTabId = TabId | `custom-${string}`;
+
 function ReportViewInner({ session, onClose }: Omit<ReportViewProps, 'theme'>) {
   const styles = useThemeStyles();
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [activeTab, setActiveTab] = useState<ExtendedTabId>('overview');
   const titleId = useId();
+
+  // Custom tab store
+  const {
+    customTabs,
+    isComposerOpen,
+    openComposer,
+    closeComposer,
+    startEditing,
+    startCreating,
+  } = useCustomTabStore();
 
   // Cross-view navigation state
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
@@ -52,7 +73,7 @@ function ReportViewInner({ session, onClose }: Omit<ReportViewProps, 'theme'>) {
   const skeletonTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Track navigation direction for page transitions
-  const prevTabRef = useRef<TabId>('overview');
+  const prevTabRef = useRef<ExtendedTabId>('overview');
   const [direction, setDirection] = useState(1); // 1 = forward, -1 = back
 
   // Prefetch tab data on hover for instant tab switches
@@ -77,10 +98,18 @@ function ReportViewInner({ session, onClose }: Omit<ReportViewProps, 'theme'>) {
     };
   }, []);
 
-  const handleTabChange = useCallback((newTab: TabId) => {
-    const prevIndex = TAB_ORDER.indexOf(prevTabRef.current);
-    const newIndex = TAB_ORDER.indexOf(newTab);
-    setDirection(newIndex > prevIndex ? 1 : -1);
+  const handleTabChange = useCallback((newTab: ExtendedTabId) => {
+    // Handle standard tabs
+    const isStandardTab = TAB_ORDER.includes(newTab as TabId);
+    const prevIsStandard = TAB_ORDER.includes(prevTabRef.current as TabId);
+
+    if (isStandardTab && prevIsStandard) {
+      const prevIndex = TAB_ORDER.indexOf(prevTabRef.current as TabId);
+      const newIndex = TAB_ORDER.indexOf(newTab as TabId);
+      setDirection(newIndex > prevIndex ? 1 : -1);
+    } else {
+      setDirection(1); // Default forward for custom tabs
+    }
     prevTabRef.current = newTab;
 
     // Show skeleton immediately for perceived responsiveness
@@ -102,6 +131,26 @@ function ReportViewInner({ session, onClose }: Omit<ReportViewProps, 'theme'>) {
     }, 80);
   }, []);
 
+  // Handle opening composer to create new tab
+  const handleOpenComposer = useCallback(() => {
+    startCreating();
+  }, [startCreating]);
+
+  // Handle editing existing custom tab
+  const handleEditCustomTab = useCallback((tabId: string) => {
+    startEditing(tabId);
+  }, [startEditing]);
+
+  // Get active custom tab composition if applicable
+  const activeCustomTab = useMemo(() => {
+    if (!activeTab.startsWith('custom-')) return null;
+    const customTabId = activeTab.replace('custom-', '');
+    return customTabs.find(t => t.id === customTabId) || null;
+  }, [activeTab, customTabs]);
+
+  // Check if current tab is a standard tab
+  const isStandardTab = TAB_ORDER.includes(activeTab as TabId);
+
   // Handle cross-view navigation (from findings to entities/sources)
   const handleCrossNavigation = useCallback(({ tab, entityId, sourceId }: { tab: TabId; entityId?: string; sourceId?: string }) => {
     // Set the selection state first
@@ -109,7 +158,7 @@ function ReportViewInner({ session, onClose }: Omit<ReportViewProps, 'theme'>) {
     if (sourceId !== undefined) setSelectedSourceId(sourceId || null);
 
     // Then navigate to the tab
-    handleTabChange(tab);
+    handleTabChange(tab as ExtendedTabId);
   }, [handleTabChange]);
 
   // Use memoized stats hook that depends on stable primitives (session.id, array lengths)
@@ -119,14 +168,25 @@ function ReportViewInner({ session, onClose }: Omit<ReportViewProps, 'theme'>) {
   return (
     <NavigationProvider onNavigate={handleCrossNavigation} selectedEntityId={selectedEntityId} selectedSourceId={selectedSourceId}>
       <ReportShell onClose={onClose} titleId={titleId}>
-        <ThemedSidebar activeTab={activeTab} onTabChange={handleTabChange} onTabHover={handleTabHover} stats={stats} onClose={onClose} />
+        <ThemedSidebar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onTabHover={handleTabHover}
+          stats={stats}
+          onClose={onClose}
+          onOpenComposer={handleOpenComposer}
+          onEditCustomTab={handleEditCustomTab}
+        />
 
         <main className={`flex-1 flex flex-col overflow-hidden ${styles.bg}`}>
           {/* Header */}
           <header className={`px-6 py-4 border-b ${styles.border}`}>
-            <motion.h1 id={titleId} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={`text-lg font-bold ${styles.text}`}>
-              {session.title}
-            </motion.h1>
+            <div className="flex items-center justify-between">
+              <motion.h1 id={titleId} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={`text-lg font-bold ${styles.text}`}>
+                {session.title}
+              </motion.h1>
+              <SectionControlsCompact />
+            </div>
           </header>
 
           {/* Content */}
@@ -141,7 +201,7 @@ function ReportViewInner({ session, onClose }: Omit<ReportViewProps, 'theme'>) {
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.1 }}
                   >
-                    {tabSkeletons[activeTab]?.()}
+                    {isStandardTab && tabSkeletons[activeTab as TabId]?.()}
                   </motion.div>
                 ) : (
                   <motion.div
@@ -151,13 +211,23 @@ function ReportViewInner({ session, onClose }: Omit<ReportViewProps, 'theme'>) {
                     exit={{ opacity: 0, x: direction * -20 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <Suspense fallback={tabSkeletons[activeTab]?.()}>
+                    <Suspense fallback={isStandardTab ? tabSkeletons[activeTab as TabId]?.() : null}>
+                      {/* Standard tabs */}
                       {activeTab === 'overview' && <OverviewView session={session} stats={stats} />}
                       {activeTab === 'findings' && <FindingsView findings={session.findings || []} sources={session.sources || []} />}
                       {activeTab === 'sources' && <SourcesView sources={session.sources || []} initialSelectedId={selectedSourceId} />}
                       {activeTab === 'perspectives' && <PerspectivesView perspectives={session.perspectives || []} />}
                       {activeTab === 'analysis' && <AnalysisView contradictions={session.contradictions || []} gaps={session.gaps || []} causalChains={session.causal_chains || []} />}
                       {activeTab === 'entities' && <EntitiesView entities={session.entities || []} initialSelectedId={selectedEntityId} />}
+
+                      {/* Custom tabs */}
+                      {activeCustomTab && (
+                        <CustomTabView
+                          session={session}
+                          composition={activeCustomTab}
+                          onEditComposition={() => handleEditCustomTab(activeCustomTab.id)}
+                        />
+                      )}
                     </Suspense>
                   </motion.div>
                 )}
@@ -166,6 +236,19 @@ function ReportViewInner({ session, onClose }: Omit<ReportViewProps, 'theme'>) {
           </div>
         </main>
       </ReportShell>
+
+      {/* Custom Tab Composer Modal */}
+      <AnimatePresence>
+        {isComposerOpen && (
+          <CustomTabComposer
+            session={session}
+            onClose={closeComposer}
+            onSave={(tabId) => {
+              handleTabChange(`custom-${tabId}` as ExtendedTabId);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </NavigationProvider>
   );
 }

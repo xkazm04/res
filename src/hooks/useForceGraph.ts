@@ -156,13 +156,12 @@ function getWorker(manager: WorkerManager): Worker | null {
           manager.pendingCallbacks.delete(id);
           manager.progressCallbacks.delete(id);
         } else if (type === 'error') {
-          console.error('Worker error:', error);
           manager.pendingCallbacks.delete(id);
           manager.progressCallbacks.delete(id);
         }
       };
-    } catch (e) {
-      console.warn('Web Worker not available, falling back to main thread', e);
+    } catch {
+      // Web Worker not available, falling back to main thread
       return null;
     }
   }

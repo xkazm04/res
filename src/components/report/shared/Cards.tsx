@@ -24,17 +24,17 @@ export function QuickStatCard({
   const { getCard, getProgressBg, getProgressColor } = useThemedColors();
 
   return (
-    <div className={`rounded-lg border p-3 ${getCard(color)}`}>
+    <div className={`rounded-lg border p-3 transition-shadow duration-150 hover:shadow-sm ${getCard(color)}`}>
       <div className="flex items-center justify-between mb-1">
         <span className="w-4 h-4 opacity-60">{icon}</span>
         <span className="text-[9px] uppercase tracking-wider opacity-60">{label}</span>
       </div>
-      <div className="text-xl font-bold">{value}</div>
+      <div className="text-xl font-bold tabular-nums">{value}</div>
       {subtext && <div className="text-[10px] opacity-70 mt-0.5">{subtext}</div>}
       {progress !== undefined && (
         <div className={`h-1 ${getProgressBg()} rounded-full mt-2 overflow-hidden`}>
           <div
-            className={`h-full rounded-full ${getProgressColor(color)}`}
+            className={`h-full rounded-full transition-[width] duration-300 ease-out ${getProgressColor(color)}`}
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -59,7 +59,7 @@ export function AlertBanner({
   const { getAlert } = useThemedColors();
 
   return (
-    <div className={`border rounded-lg p-3 ${getAlert(variant)}`}>
+    <div className={`border rounded-lg p-3 transition-colors duration-150 ${getAlert(variant)}`}>
       <div className="flex items-center gap-2 font-semibold text-xs mb-1">
         {icon && <span className="w-3.5 h-3.5">{icon}</span>}
         {title}

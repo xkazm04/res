@@ -10,6 +10,7 @@ import { IntelDashboard } from '../features/IntelDashboard';
 import { KeyPointsPanel } from '../features/KeyPointsPanel';
 import { ViewHeader } from '../shared/ViewHeader';
 import { ViewModeToggle, type ViewModeOption } from '../shared/ViewModeToggle';
+import { CollapsibleSection, SectionGroup } from '../shared/CollapsibleSection';
 import { ContentSelector } from '../video/ContentSelector';
 import { useContentSelection } from '../video/useContentSelection';
 import { transformSelectionToContent, type VideoOverviewContent } from '../video/contentTransformer';
@@ -208,7 +209,8 @@ function StaticOverview({ session, stats, coverage, reliability, completeness, a
   }, [session.id, session.perspectives, findings]);
 
   return (
-    <>
+    <SectionGroup>
+      {/* Intelligence Dashboard - always visible */}
       <IntelDashboard
         confidence={stats.avgConfidence}
         findings={{ label: 'Findings', value: stats.findings, sublabel: `${stats.highConfidence} verified` }}
@@ -219,42 +221,72 @@ function StaticOverview({ session, stats, coverage, reliability, completeness, a
         alerts={stats.redFlags + allWarnings.length}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <KeyPointsPanel points={keyPoints} />
-        {heatmapData.length > 0 && (
-          <Suspense fallback={<VisualizationSkeleton />}>
-            <ConfidenceHeatmap data={heatmapData} title="Finding Confidence Distribution" />
-          </Suspense>
-        )}
-      </div>
+      {/* Key Points & Confidence Distribution */}
+      <CollapsibleSection
+        sectionId="overview-key-points"
+        title="Key Points & Confidence"
+        subtitle="Critical insights and finding confidence distribution"
+        icon="📊"
+        count={keyPoints.length}
+        variant="card"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <KeyPointsPanel points={keyPoints} />
+          {heatmapData.length > 0 && (
+            <Suspense fallback={<VisualizationSkeleton />}>
+              <ConfidenceHeatmap data={heatmapData} title="Finding Confidence Distribution" />
+            </Suspense>
+          )}
+        </div>
+      </CollapsibleSection>
 
+      {/* Timeline */}
       {timelineEvents.length > 0 && (
-        <Suspense fallback={<VisualizationSkeleton height="h-32" />}>
-          <Timeline events={timelineEvents} />
-        </Suspense>
+        <CollapsibleSection
+          sectionId="overview-timeline"
+          title="Timeline"
+          subtitle="Key events and findings over time"
+          icon="📅"
+          count={timelineEvents.length}
+          variant="card"
+        >
+          <Suspense fallback={<VisualizationSkeleton height="h-32" />}>
+            <Timeline events={timelineEvents} />
+          </Suspense>
+        </CollapsibleSection>
       )}
 
+      {/* Critical Warnings */}
       {allWarnings.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-          className={`rounded-xl p-4 ${isRadar ? 'bg-rose-500/10 border border-rose-500/30' : 'bg-rose-50 border-l-4 border-rose-600'}`}>
-          <div className={`flex items-center gap-2 mb-3 ${isRadar ? 'text-rose-400' : 'text-rose-700'}`}>
-            <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}>⚠️</motion.span>
-            <span className="font-semibold">Critical Warnings ({allWarnings.length})</span>
-          </div>
+        <CollapsibleSection
+          sectionId="overview-warnings"
+          title="Critical Warnings"
+          icon="⚠️"
+          count={allWarnings.length}
+          variant="card"
+        >
           <ul className="space-y-2">
             {allWarnings.slice(0, 4).map((warning, i) => (
-              <motion.li key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.1 }}
+              <motion.li key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.1 }}
                 className={`text-sm ${isRadar ? 'text-rose-300/80' : 'text-rose-800'}`}>• {warning}</motion.li>
             ))}
           </ul>
-        </motion.div>
+        </CollapsibleSection>
       )}
 
+      {/* Research Gaps */}
       {stats.gaps > 0 && (
-        <ThemedSection title="Research Gaps" count={stats.gaps} delay={0.5}>
+        <CollapsibleSection
+          sectionId="overview-gaps"
+          title="Research Gaps"
+          subtitle="Areas requiring further investigation"
+          icon="🔍"
+          count={stats.gaps}
+          variant="card"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {session.gaps?.slice(0, 4).map((gap, i) => (
-              <motion.div key={gap.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.6 + i * 0.1 }}
+              <motion.div key={gap.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 + i * 0.1 }}
                 className={`p-3 rounded-lg ${isRadar ? 'bg-violet-500/10 border border-violet-500/20' : 'bg-violet-50 border-l-2 border-violet-600'}`}>
                 <div className="flex items-center gap-2 mb-1">
                   <ThemedBadge variant="warning">{gap.gap_type}</ThemedBadge>
@@ -264,8 +296,8 @@ function StaticOverview({ session, stats, coverage, reliability, completeness, a
               </motion.div>
             ))}
           </div>
-        </ThemedSection>
+        </CollapsibleSection>
       )}
-    </>
+    </SectionGroup>
   );
 }

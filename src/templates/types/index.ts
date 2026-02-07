@@ -13,6 +13,7 @@ export type {
   TemplateConfig,
   TemplateConfigOverride,
   TemplateMetadata,
+  TemplateVariable,
 } from './config';
 
 // ActorOutput schema and types

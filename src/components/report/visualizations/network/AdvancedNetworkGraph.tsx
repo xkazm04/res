@@ -62,6 +62,8 @@ interface RenderContext {
   width: number;
   height: number;
   viewState: { zoom: number; panX: number; panY: number };
+  viewportBounds: ViewportBounds;
+  lod: 'full' | 'reduced' | 'minimal';
   isRadar: boolean;
   colors: ReturnType<typeof useVisualizationTheme>['colors'];
   entityColors: ReturnType<typeof useVisualizationTheme>['entityColors'];
@@ -101,10 +103,102 @@ function inverseTransformPoint(
   };
 }
 
+// ============================================================================
+// Viewport Culling Utilities
+// ============================================================================
+
+interface ViewportBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+/**
+ * Calculate the viewport bounds in world coordinates (accounting for zoom/pan).
+ * Adds padding to ensure elements at the edge are not clipped prematurely.
+ */
+function getViewportBounds(
+  width: number,
+  height: number,
+  viewState: { zoom: number; panX: number; panY: number },
+  padding = 50
+): ViewportBounds {
+  const topLeft = inverseTransformPoint(-padding, -padding, viewState);
+  const bottomRight = inverseTransformPoint(width + padding, height + padding, viewState);
+  return {
+    minX: topLeft.x,
+    maxX: bottomRight.x,
+    minY: topLeft.y,
+    maxY: bottomRight.y,
+  };
+}
+
+/**
+ * Check if a circle (node or cluster) intersects the viewport.
+ */
+function isCircleInViewport(
+  x: number,
+  y: number,
+  radius: number,
+  bounds: ViewportBounds
+): boolean {
+  // AABB test with circle expansion
+  return (
+    x + radius >= bounds.minX &&
+    x - radius <= bounds.maxX &&
+    y + radius >= bounds.minY &&
+    y - radius <= bounds.maxY
+  );
+}
+
+/**
+ * Check if a line segment (edge) intersects the viewport.
+ * Uses Cohen-Sutherland outcodes for efficient rejection.
+ */
+function isEdgeInViewport(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  bounds: ViewportBounds
+): boolean {
+  // Quick accept: if either endpoint is inside
+  const p1Inside =
+    x1 >= bounds.minX && x1 <= bounds.maxX && y1 >= bounds.minY && y1 <= bounds.maxY;
+  const p2Inside =
+    x2 >= bounds.minX && x2 <= bounds.maxX && y2 >= bounds.minY && y2 <= bounds.maxY;
+  if (p1Inside || p2Inside) return true;
+
+  // Quick reject: if both points are on the same side of any edge
+  if (x1 < bounds.minX && x2 < bounds.minX) return false;
+  if (x1 > bounds.maxX && x2 > bounds.maxX) return false;
+  if (y1 < bounds.minY && y2 < bounds.minY) return false;
+  if (y1 > bounds.maxY && y2 > bounds.maxY) return false;
+
+  // Line might cross viewport - accept (conservative)
+  return true;
+}
+
+/**
+ * Determine the level of detail based on zoom level.
+ * Returns: 'full' | 'reduced' | 'minimal'
+ */
+function getLevelOfDetail(zoom: number): 'full' | 'reduced' | 'minimal' {
+  if (zoom >= 0.6) return 'full';
+  if (zoom >= 0.3) return 'reduced';
+  return 'minimal';
+}
+
 function drawClusters(ctx: RenderContext, clusters: Cluster[]): void {
-  const { ctx: c, viewState, isRadar, colors } = ctx;
+  const { ctx: c, viewState, viewportBounds, lod, isRadar, colors } = ctx;
 
   clusters.forEach((cluster, i) => {
+    // Viewport culling: skip clusters outside the visible area
+    if (!isCircleInViewport(cluster.x, cluster.y, cluster.radius, viewportBounds)) {
+      return;
+    }
+
     const pos = transformPoint(cluster.x, cluster.y, viewState);
     const scaledRadius = cluster.radius * viewState.zoom;
 
@@ -119,17 +213,19 @@ function drawClusters(ctx: RenderContext, clusters: Cluster[]): void {
     c.fillStyle = clusterColor;
     c.fill();
 
-    // Cluster border
-    c.strokeStyle = isRadar
-      ? `hsla(${hue}, 70%, 50%, 0.3)`
-      : `hsla(${hue}, 60%, 40%, 0.2)`;
-    c.lineWidth = 1;
-    c.setLineDash([4, 4]);
-    c.stroke();
-    c.setLineDash([]);
+    // Cluster border (skip at minimal LOD for performance)
+    if (lod !== 'minimal') {
+      c.strokeStyle = isRadar
+        ? `hsla(${hue}, 70%, 50%, 0.3)`
+        : `hsla(${hue}, 60%, 40%, 0.2)`;
+      c.lineWidth = 1;
+      c.setLineDash([4, 4]);
+      c.stroke();
+      c.setLineDash([]);
+    }
 
-    // Cluster label
-    if (cluster.label) {
+    // Cluster label (only at full LOD)
+    if (lod === 'full' && cluster.label) {
       c.font = '10px Inter, system-ui, sans-serif';
       c.fillStyle = colors.textMuted;
       c.textAlign = 'center';
@@ -143,8 +239,13 @@ function drawEdge(
   edge: GraphEdge | BundledEdge,
   sourceNode: GraphNode,
   targetNode: GraphNode
-): void {
-  const { ctx: c, viewState, isRadar, colors, selection, pathEdges } = ctx;
+): boolean {
+  const { ctx: c, viewState, viewportBounds, lod, isRadar, colors, selection, pathEdges } = ctx;
+
+  // Viewport culling: skip edges entirely outside the visible area
+  if (!isEdgeInViewport(sourceNode.x, sourceNode.y, targetNode.x, targetNode.y, viewportBounds)) {
+    return false;
+  }
 
   const isInPath = pathEdges.has(edge.id);
   const isSelected = selection.has(edge.source) || selection.has(edge.target);
@@ -167,6 +268,11 @@ function drawEdge(
   } else if (isSelected) {
     opacity = 0.8;
     lineWidth = 2;
+  }
+
+  // LOD: at minimal zoom, reduce edge opacity to declutter
+  if (lod === 'minimal' && !isInPath && !isSelected) {
+    opacity *= 0.3;
   }
 
   c.strokeStyle = strokeColor;
@@ -200,8 +306,8 @@ function drawEdge(
     c.lineTo(target.x, target.y);
     c.stroke();
 
-    // Arrowhead
-    if (isInPath || isSelected) {
+    // Arrowhead (skip at minimal LOD unless in path)
+    if ((isInPath || isSelected) && lod !== 'minimal') {
       const dx = target.x - source.x;
       const dy = target.y - source.y;
       const angle = Math.atan2(dy, dx);
@@ -228,12 +334,15 @@ function drawEdge(
   }
 
   c.globalAlpha = 1;
+  return true;
 }
 
-function drawNode(ctx: RenderContext, node: GraphNode): void {
+function drawNode(ctx: RenderContext, node: GraphNode): boolean {
   const {
     ctx: c,
     viewState,
+    viewportBounds,
+    lod,
     isRadar,
     colors,
     entityColors,
@@ -244,13 +353,23 @@ function drawNode(ctx: RenderContext, node: GraphNode): void {
     hoveredNode,
   } = ctx;
 
+  const nodeRadius = node.radius ?? 8;
+
+  // Viewport culling: skip nodes outside the visible area
+  // Use a larger radius for culling to account for glow effects and labels
+  const cullRadius = nodeRadius * 3;
+  if (!isCircleInViewport(node.x, node.y, cullRadius, viewportBounds)) {
+    return false;
+  }
+
   const pos = transformPoint(node.x, node.y, viewState);
-  const radius = (node.radius ?? 8) * viewState.zoom;
+  const radius = nodeRadius * viewState.zoom;
   const isSelected = selection.has(node.id);
   const isHighlighted = highlightedNode === node.id;
   const isInPath = pathNodes.has(node.id);
   const isSearchMatch = matchingNodeIds.has(node.id);
   const isHovered = hoveredNode === node.id;
+  const isImportant = isSelected || isHighlighted || isInPath || isSearchMatch || isHovered;
 
   // Get color based on type
   const typeKey = (node.type?.toLowerCase() ?? 'other') as keyof typeof entityColors;
@@ -260,8 +379,8 @@ function drawNode(ctx: RenderContext, node: GraphNode): void {
     fillColor = isRadar ? '#fbbf24' : '#d97706';
   }
 
-  // Glow effect for highlighted/selected nodes
-  if (isHighlighted || isSelected || isInPath || isSearchMatch) {
+  // Glow effect for highlighted/selected nodes (skip at minimal LOD unless important)
+  if (isImportant && lod !== 'minimal') {
     const gradient = c.createRadialGradient(pos.x, pos.y, radius * 0.5, pos.x, pos.y, radius * 2.5);
     gradient.addColorStop(0, isRadar ? `${fillColor}40` : `${fillColor}30`);
     gradient.addColorStop(1, 'transparent');
@@ -271,8 +390,8 @@ function drawNode(ctx: RenderContext, node: GraphNode): void {
     c.fill();
   }
 
-  // Node shadow
-  if (!isRadar) {
+  // Node shadow (skip at minimal/reduced LOD for performance)
+  if (!isRadar && lod === 'full') {
     c.shadowColor = 'rgba(0,0,0,0.1)';
     c.shadowBlur = 8;
     c.shadowOffsetX = 0;
@@ -285,29 +404,34 @@ function drawNode(ctx: RenderContext, node: GraphNode): void {
   c.fillStyle = fillColor;
   c.fill();
 
-  // Node border
-  c.strokeStyle = isSelected || isHighlighted || isHovered
-    ? (isRadar ? '#fff' : '#1c1917')
-    : (isRadar ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)');
-  c.lineWidth = isSelected || isHighlighted ? 2 : 1;
-  c.stroke();
+  // Node border (simplified at minimal LOD)
+  if (lod !== 'minimal' || isImportant) {
+    c.strokeStyle = isSelected || isHighlighted || isHovered
+      ? (isRadar ? '#fff' : '#1c1917')
+      : (isRadar ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)');
+    c.lineWidth = isSelected || isHighlighted ? 2 : 1;
+    c.stroke();
+  }
 
   // Reset shadow
-  c.shadowColor = 'transparent';
-  c.shadowBlur = 0;
-  c.shadowOffsetX = 0;
-  c.shadowOffsetY = 0;
+  if (!isRadar && lod === 'full') {
+    c.shadowColor = 'transparent';
+    c.shadowBlur = 0;
+    c.shadowOffsetX = 0;
+    c.shadowOffsetY = 0;
+  }
 
-  // Pin indicator
-  if (node.fixed) {
+  // Pin indicator (skip at minimal LOD)
+  if (node.fixed && lod !== 'minimal') {
     c.fillStyle = colors.textPrimary;
     c.beginPath();
     c.arc(pos.x + radius * 0.7, pos.y - radius * 0.7, 3, 0, Math.PI * 2);
     c.fill();
   }
 
-  // Node label (only show when zoomed in or hovered/selected)
-  if (viewState.zoom > 0.8 || isHovered || isSelected || isHighlighted) {
+  // Node label (only show when zoomed in or hovered/selected, skip at minimal LOD)
+  const showLabel = lod !== 'minimal' && (viewState.zoom > 0.8 || isHovered || isSelected || isHighlighted);
+  if (showLabel) {
     const label = node.label ?? node.id;
     const maxLen = 12;
     const displayLabel = label.length > maxLen ? label.slice(0, maxLen - 1) + '…' : label;
@@ -332,6 +456,8 @@ function drawNode(ctx: RenderContext, node: GraphNode): void {
     c.fillStyle = isSelected || isHighlighted ? colors.textPrimary : colors.textSecondary;
     c.fillText(displayLabel, pos.x, labelY);
   }
+
+  return true;
 }
 
 // ============================================================================
@@ -451,11 +577,17 @@ export function AdvancedNetworkGraph({
     const render = () => {
       ctx.clearRect(0, 0, dimensions.width, dimensions.height);
 
+      // Calculate viewport bounds and LOD for culling
+      const viewportBounds = getViewportBounds(dimensions.width, dimensions.height, graph.viewState);
+      const lod = getLevelOfDetail(graph.viewState.zoom);
+
       const renderCtx: RenderContext = {
         ctx,
         width: dimensions.width,
         height: dimensions.height,
         viewState: graph.viewState,
+        viewportBounds,
+        lod,
         isRadar,
         colors,
         entityColors,

@@ -1,6 +1,6 @@
 'use client';
 
-import { spring, easeOutCubic, easeOutQuart, easeOutExpo } from '../useVideoPlayback';
+import { spring, easeOutCubic, easeOutQuart } from '../useVideoPlayback';
 
 export type VerdictType = 'positive' | 'negative' | 'caution' | 'mixed';
 

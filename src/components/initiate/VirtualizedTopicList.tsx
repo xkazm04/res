@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { TopicStatus } from '@/src/types/research';
 import { EmptyState } from './EmptyState';
 import { TopicCard } from './TopicCard';
+import { initiateTheme } from './InitiateTheme';
 
 interface TopicItem {
   id: string;
@@ -14,85 +15,129 @@ interface TopicItem {
   discoveredAt: string;
   updatedAt?: string;
   sessionId?: string;
+  signals?: string[];
+  researchQuery?: string;
+  suggestedTemplate?: string;
+  claim?: string;
+  sourceBias?: string;
+  debunkable?: number;
 }
 
 interface VirtualizedTopicListProps {
   items: TopicItem[];
   estimatedItemHeight?: number;
   onDiscover?: () => void;
-  onTopicAction?: (id: string, action: 'menu' | 'delete' | 'research') => void;
   onTopicStatusChange?: (id: string, status: TopicStatus, sessionId?: string) => void;
-  onViewSession?: (sessionId: string) => void;
-  onRetry?: (topicId: string) => void;
+  onTopicRemoved?: (id: string) => void;
+  onAccept?: (id: string) => void;
 }
 
 export function VirtualizedTopicList({
   items,
-  estimatedItemHeight = 96,
+  estimatedItemHeight = 90,
   onDiscover,
-  onTopicAction,
   onTopicStatusChange,
-  onViewSession,
-  onRetry,
+  onTopicRemoved,
+  onAccept,
 }: VirtualizedTopicListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+
+  // Filter out deleted items for display
+  const visibleItems = items.filter(item => item.status !== 'deleted');
 
   const virtualizer = useVirtualizer({
-    count: items.length,
+    count: visibleItems.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => estimatedItemHeight,
     overscan: 5,
-    // CRITICAL: Required for React 19 compatibility
     useFlushSync: false,
   });
 
-  const handleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
+  // Get index of focused item
+  const focusedIndex = focusedId
+    ? visibleItems.findIndex(item => item.id === focusedId)
+    : -1;
 
-  const handleAction = useCallback(
-    async (id: string, action: 'menu' | 'delete' | 'research') => {
-      if (action === 'research') {
-        try {
-          const res = await fetch(`/api/topics/${id}/research`, {
-            method: 'POST',
-          });
-
-          if (res.status === 202) {
-            const data = await res.json();
-            // Notify parent of status change for optimistic update
-            onTopicStatusChange?.(id, 'queued', data.session_id);
-          } else if (res.status === 409) {
-            const data = await res.json();
-            alert(`Research already ${data.status} for this topic.`);
-          } else {
-            const data = await res.json();
-            alert(data.error || 'Failed to initiate research');
-          }
-        } catch (error) {
-          console.error('Research initiation failed:', error);
-          alert('Failed to initiate research. Please try again.');
-        }
+  // Keyboard navigation: J = down, K = up
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
         return;
       }
 
-      // Existing action handling
-      console.log(`Topic action: ${action} on ${id}`);
-      onTopicAction?.(id, action);
-    },
-    [onTopicAction, onTopicStatusChange]
-  );
+      if (e.key === 'j' || e.key === 'J') {
+        e.preventDefault();
+        // Move focus down
+        if (focusedIndex < visibleItems.length - 1) {
+          const nextItem = visibleItems[focusedIndex + 1];
+          setFocusedId(nextItem.id);
+          // Scroll into view
+          virtualizer.scrollToIndex(focusedIndex + 1, { align: 'center' });
+        } else if (focusedIndex === -1 && visibleItems.length > 0) {
+          // No focus yet, focus first item
+          setFocusedId(visibleItems[0].id);
+          virtualizer.scrollToIndex(0, { align: 'start' });
+        }
+      } else if (e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        // Move focus up
+        if (focusedIndex > 0) {
+          const prevItem = visibleItems[focusedIndex - 1];
+          setFocusedId(prevItem.id);
+          virtualizer.scrollToIndex(focusedIndex - 1, { align: 'center' });
+        }
+      } else if (e.key === 'Escape') {
+        // Clear focus
+        setFocusedId(null);
+      }
+    };
 
-  if (items.length === 0) {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [focusedIndex, visibleItems, virtualizer]);
+
+  const handleAccept = useCallback((id: string) => {
+    // Move focus to next item before removing
+    const currentIndex = visibleItems.findIndex(item => item.id === id);
+    if (currentIndex < visibleItems.length - 1) {
+      setFocusedId(visibleItems[currentIndex + 1].id);
+    } else if (currentIndex > 0) {
+      setFocusedId(visibleItems[currentIndex - 1].id);
+    } else {
+      setFocusedId(null);
+    }
+
+    // Notify parent to remove from state (topic is deleted after accept)
+    onTopicRemoved?.(id);
+  }, [visibleItems, onTopicRemoved]);
+
+  const handleReject = useCallback((id: string) => {
+    // Move focus to next item before removing
+    const currentIndex = visibleItems.findIndex(item => item.id === id);
+    if (currentIndex < visibleItems.length - 1) {
+      setFocusedId(visibleItems[currentIndex + 1].id);
+    } else if (currentIndex > 0) {
+      setFocusedId(visibleItems[currentIndex - 1].id);
+    } else {
+      setFocusedId(null);
+    }
+
+    // Notify parent to remove from state
+    onTopicRemoved?.(id);
+  }, [visibleItems, onTopicRemoved]);
+
+  const handleFocus = useCallback((id: string) => {
+    setFocusedId(id);
+  }, []);
+
+  if (visibleItems.length === 0) {
     return (
       <EmptyState
         action={onDiscover ? { label: 'Discover Topics', onClick: onDiscover } : undefined}
@@ -103,7 +148,7 @@ export function VirtualizedTopicList({
   return (
     <div
       ref={parentRef}
-      className="h-full overflow-y-auto"
+      className={`h-full overflow-y-auto ${initiateTheme.scrollbar}`}
       style={{ contain: 'strict' }}
     >
       <div
@@ -114,7 +159,7 @@ export function VirtualizedTopicList({
         }}
       >
         {virtualizer.getVirtualItems().map((virtualItem) => {
-          const item = items[virtualItem.index];
+          const item = visibleItems[virtualItem.index];
           return (
             <div
               key={item.id}
@@ -130,11 +175,10 @@ export function VirtualizedTopicList({
             >
               <TopicCard
                 topic={item}
-                selected={selectedIds.has(item.id)}
-                onSelect={handleSelect}
-                onAction={handleAction}
-                onViewSession={onViewSession}
-                onRetry={onRetry}
+                focused={focusedId === item.id}
+                onAccept={handleAccept}
+                onReject={handleReject}
+                onFocus={handleFocus}
               />
             </div>
           );

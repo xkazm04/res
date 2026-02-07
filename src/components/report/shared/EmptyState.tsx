@@ -46,8 +46,8 @@ export function EmptyState({ type, title, description, action }: EmptyStateProps
   const Illustration = illustrations[type];
 
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4">
-      <div className="mb-4">
+    <div className="flex flex-col items-center justify-center py-12 px-4 animate-fade-in">
+      <div className="mb-4 opacity-80">
         <Illustration />
       </div>
       <h3 className={`text-sm font-medium mb-1 ${styles.text}`}>{title}</h3>

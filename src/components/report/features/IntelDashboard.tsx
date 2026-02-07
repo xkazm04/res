@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useReportTheme, useThemeStyles } from '../core/ThemeContext';
+import { useSemanticIntent } from '@/src/stores/reportStore';
 import { AnimatedNumber, AnimatedProgressRing } from '../core/AnimatedNumber';
 
 interface MetricData {
@@ -34,14 +35,28 @@ export function IntelDashboard({
   const { theme } = useReportTheme();
   const styles = useThemeStyles();
   const isRadar = theme === 'radar';
+  const {
+    showUncertainty,
+    emphasizeData,
+    showTechnicalDetails,
+    animateUpdates,
+    useAmbientEffects,
+  } = useSemanticIntent();
+
+  // Calculate uncertainty range based on data quality
+  const uncertaintyRange = Math.round((1 - confidence / 100) * 15);
 
   return (
-    <div className={`grid grid-cols-12 gap-2 p-4 rounded-xl ${isRadar ? 'bg-slate-900/80' : 'bg-white border border-stone-200'}`}>
+    <div
+      className={`grid grid-cols-12 gap-2 p-4 rounded-xl ${isRadar ? 'bg-slate-900/80' : 'bg-white border border-stone-200'}`}
+      data-testid="intel-dashboard"
+    >
       {/* Main confidence gauge - spans 4 columns */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         className={`col-span-4 row-span-2 flex flex-col items-center justify-center p-4 rounded-xl ${isRadar ? 'bg-slate-950/50 border border-cyan-500/20' : 'bg-stone-50'}`}
+        data-testid="intel-dashboard-confidence-gauge"
       >
         <div className="relative">
           <AnimatedProgressRing
@@ -53,13 +68,25 @@ export function IntelDashboard({
             showValue={false}
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`text-2xl font-bold ${isRadar ? 'text-cyan-400' : 'text-stone-900'}`}>
-              <AnimatedNumber value={confidence} />
-            </span>
+            {/* Semantic intent: show precise value + uncertainty in analytical mode */}
+            {showUncertainty ? (
+              <>
+                <span className={`text-2xl font-bold ${isRadar ? 'text-cyan-400' : 'text-stone-900'}`}>
+                  <AnimatedNumber value={confidence} />
+                </span>
+                <span className={`text-[10px] ${styles.textMuted}`}>
+                  ±{uncertaintyRange}%
+                </span>
+              </>
+            ) : (
+              <span className={`text-2xl font-bold ${isRadar ? 'text-cyan-400' : 'text-stone-900'}`}>
+                <AnimatedNumber value={confidence} />
+              </span>
+            )}
             <span className={`text-[11px] uppercase tracking-wider ${styles.textMuted}`}>Confidence</span>
           </div>
         </div>
-        <StatusIndicator value={confidence} />
+        <StatusIndicator value={confidence} showUncertainty={showUncertainty} />
       </motion.div>
 
       {/* Findings metric */}
@@ -112,6 +139,7 @@ function MetricCard({ metric, delay, color }: { metric: MetricData; delay: numbe
   const { theme } = useReportTheme();
   const styles = useThemeStyles();
   const isRadar = theme === 'radar';
+  const { emphasizeData, showTechnicalDetails } = useSemanticIntent();
 
   const trendIcon = {
     up: '↑',
@@ -125,13 +153,15 @@ function MetricCard({ metric, delay, color }: { metric: MetricData; delay: numbe
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
       className={`col-span-4 p-4 rounded-xl ${isRadar ? 'bg-slate-800/50' : 'bg-stone-50'}`}
+      data-testid={`intel-dashboard-metric-${metric.label.toLowerCase().replace(/\s+/g, '-')}`}
     >
       <div className={`text-[11px] uppercase tracking-wider mb-1 ${styles.textMuted}`}>{metric.label}</div>
       <div className="flex items-end gap-2">
         <span className={`text-2xl font-bold ${styles.text}`}>
           <AnimatedNumber value={metric.value} />
         </span>
-        {metric.max && (
+        {/* Semantic intent: show denominator in data-dense mode */}
+        {metric.max && emphasizeData && (
           <span className={`text-sm ${styles.textMuted}`}>/ {metric.max}</span>
         )}
         {metric.trend && (
@@ -140,7 +170,8 @@ function MetricCard({ metric, delay, color }: { metric: MetricData; delay: numbe
           </span>
         )}
       </div>
-      {metric.sublabel && (
+      {/* Semantic intent: show sublabel details in technical mode */}
+      {metric.sublabel && (showTechnicalDetails || emphasizeData) && (
         <div className={`text-[11px] mt-1 ${styles.textMuted}`}>{metric.sublabel}</div>
       )}
     </motion.div>
@@ -151,6 +182,7 @@ function GaugeCard({ label, value, delay, color }: { label: string; value: numbe
   const { theme } = useReportTheme();
   const styles = useThemeStyles();
   const isRadar = theme === 'radar';
+  const { showUncertainty, prioritizeReadability, useAmbientEffects } = useSemanticIntent();
 
   const colorMap: Record<string, string> = {
     emerald: isRadar ? '#34d399' : '#059669',
@@ -160,36 +192,57 @@ function GaugeCard({ label, value, delay, color }: { label: string; value: numbe
     purple: isRadar ? '#a78bfa' : '#7c3aed',
   };
 
+  // Get human-readable level for readability-focused mode
+  const getReadableLevel = (v: number) => {
+    if (v >= 80) return 'High';
+    if (v >= 50) return 'Medium';
+    return 'Low';
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
       className={`col-span-4 p-4 rounded-xl ${isRadar ? 'bg-slate-800/50' : 'bg-stone-50'}`}
+      data-testid={`intel-dashboard-gauge-${label.toLowerCase()}`}
     >
       <div className={`text-[11px] uppercase tracking-wider mb-2 ${styles.textMuted}`}>{label}</div>
       <div className="flex items-center gap-2">
-        <AnimatedProgressRing
-          value={value}
-          size={40}
-          strokeWidth={4}
-          color={colorMap[color]}
-          bgColor={isRadar ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}
-        />
+        {/* Semantic intent: show gauge visual in data mode, simple text in readability mode */}
+        {!prioritizeReadability && (
+          <AnimatedProgressRing
+            value={value}
+            size={40}
+            strokeWidth={4}
+            color={colorMap[color]}
+            bgColor={isRadar ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}
+          />
+        )}
         <span className={`text-2xl font-bold ${styles.text}`}>
-          <AnimatedNumber value={value} suffix="%" />
+          {/* Semantic intent: show precise % in data mode, simple label in readability mode */}
+          {prioritizeReadability ? (
+            getReadableLevel(value)
+          ) : (
+            <AnimatedNumber value={value} suffix="%" />
+          )}
         </span>
       </div>
     </motion.div>
   );
 }
 
-function StatusIndicator({ value }: { value: number }) {
+function StatusIndicator({ value, showUncertainty }: { value: number; showUncertainty: boolean }) {
   const { theme } = useReportTheme();
   const isRadar = theme === 'radar';
 
   const status = value >= 80 ? 'HIGH' : value >= 50 ? 'MEDIUM' : 'LOW';
   const color = value >= 80 ? 'emerald' : value >= 50 ? 'amber' : 'rose';
+
+  // In uncertainty mode, add more granular descriptors
+  const detailedStatus = showUncertainty
+    ? value >= 90 ? 'VERY HIGH' : value >= 80 ? 'HIGH' : value >= 65 ? 'MODERATE-HIGH' : value >= 50 ? 'MODERATE' : value >= 35 ? 'LOW-MODERATE' : 'LOW'
+    : status;
 
   const colorClasses = {
     emerald: isRadar ? 'text-emerald-400 bg-emerald-500/20' : 'text-emerald-700 bg-emerald-100',
@@ -203,8 +256,9 @@ function StatusIndicator({ value }: { value: number }) {
       animate={{ opacity: 1 }}
       transition={{ delay: 0.5 }}
       className={`mt-4 px-4 py-1 rounded-full text-[11px] font-bold tracking-wider ${colorClasses[color]}`}
+      data-testid="intel-dashboard-status-indicator"
     >
-      {status} CONFIDENCE
+      {detailedStatus} CONFIDENCE
     </motion.div>
   );
 }

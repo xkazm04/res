@@ -33,7 +33,7 @@ export function SwissCollapsible({
         <div className="flex items-center gap-3 min-w-0">
           <ChevronDown
             className={cn(
-              'w-4 h-4 text-[var(--text-muted)] transition-transform shrink-0',
+              'w-4 h-4 text-[var(--text-muted)] transition-transform duration-200 shrink-0',
               isOpen && 'rotate-180'
             )}
           />
@@ -92,7 +92,7 @@ export function ExpandableText({
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="text-[var(--text-link)] text-sm mt-1 hover:underline"
+        className="text-[var(--text-link)] text-sm mt-1 hover:underline transition-opacity duration-150 hover:opacity-80"
       >
         {isExpanded ? 'Show less' : 'Show more'}
       </button>
@@ -125,11 +125,11 @@ export function CollapsibleSection({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 w-full py-2 group"
+        className="flex items-center gap-2 w-full py-2 group hover:bg-[var(--bg-hover)] rounded-md -mx-1 px-1 transition-colors duration-150"
       >
         <ChevronDown
           className={cn(
-            'w-4 h-4 text-[var(--text-muted)] transition-transform',
+            'w-4 h-4 text-[var(--text-muted)] transition-transform duration-200',
             isOpen && 'rotate-180'
           )}
         />

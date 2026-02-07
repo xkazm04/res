@@ -45,14 +45,14 @@ export function SwissBadge({
   return (
     <span
       className={cn(
-        'badge',
+        'badge transition-colors duration-150',
         variantClasses[variant],
         sizeClasses[size],
         className
       )}
     >
       {dot && (
-        <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5', dotColors[variant])} />
+        <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5 transition-colors duration-150', dotColors[variant])} />
       )}
       {children}
     </span>

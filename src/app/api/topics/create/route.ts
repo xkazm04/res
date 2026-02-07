@@ -9,9 +9,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/src/lib/supabase-server';
 import { isValidSourceSlug, type SourceSlug } from '@/src/lib/sources';
-import type { TopicSignal } from '@/src/types/research';
+import type { TopicSignal, SourceBias, SuggestedTemplate } from '@/src/types/research';
 
 const VALID_SIGNALS: TopicSignal[] = ['breaking', 'trending', 'controversial'];
+const VALID_BIASES: SourceBias[] = ['left', 'center-left', 'center', 'center-right', 'right'];
+const VALID_TEMPLATES: SuggestedTemplate[] = [
+  'debunk_claim',
+  'actor_investigation',
+  'event_timeline',
+  'policy_analysis',
+  'financial_investigation',
+  'controversy_analysis',
+];
 
 interface TopicInput {
   sourceSlug: string;
@@ -19,6 +28,16 @@ interface TopicInput {
   description?: string;
   sourceUrl?: string;
   signals?: string[];
+  /** Generated research query for direct use in research templates */
+  researchQuery?: string;
+  /** Recommended research template */
+  suggestedTemplate?: string;
+  /** Verifiable claim extracted from the story */
+  claim?: string;
+  /** Source bias indicator */
+  sourceBias?: string;
+  /** Debunkability score 1-5 */
+  debunkable?: number;
 }
 
 interface CreateTopicsRequest {
@@ -105,6 +124,11 @@ export async function POST(request: NextRequest) {
       description: string | null;
       source_url: string | null;
       signals: TopicSignal[];
+      research_query: string | null;
+      suggested_template: string | null;
+      claim: string | null;
+      source_bias: string | null;
+      debunkable: number | null;
       status: string;
       discovered_at: string;
       updated_at: string;
@@ -127,12 +151,28 @@ export async function POST(request: NextRequest) {
         (s): s is TopicSignal => VALID_SIGNALS.includes(s as TopicSignal)
       );
 
+      // Validate and filter optional fields
+      const validBias = topic.sourceBias && VALID_BIASES.includes(topic.sourceBias as SourceBias)
+        ? topic.sourceBias
+        : null;
+      const validTemplate = topic.suggestedTemplate && VALID_TEMPLATES.includes(topic.suggestedTemplate as SuggestedTemplate)
+        ? topic.suggestedTemplate
+        : null;
+      const validDebunkable = topic.debunkable && topic.debunkable >= 1 && topic.debunkable <= 5
+        ? topic.debunkable
+        : null;
+
       topicsToInsert.push({
         source_id: sourceId,
         title: topic.title.trim(),
         description: topic.description?.trim() || null,
         source_url: topic.sourceUrl?.trim() || null,
         signals: validSignals,
+        research_query: topic.researchQuery?.trim() || null,
+        suggested_template: validTemplate,
+        claim: topic.claim?.trim() || null,
+        source_bias: validBias,
+        debunkable: validDebunkable,
         status: 'new',
         discovered_at: now,
         updated_at: now,

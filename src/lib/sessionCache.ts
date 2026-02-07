@@ -88,11 +88,19 @@ export class LRUCache<K, V> {
   }
 
   values(): V[] {
-    return Array.from(this.cache.values()).map(e => e.value);
+    const result: V[] = [];
+    for (const entry of this.cache.values()) {
+      result.push(entry.value);
+    }
+    return result;
   }
 
   entries(): [K, V][] {
-    return Array.from(this.cache.entries()).map(([k, v]) => [k, v.value]);
+    const result: [K, V][] = [];
+    for (const [k, v] of this.cache.entries()) {
+      result.push([k, v.value]);
+    }
+    return result;
   }
 
   /**
@@ -239,7 +247,8 @@ export class SessionCache {
   appendTemplateData(templateType: string, newSessions: SessionSummary[], cursor: string | null, hasMore: boolean): void {
     const existing = this.templateCache.get(templateType);
     if (existing) {
-      existing.sessions = [...existing.sessions, ...newSessions];
+      // Use push with apply for efficient array extension (avoids creating intermediate array)
+      existing.sessions.push(...newSessions);
       existing.cursor = cursor;
       existing.hasMore = hasMore;
     }
@@ -272,7 +281,8 @@ export class SessionCache {
   appendTopicData(topicId: string, newSessions: SessionSummary[], cursor: string | null, hasMore: boolean): void {
     const existing = this.topicCache.get(topicId);
     if (existing) {
-      existing.sessions = [...existing.sessions, ...newSessions];
+      // Use push with spread for efficient array extension (avoids creating intermediate array)
+      existing.sessions.push(...newSessions);
       existing.cursor = cursor;
       existing.hasMore = hasMore;
     }

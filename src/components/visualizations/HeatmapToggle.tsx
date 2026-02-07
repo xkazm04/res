@@ -30,10 +30,10 @@ export function HeatmapToggle({ mode, onChange }: HeatmapToggleProps) {
       {/* Toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all duration-200 shadow-sm hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#22D3EE]/50 focus-visible:outline-none ${
           mode === 'default'
-            ? 'bg-[#1A1A1E] border-[#27272A] text-[#A1A1AA] hover:text-[#E8E8E8]'
-            : 'bg-[#22D3EE]/10 border-[#22D3EE]/30 text-[#22D3EE]'
+            ? 'bg-[#1A1A1E] border-[#27272A] text-[#A1A1AA] hover:text-[#E8E8E8] hover:border-[#3F3F46]'
+            : 'bg-[#22D3EE]/10 border-[#22D3EE]/30 text-[#22D3EE] hover:bg-[#22D3EE]/15'
         }`}
       >
         <svg
@@ -75,7 +75,7 @@ export function HeatmapToggle({ mode, onChange }: HeatmapToggleProps) {
           />
 
           {/* Menu */}
-          <div className="absolute right-0 bottom-full mb-2 w-48 bg-[#1A1A1E] border border-[#27272A] rounded-lg shadow-xl z-20 overflow-hidden">
+          <div className="absolute right-0 bottom-full mb-2 w-48 bg-[#1A1A1E] border border-[#27272A] rounded-lg shadow-xl z-20 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
             <div className="px-3 py-2 border-b border-[#27272A]">
               <span className="text-xs text-[#52525B] uppercase">View Mode</span>
             </div>
@@ -84,14 +84,14 @@ export function HeatmapToggle({ mode, onChange }: HeatmapToggleProps) {
               <button
                 key={m.value}
                 onClick={() => handleSelect(m.value)}
-                className={`w-full flex flex-col items-start px-3 py-2 text-left transition-colors ${
+                className={`w-full flex flex-col items-start px-3 py-2 text-left transition-all duration-150 ${
                   mode === m.value
                     ? 'bg-[#22D3EE]/10 text-[#22D3EE]'
-                    : 'text-[#A1A1AA] hover:bg-[#27272A] hover:text-[#E8E8E8]'
+                    : 'text-[#A1A1AA] hover:bg-[#27272A] hover:text-[#E8E8E8] active:bg-[#27272A]/80'
                 }`}
               >
                 <span className="text-sm font-medium">{m.label}</span>
-                <span className="text-xs opacity-70">{m.description}</span>
+                <span className="text-xs opacity-70 transition-opacity duration-150 group-hover:opacity-100">{m.description}</span>
               </button>
             ))}
 

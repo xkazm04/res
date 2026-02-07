@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import type { SessionWithDetails, ResearchFinding, ResearchPerspective, ResearchContradiction, ResearchGap, CausalChain } from '@/src/types/research';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import type { SessionWithDetails } from '@/src/types/research';
 
 /** Video sections that content can be assigned to */
 export type VideoSection = 'metrics' | 'charts' | 'insights' | 'summary';
 
 export const VIDEO_SECTIONS: { key: VideoSection; label: string; icon: string; description: string }[] = [
-  { key: 'metrics', label: 'Metrics', icon: '📊', description: 'Key numbers & statistics' },
-  { key: 'charts', label: 'Charts', icon: '📈', description: 'Data visualizations' },
-  { key: 'insights', label: 'Insights', icon: '💡', description: 'Key findings & alerts' },
-  { key: 'summary', label: 'Summary', icon: '🎯', description: 'Verdict & conclusion' },
+  { key: 'metrics', label: 'Metrics', icon: 'bar-chart-3', description: 'Key numbers & statistics' },
+  { key: 'charts', label: 'Charts', icon: 'trending-up', description: 'Data visualizations' },
+  { key: 'insights', label: 'Insights', icon: 'lightbulb', description: 'Key findings & alerts' },
+  { key: 'summary', label: 'Summary', icon: 'target', description: 'Verdict & conclusion' },
 ];
 
 export interface VideoContentSelection {
@@ -25,6 +25,9 @@ export interface VideoContentSelection {
 
 export interface SelectableItem {
   id: string;
+  /** Short display title (~120 chars, for list rows) */
+  title: string;
+  /** Full content text (untruncated) */
   content: string;
   confidence: number;
   type: string;
@@ -59,6 +62,14 @@ export interface ContentSelectionState {
   /** Clear all section assignments */
   clearSectionAssignments: () => void;
   resetToDefaults: () => void;
+  /** Directly set the entire selection (used by AI compose) */
+  setSelection: (selection: VideoContentSelection) => void;
+  /** AI enrichments keyed by item ID */
+  enrichments: Map<string, Array<{ type: string; content: string; source?: string }>>;
+  /** AI rewrites keyed by item ID */
+  rewrites: Map<string, { original: string; optimized: string }>;
+  setEnrichments: (enrichments: Array<{ itemId: string; type: string; content: string; source?: string }>) => void;
+  setRewrites: (rewrites: Array<{ itemId: string; originalContent: string; optimizedContent: string }>) => void;
 }
 
 /**
@@ -167,7 +178,8 @@ function buildSelectableItems(session: SessionWithDetails): {
 } {
   const findings = (session.findings || []).map(f => ({
     id: f.id,
-    content: f.content.slice(0, 100) + (f.content.length > 100 ? '...' : ''),
+    title: f.summary || (f.content.length > 120 ? f.content.slice(0, 120) + '...' : f.content),
+    content: f.content,
     confidence: Math.round((f.confidence_score || 0.5) * 100),
     type: f.finding_type,
     category: 'finding' as const,
@@ -181,25 +193,30 @@ function buildSelectableItems(session: SessionWithDetails): {
     },
   }));
 
-  const perspectives = (session.perspectives || []).map(p => ({
-    id: p.id,
-    content: p.key_insights?.[0]?.slice(0, 100) || p.analysis_text.slice(0, 100) + '...',
-    confidence: Math.round((p.confidence || 0.7) * 100),
-    type: p.perspective_type,
-    category: 'perspective' as const,
-    rawData: {
-      analysisText: p.analysis_text,
-      keyInsights: p.key_insights,
-      recommendations: p.recommendations,
-      warnings: p.warnings,
-      specializedData: p.specialized_data,
-    },
-  }));
+  const perspectives = (session.perspectives || []).map(p => {
+    const insight = p.key_insights?.[0] || p.analysis_text;
+    return {
+      id: p.id,
+      title: insight.length > 120 ? insight.slice(0, 120) + '...' : insight,
+      content: p.analysis_text,
+      confidence: Math.round((p.confidence || 0.7) * 100),
+      type: p.perspective_type,
+      category: 'perspective' as const,
+      rawData: {
+        analysisText: p.analysis_text,
+        keyInsights: p.key_insights,
+        recommendations: p.recommendations,
+        warnings: p.warnings,
+        specializedData: p.specialized_data,
+      },
+    };
+  });
 
   const contradictions: SelectableItem[] = (session.contradictions || []).map(c => ({
     id: c.id,
-    content: `${c.claim_1.slice(0, 50)} vs ${c.claim_2.slice(0, 50)}`,
-    confidence: 90, // Contradictions are generally high-signal
+    title: `${c.claim_1.slice(0, 55)} vs ${c.claim_2.slice(0, 55)}`,
+    content: `${c.claim_1}\n\nvs\n\n${c.claim_2}`,
+    confidence: 90,
     type: 'contradiction',
     category: 'contradiction' as const,
     rawData: {
@@ -214,7 +231,8 @@ function buildSelectableItems(session: SessionWithDetails): {
 
   const gaps: SelectableItem[] = (session.gaps || []).map(g => ({
     id: g.id,
-    content: g.description.slice(0, 100) + (g.description.length > 100 ? '...' : ''),
+    title: g.description.length > 120 ? g.description.slice(0, 120) + '...' : g.description,
+    content: g.description,
     confidence: g.priority === 'high' ? 85 : g.priority === 'medium' ? 70 : 55,
     type: g.gap_type,
     category: 'gap' as const,
@@ -228,17 +246,21 @@ function buildSelectableItems(session: SessionWithDetails): {
     },
   }));
 
-  const causalChains: SelectableItem[] = (session.causal_chains || []).map(c => ({
-    id: c.id,
-    content: c.descriptions.slice(0, 2).join(' -> ').slice(0, 100) + '...',
-    confidence: 80,
-    type: 'causal',
-    category: 'causal_chain' as const,
-    rawData: {
-      findingIds: c.finding_ids,
-      descriptions: c.descriptions,
-    },
-  }));
+  const causalChains: SelectableItem[] = (session.causal_chains || []).map(c => {
+    const joined = c.descriptions.join(' -> ');
+    return {
+      id: c.id,
+      title: joined.length > 120 ? joined.slice(0, 120) + '...' : joined,
+      content: c.descriptions.join(' -> '),
+      confidence: 80,
+      type: 'causal',
+      category: 'causal_chain' as const,
+      rawData: {
+        findingIds: c.finding_ids,
+        descriptions: c.descriptions,
+      },
+    };
+  });
 
   return {
     findings: findings.sort((a, b) => b.confidence - a.confidence),
@@ -247,11 +269,35 @@ function buildSelectableItems(session: SessionWithDetails): {
   };
 }
 
-export function useContentSelection(session: SessionWithDetails): ContentSelectionState {
-  const defaultSelection = useMemo(() => getDefaultSelection(session), [session]);
-  const [selection, setSelection] = useState<VideoContentSelection>(defaultSelection);
+const EMPTY_SELECTION: VideoContentSelection = {
+  selectedFindings: [],
+  selectedPerspectives: [],
+  selectedContradictions: [],
+  selectedGaps: [],
+  selectedCausalChains: [],
+  sectionAssignments: {},
+};
 
-  const availableItems = useMemo(() => buildSelectableItems(session), [session]);
+const EMPTY_ITEMS = { findings: [] as SelectableItem[], perspectives: [] as SelectableItem[], analysis: [] as SelectableItem[] };
+
+export function useContentSelection(session: SessionWithDetails | null): ContentSelectionState {
+  const defaultSelection = useMemo(() => session ? getDefaultSelection(session) : EMPTY_SELECTION, [session]);
+  const [selection, setSelection] = useState<VideoContentSelection>(defaultSelection);
+  const [enrichments, setEnrichmentsMap] = useState<Map<string, Array<{ type: string; content: string; source?: string }>>>(new Map());
+  const [rewrites, setRewritesMap] = useState<Map<string, { original: string; optimized: string }>>(new Map());
+
+  const availableItems = useMemo(() => session ? buildSelectableItems(session) : EMPTY_ITEMS, [session]);
+
+  // Reset when session changes (since hook is now lifted to page level)
+  const prevSessionId = useRef(session?.id);
+  useEffect(() => {
+    if (session?.id !== prevSessionId.current) {
+      prevSessionId.current = session?.id;
+      setSelection(defaultSelection);
+      setEnrichmentsMap(new Map());
+      setRewritesMap(new Map());
+    }
+  }, [session?.id, defaultSelection]);
 
   const counts = useMemo(() => {
     const analysisSelected = [
@@ -441,6 +487,26 @@ export function useContentSelection(session: SessionWithDetails): ContentSelecti
     }));
   }, []);
 
+  // Set enrichments from AI compose result
+  const setEnrichments = useCallback((items: Array<{ itemId: string; type: string; content: string; source?: string }>) => {
+    const map = new Map<string, Array<{ type: string; content: string; source?: string }>>();
+    for (const item of items) {
+      const existing = map.get(item.itemId) || [];
+      existing.push({ type: item.type, content: item.content, source: item.source });
+      map.set(item.itemId, existing);
+    }
+    setEnrichmentsMap(map);
+  }, []);
+
+  // Set rewrites from AI compose result
+  const setRewrites = useCallback((items: Array<{ itemId: string; originalContent: string; optimizedContent: string }>) => {
+    const map = new Map<string, { original: string; optimized: string }>();
+    for (const item of items) {
+      map.set(item.itemId, { original: item.originalContent, optimized: item.optimizedContent });
+    }
+    setRewritesMap(map);
+  }, []);
+
   return {
     selection,
     availableItems,
@@ -454,5 +520,10 @@ export function useContentSelection(session: SessionWithDetails): ContentSelecti
     assignAllToSection,
     clearSectionAssignments,
     resetToDefaults,
+    setSelection,
+    enrichments,
+    rewrites,
+    setEnrichments,
+    setRewrites,
   };
 }

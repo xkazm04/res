@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ResearchSession, SessionWithDetails } from '@/src/types/research';
+import type { ResearchSession, ResearchFinding, SessionWithDetails } from '@/src/types/research';
 import { MOCK_SESSIONS, USE_MOCK_DATA } from '@/src/lib/mockData';
 import {
   getSessionCache,
@@ -9,6 +9,7 @@ import {
   type SessionSummary,
 } from '@/src/lib/sessionCache';
 import { getSessionIndex } from '@/src/lib/sessionIndex';
+import { subscribeToSession, subscribeToFindings } from '@/src/lib/supabase';
 
 // ============================================
 // APP STATE - Unified store for Research Map
@@ -38,7 +39,7 @@ export interface TopicWithSessions {
 
 // Pagination state for infinite loading
 interface PaginationState {
-  cursor: string | null;
+  cursor: string | { id: string; createdAt: string } | null;
   hasMore: boolean;
   loading: boolean;
 }
@@ -69,6 +70,9 @@ interface AppState {
   currentSessionError: string | null;
   isReportModalOpen: boolean;
 
+  // Subscription cleanup functions (to prevent memory leaks)
+  _subscriptionCleanup: (() => void) | null;
+
   // Map navigation state
   mapZoomPath: string[]; // Breadcrumb path: ['root', 'financial', 'topic-1']
   mapSelectedNode: string | null;
@@ -82,6 +86,7 @@ interface AppState {
   openReportModal: (sessionId: string) => Promise<void>;
   closeReportModal: () => void;
   clearCurrentSession: () => void;
+  deleteSession: (id: string) => Promise<boolean>;
 
   // Actions - Scalable Data Loading
   fetchAggregates: () => Promise<void>;
@@ -113,6 +118,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentSessionLoading: false,
   currentSessionError: null,
   isReportModalOpen: false,
+  _subscriptionCleanup: null,
 
   mapZoomPath: ['root'],
   mapSelectedNode: null,
@@ -231,9 +237,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ sessionsPagination: { ...sessionsPagination, loading: true } });
 
     try {
-      const url = sessionsPagination.cursor
-        ? `/api/sessions?cursor=${sessionsPagination.cursor}&limit=50`
-        : '/api/sessions?limit=50';
+      let url = '/api/sessions?limit=50';
+      if (sessionsPagination.cursor) {
+        const cursor = sessionsPagination.cursor;
+        if (typeof cursor === 'object' && cursor !== null && 'createdAt' in cursor && 'id' in cursor) {
+          // Keyset pagination (new format)
+          const c = cursor as { id: string; createdAt: string };
+          url = `/api/sessions?lastCreatedAt=${encodeURIComponent(c.createdAt)}&lastId=${encodeURIComponent(c.id)}&limit=50`;
+        } else {
+          // Legacy cursor fallback
+          url = `/api/sessions?cursor=${encodeURIComponent(String(cursor))}&limit=50`;
+        }
+      }
 
       const response = await fetch(url);
 
@@ -513,20 +528,98 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Report modal
   openReportModal: async (sessionId: string) => {
-    set({ isReportModalOpen: true, currentSessionLoading: true });
+    // Clean up any existing subscriptions before opening new session
+    const { _subscriptionCleanup } = get();
+    if (_subscriptionCleanup) {
+      _subscriptionCleanup();
+    }
+
+    set({ isReportModalOpen: true, currentSessionLoading: true, _subscriptionCleanup: null });
     await get().fetchSession(sessionId);
+
+    // Set up real-time subscriptions for live updates
+    // Only subscribe if not using mock data and session was loaded successfully
+    const { currentSession } = get();
+    if (!USE_MOCK_DATA && currentSession) {
+      const unsubSession = subscribeToSession(sessionId, (updatedSession) => {
+        // Update session data when it changes (e.g., status updates)
+        set((state) => ({
+          currentSession: state.currentSession
+            ? { ...state.currentSession, ...updatedSession }
+            : null,
+        }));
+      });
+
+      const unsubFindings = subscribeToFindings(sessionId, (newFinding) => {
+        // Add new findings as they come in during live research
+        set((state) => ({
+          currentSession: state.currentSession
+            ? {
+                ...state.currentSession,
+                findings: [...state.currentSession.findings, newFinding],
+              }
+            : null,
+        }));
+      });
+
+      // Store combined cleanup function
+      set({
+        _subscriptionCleanup: () => {
+          unsubSession();
+          unsubFindings();
+        },
+      });
+    }
   },
 
   closeReportModal: () => {
-    set({ isReportModalOpen: false });
+    // Clean up subscriptions when closing modal to prevent memory leaks
+    const { _subscriptionCleanup } = get();
+    if (_subscriptionCleanup) {
+      _subscriptionCleanup();
+    }
+    set({ isReportModalOpen: false, _subscriptionCleanup: null });
   },
 
   clearCurrentSession: () => {
+    // Clean up subscriptions when clearing session
+    const { _subscriptionCleanup } = get();
+    if (_subscriptionCleanup) {
+      _subscriptionCleanup();
+    }
     set({
       currentSession: null,
       currentSessionError: null,
       isReportModalOpen: false,
+      _subscriptionCleanup: null,
     });
+  },
+
+  deleteSession: async (id: string) => {
+    try {
+      const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+      if (!res.ok) return false;
+
+      // Remove from local state immediately
+      const { sessions, currentSession } = get();
+      set({
+        sessions: sessions.filter(s => s.id !== id),
+        // Clear current session if it was the deleted one
+        ...(currentSession?.id === id ? {
+          currentSession: null,
+          currentSessionError: null,
+          isReportModalOpen: false,
+        } : {}),
+      });
+
+      // Remove from session index so search reflects the change
+      getSessionIndex().removeSession(id);
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      return false;
+    }
   },
 }));
 

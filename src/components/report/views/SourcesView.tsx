@@ -13,7 +13,9 @@ import { ViewHeader } from '../shared/ViewHeader';
 import { ViewModeToggle, type ViewModeOption } from '../shared/ViewModeToggle';
 import { EmptyState } from '../shared/EmptyState';
 import { useDebouncedValue } from '@/src/hooks/useDebouncedValue';
+import { CollapsibleSection, SectionGroup } from '../shared/CollapsibleSection';
 import { matchesConfidenceFilter, type ConfidenceFilterOption } from '../shared/typeConfig';
+import { categorizeByCredibility } from '@/src/hooks/useFilteredData';
 
 interface SourcesViewProps {
   sources: ResearchSource[];
@@ -106,9 +108,8 @@ export function SourcesView({ sources, findings, initialSelectedId }: SourcesVie
   }, [sources, debouncedSearchQuery, filterConfidence]);
 
   const stats = useMemo(() => {
-    const high = filtered.filter(s => (s.credibility_score || 0) >= 0.8).length;
-    const med = filtered.filter(s => { const c = s.credibility_score || 0; return c >= 0.5 && c < 0.8; }).length;
-    return { high, med, low: filtered.length - high - med };
+    const buckets = categorizeByCredibility(filtered, s => s.credibility_score || 0);
+    return { high: buckets.high.length, med: buckets.medium.length, low: buckets.low.length };
   }, [filtered]);
 
   if (filtered.length === 0) {
@@ -156,33 +157,56 @@ export function SourcesView({ sources, findings, initialSelectedId }: SourcesVie
 
       {/* Network View */}
       {viewMode === 'network' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <CollapsibleSection
+          sectionId="sources-network"
+          title="Source Network"
+          subtitle="Visual connections between sources"
+          icon="🔗"
+          count={filtered.length}
+          variant="card"
+        >
           <SourceNetwork sources={filtered} selectedSource={selectedSource || undefined} onSourceSelect={handleSelectSource} />
-        </motion.div>
+        </CollapsibleSection>
       )}
 
       {/* Radar View */}
       {viewMode === 'radar' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <CollapsibleSection
+          sectionId="sources-radar"
+          title="Trust Radar"
+          subtitle="Source credibility distribution"
+          icon="📡"
+          count={filtered.length}
+          variant="card"
+        >
           <TrustRadar sources={filtered} />
-        </motion.div>
+        </CollapsibleSection>
       )}
 
       {/* Cards View */}
       {viewMode === 'cards' && (
-        <motion.div
-          layout
-          className="grid grid-cols-1 md:grid-cols-2 gap-3"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
+        <CollapsibleSection
+          sectionId="sources-cards"
+          title="Source Cards"
+          subtitle="Detailed source information"
+          icon="📄"
+          count={filtered.length}
+          variant="card"
         >
-          <AnimatePresence>
-            {filtered.map((source) => (
-              <SourceCard key={source.id} source={source} isSelected={selectedSource === source.id} onSelect={handleSelectSource} />
-            ))}
-          </AnimatePresence>
-        </motion.div>
+          <motion.div
+            layout
+            className="grid grid-cols-1 md:grid-cols-2 gap-3"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <AnimatePresence>
+              {filtered.map((source) => (
+                <SourceCard key={source.id} source={source} isSelected={selectedSource === source.id} onSelect={handleSelectSource} />
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        </CollapsibleSection>
       )}
     </div>
   );

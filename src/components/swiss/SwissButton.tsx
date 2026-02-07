@@ -14,10 +14,10 @@ interface SwissButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'btn btn-primary',
-  secondary: 'btn btn-secondary',
-  ghost: 'btn btn-ghost',
-  danger: 'btn bg-[var(--red-primary)] text-white hover:bg-red-700',
+  primary: 'btn btn-primary hover:shadow-sm active:scale-[0.98]',
+  secondary: 'btn btn-secondary hover:shadow-sm active:scale-[0.98]',
+  ghost: 'btn btn-ghost active:scale-[0.98]',
+  danger: 'btn bg-[var(--red-primary)] text-white hover:bg-red-700 hover:shadow-sm active:scale-[0.98]',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -50,7 +50,8 @@ export const SwissButton = forwardRef<HTMLButtonElement, SwissButtonProps>(
         className={cn(
           variantClasses[variant],
           sizeClasses[size],
-          isDisabled && 'opacity-50 cursor-not-allowed',
+          'transition-all duration-150',
+          isDisabled && 'opacity-50 cursor-not-allowed pointer-events-none',
           className
         )}
         {...props}
@@ -86,15 +87,17 @@ const iconSizeClasses: Record<ButtonSize, string> = {
 };
 
 export const SwissIconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
-  ({ icon, variant = 'ghost', size = 'md', className, ...props }, ref) => {
+  ({ icon, variant = 'ghost', size = 'md', className, disabled, ...props }, ref) => {
     return (
       <button
         ref={ref}
+        disabled={disabled}
         className={cn(
-          'inline-flex items-center justify-center rounded-md transition-colors',
+          'inline-flex items-center justify-center rounded-md transition-all duration-150',
           variantClasses[variant],
           iconSizeClasses[size],
           'p-0',
+          disabled && 'opacity-50 cursor-not-allowed pointer-events-none',
           className
         )}
         {...props}

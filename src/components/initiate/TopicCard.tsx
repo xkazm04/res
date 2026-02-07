@@ -1,64 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  Sparkles,
-  Clock,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  Trash2,
-  MoreVertical,
-  Beaker,
-  LucideIcon,
-  Eye,
-  RefreshCw,
-} from 'lucide-react';
+import { useState, useEffect, forwardRef, useCallback } from 'react';
+import { Check, X } from 'lucide-react';
 import { formatRelativeTime } from '@/src/lib/utils';
 import { TopicStatus } from '@/src/types/research';
+import { initiateTheme } from './InitiateTheme';
 
-// WCAG-compliant status config: icon + color + text (not just color)
-const STATUS_CONFIG: Record<
-  TopicStatus,
-  { icon: LucideIcon; label: string; bgClass: string; textClass: string; animate?: boolean }
-> = {
-  new: {
-    icon: Sparkles,
-    label: 'New',
-    bgClass: 'bg-[var(--blue-light)]',
-    textClass: 'text-[var(--blue-primary)]',
-  },
-  queued: {
-    icon: Clock,
-    label: 'Queued',
-    bgClass: 'bg-[var(--bg-tertiary)]',
-    textClass: 'text-[var(--text-muted)]',
-  },
-  researching: {
-    icon: Loader2,
-    label: 'Researching',
-    bgClass: 'bg-[var(--blue-light)]',
-    textClass: 'text-[var(--blue-primary)]',
-    animate: true,
-  },
-  completed: {
-    icon: CheckCircle2,
-    label: 'Completed',
-    bgClass: 'bg-[var(--green-light)]',
-    textClass: 'text-[var(--green-primary)]',
-  },
-  failed: {
-    icon: AlertCircle,
-    label: 'Failed',
-    bgClass: 'bg-[var(--red-light)]',
-    textClass: 'text-[var(--red-primary)]',
-  },
-  deleted: {
-    icon: Trash2,
-    label: 'Deleted',
-    bgClass: 'bg-[var(--bg-hover)]',
-    textClass: 'text-[var(--text-muted)]',
-  },
+const REMOVE_ANIMATION_MS = 150;
+
+// Template type to subtle background tint mapping
+const TEMPLATE_TINTS: Record<string, string> = {
+  debunk_claim: 'bg-rose-500/[0.04]',
+  actor_investigation: 'bg-violet-500/[0.04]',
+  event_timeline: 'bg-blue-500/[0.04]',
+  policy_analysis: 'bg-amber-500/[0.04]',
+  financial_investigation: 'bg-emerald-500/[0.04]',
+  controversy_analysis: 'bg-orange-500/[0.04]',
+};
+
+// Left border accent per template type
+const TEMPLATE_BORDERS: Record<string, string> = {
+  debunk_claim: 'border-l-rose-500/40',
+  actor_investigation: 'border-l-violet-500/40',
+  event_timeline: 'border-l-blue-500/40',
+  policy_analysis: 'border-l-amber-500/40',
+  financial_investigation: 'border-l-emerald-500/40',
+  controversy_analysis: 'border-l-orange-500/40',
 };
 
 interface TopicCardProps {
@@ -70,315 +37,246 @@ interface TopicCardProps {
     discoveredAt: string;
     updatedAt?: string;
     sessionId?: string;
+    signals?: string[];
+    researchQuery?: string;
+    suggestedTemplate?: string;
+    claim?: string;
+    sourceBias?: string;
+    debunkable?: number;
   };
-  selected: boolean;
-  onSelect: (id: string) => void;
-  onAction: (id: string, action: 'menu' | 'delete' | 'research') => void;
-  onViewSession?: (sessionId: string) => void;
-  onRetry?: (topicId: string) => void;
+  focused?: boolean;
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
+  onFocus?: (id: string) => void;
 }
 
-export function TopicCard({ topic, selected, onSelect, onAction, onViewSession, onRetry }: TopicCardProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [researchLoading, setResearchLoading] = useState(false);
-  const [retryLoading, setRetryLoading] = useState(false);
+export const TopicCard = forwardRef<HTMLDivElement, TopicCardProps>(
+  function TopicCard({ topic, focused = false, onAccept, onReject, onFocus }, ref) {
+    // Optimistic removal state: 'none' | 'accepting' | 'rejecting'
+    const [removing, setRemoving] = useState<'none' | 'accepting' | 'rejecting'>('none');
 
-  // Status checks
-  const canResearch = topic.status === 'new' || topic.status === 'failed';
-  const canViewResults = topic.status === 'completed' && !!topic.sessionId;
-  const canRetry = topic.status === 'failed';
+    // Get template-based styling
+    const templateTint = topic.suggestedTemplate
+      ? TEMPLATE_TINTS[topic.suggestedTemplate] || ''
+      : '';
+    const templateBorder = topic.suggestedTemplate
+      ? TEMPLATE_BORDERS[topic.suggestedTemplate] || 'border-l-slate-700/40'
+      : 'border-l-slate-700/40';
 
-  // Click-outside handler
-  useEffect(() => {
-    if (!menuOpen) return;
+    // Accept: fire API first, then remove on success
+    const handleAccept = useCallback(async (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (removing !== 'none') return;
 
-    const handleClickOutside = (e: MouseEvent) => {
-      if (!(e.target as Element).closest('[data-topic-menu]')) {
-        setMenuOpen(false);
+      setRemoving('accepting');
+
+      try {
+        const res = await fetch(`/api/topics/${topic.id}/accept`, { method: 'POST' });
+        if (!res.ok) {
+          const data = await res.json();
+          console.error('Accept failed:', data.error);
+          setRemoving('none');
+          return;
+        }
+        // Only remove from parent state after API confirms success
+        setTimeout(() => onAccept(topic.id), REMOVE_ANIMATION_MS);
+      } catch (error) {
+        console.error('Accept error:', error);
+        setRemoving('none');
       }
+    }, [topic.id, onAccept, removing]);
+
+    // Reject: fire API first, then remove on success
+    const handleReject = useCallback(async (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (removing !== 'none') return;
+
+      setRemoving('rejecting');
+
+      try {
+        const res = await fetch(`/api/topics/${topic.id}`, { method: 'DELETE' });
+        if (!res.ok) {
+          console.error('Reject failed');
+          setRemoving('none');
+          return;
+        }
+        setTimeout(() => onReject(topic.id), REMOVE_ANIMATION_MS);
+      } catch (error) {
+        console.error('Reject error:', error);
+        setRemoving('none');
+      }
+    }, [topic.id, onReject, removing]);
+
+    const handleClick = () => {
+      onFocus?.(topic.id);
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [menuOpen]);
+    // Keyboard handler for focused card
+    useEffect(() => {
+      if (!focused || removing !== 'none') return;
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    onSelect(topic.id);
-  };
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'a' || e.key === 'A') {
+          e.preventDefault();
+          e.stopPropagation();
+          handleAccept();
+        } else if (e.key === 'r' || e.key === 'R' || e.key === 'x' || e.key === 'X') {
+          e.preventDefault();
+          e.stopPropagation();
+          handleReject();
+        }
+      };
 
-  const handleResearch = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setMenuOpen(false);
-    setResearchLoading(true);
-    onAction(topic.id, 'research');
-    // Note: Parent handles the actual API call and resets loading via status update
-  };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [focused, removing, handleAccept, handleReject]);
 
-  const handleViewResults = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (topic.sessionId && onViewSession) {
-      onViewSession(topic.sessionId);
-    }
-  };
+    if (topic.status === 'deleted') return null;
 
-  const handleRetry = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setMenuOpen(false);
-    if (onRetry) {
-      setRetryLoading(true);
-      onRetry(topic.id);
-      // Note: Loading will be reset when status changes via useEffect
-    }
-  };
+    const isProcessing = topic.status === 'queued' || topic.status === 'researching';
+    const isCompleted = topic.status === 'completed';
+    const canAct = !isProcessing && !isCompleted && removing === 'none';
+    const isRemoving = removing !== 'none';
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setMenuOpen(false);
-    try {
-      const res = await fetch(`/api/topics/${topic.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        onAction(topic.id, 'delete');
-      } else {
-        console.error('Failed to delete topic');
-      }
-    } catch (error) {
-      console.error('Failed to delete topic:', error);
-    }
-  };
-
-  // Reset loading states when status changes (e.g., to 'queued')
-  useEffect(() => {
-    if (topic.status !== 'new' && topic.status !== 'failed') {
-      setResearchLoading(false);
-      setRetryLoading(false);
-    }
-  }, [topic.status]);
-
-  return (
-    <div
-      className={`
-        relative flex gap-2
-        px-3 py-2
-        border-b border-[var(--border-subtle)]
-        hover:bg-[var(--bg-hover)]
-        transition-colors
-        ${selected ? 'bg-[var(--blue-light)]' : ''}
-      `}
-    >
-      {/* Selection checkbox */}
-      <div className="flex-shrink-0 pt-0.5">
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={handleCheckboxChange}
-          className="
-            w-4 h-4 rounded
-            border-[var(--border-default)]
-            accent-[var(--blue-primary)]
-            cursor-pointer
-            focus:ring-2 focus:ring-[var(--blue-primary)] focus:ring-offset-1
-          "
-          aria-label={`Select ${topic.title}`}
-        />
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
-        {/* Title - bold, 2 lines max */}
-        <h3 className="text-sm font-semibold text-[var(--text-primary)] line-clamp-2 leading-tight">
+    return (
+      <div
+        ref={ref}
+        onClick={handleClick}
+        className={`
+          relative
+          px-4 py-3
+          border-l-2 ${templateBorder}
+          border-b ${initiateTheme.borderSubtle}
+          ${templateTint}
+          cursor-pointer
+          group
+          transition-all duration-150 ease-out
+          ${focused && !isRemoving
+            ? 'bg-cyan-500/[0.08] ring-1 ring-cyan-500/30 ring-inset'
+            : !isRemoving ? 'hover:bg-white/[0.02]' : ''
+          }
+          ${isRemoving
+            ? 'opacity-0 scale-y-95 -translate-x-2 pointer-events-none'
+            : 'opacity-100 scale-y-100 translate-x-0'
+          }
+          ${removing === 'accepting' ? 'bg-emerald-500/10' : ''}
+          ${removing === 'rejecting' ? 'bg-rose-500/10' : ''}
+        `}
+        data-topic-id={topic.id}
+        tabIndex={0}
+      >
+        {/* Title - full width */}
+        <h3 className={`
+          text-sm font-medium leading-snug
+          ${isCompleted ? 'text-slate-500' : initiateTheme.text}
+          ${isProcessing ? 'text-blue-300' : ''}
+        `}>
           {topic.title}
         </h3>
 
-        {/* Snippet - 3 lines max */}
-        {topic.description && (
-          <p className="text-xs text-[var(--text-muted)] line-clamp-3 mt-1 leading-relaxed">
-            {topic.description}
+        {/* Claim or description - full width */}
+        {(topic.claim || topic.description) && (
+          <p className={`
+            text-xs leading-relaxed mt-1
+            ${isCompleted ? 'text-slate-600' : initiateTheme.textMuted}
+          `}>
+            {topic.claim ? `"${topic.claim}"` : topic.description}
           </p>
         )}
 
-        {/* Footer with timestamp and status */}
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-xs text-[var(--text-muted)]">
-            {formatRelativeTime(topic.discoveredAt)}
-          </span>
-
-          {/* WCAG-compliant status: icon + color + text */}
-          {(() => {
-            const config = STATUS_CONFIG[topic.status];
-            const Icon = config.icon;
-            return (
-              <span
-                className={`
-                  inline-flex items-center gap-1
-                  px-1.5 py-0.5 rounded
-                  text-[10px] font-medium
-                  ${config.bgClass} ${config.textClass}
-                `}
-              >
-                <Icon size={12} className={config.animate ? 'animate-spin' : ''} />
-                {config.label}
-              </span>
-            );
-          })()}
-
-          {/* Updated timestamp for non-new statuses */}
-          {topic.status !== 'new' && topic.updatedAt && (
-            <span className="text-[10px] text-[var(--text-muted)]">
-              Updated {formatRelativeTime(topic.updatedAt)}
+        {/* Metadata row with actions on right */}
+        <div className="flex items-center justify-between mt-2">
+          {/* Left: metadata */}
+          <div className="flex items-center gap-2">
+            {/* Time */}
+            <span className={`text-[10px] ${initiateTheme.textMuted}`}>
+              {formatRelativeTime(topic.discoveredAt)}
             </span>
-          )}
 
-          {/* View Results button for completed topics */}
-          {canViewResults && (
-            <button
-              onClick={handleViewResults}
-              className="
-                inline-flex items-center gap-1
-                px-1.5 py-0.5 rounded
-                text-[10px] font-medium
-                text-[var(--blue-primary)]
-                hover:bg-[var(--blue-light)]
-                transition-colors
-              "
-            >
-              <Eye size={10} />
-              View Results
-            </button>
-          )}
+            {/* Bias indicator */}
+            {topic.sourceBias && (
+              <span className={`
+                text-[9px] font-medium
+                ${topic.sourceBias === 'left' ? 'text-blue-500/60' : ''}
+                ${topic.sourceBias === 'center-left' ? 'text-sky-500/60' : ''}
+                ${topic.sourceBias === 'center' ? 'text-slate-500/60' : ''}
+                ${topic.sourceBias === 'center-right' ? 'text-orange-500/60' : ''}
+                ${topic.sourceBias === 'right' ? 'text-red-500/60' : ''}
+              `}>
+                {topic.sourceBias === 'left' && 'L'}
+                {topic.sourceBias === 'center-left' && 'CL'}
+                {topic.sourceBias === 'center' && 'C'}
+                {topic.sourceBias === 'center-right' && 'CR'}
+                {topic.sourceBias === 'right' && 'R'}
+              </span>
+            )}
 
-          {/* Retry button for failed topics */}
-          {canRetry && (
-            <button
-              onClick={handleRetry}
-              disabled={retryLoading}
-              className="
-                inline-flex items-center gap-1
-                px-1.5 py-0.5 rounded
-                text-[10px] font-medium
-                text-[var(--amber-primary,#D97706)]
-                hover:bg-[var(--amber-light,#FEF3C7)]
-                transition-colors
-                disabled:opacity-50
-              "
-            >
-              {retryLoading ? (
-                <Loader2 size={10} className="animate-spin" />
-              ) : (
-                <RefreshCw size={10} />
-              )}
-              Retry
-            </button>
+            {/* Debunkability */}
+            {topic.debunkable && (
+              <span className={`
+                text-[9px] font-medium
+                ${topic.debunkable >= 4 ? 'text-emerald-500/60' : ''}
+                ${topic.debunkable === 3 ? 'text-amber-500/60' : ''}
+                ${topic.debunkable <= 2 ? 'text-rose-500/60' : ''}
+              `}>
+                {topic.debunkable}
+              </span>
+            )}
+
+            {/* Processing indicator */}
+            {isProcessing && (
+              <span className="flex items-center gap-1 text-[10px] text-blue-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                {topic.status === 'researching' ? 'researching' : 'queued'}
+              </span>
+            )}
+
+            {/* Completed indicator */}
+            {isCompleted && (
+              <span className="text-[10px] text-emerald-500/60">done</span>
+            )}
+          </div>
+
+          {/* Right: Accept/Reject buttons */}
+          {canAct && (
+            <div className={`
+              flex items-center gap-1
+              transition-opacity duration-100
+              ${focused ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
+            `}>
+              <button
+                onClick={handleAccept}
+                className={`
+                  p-1 rounded
+                  bg-emerald-500/10 text-emerald-400
+                  hover:bg-emerald-500/20 hover:scale-110
+                  active:scale-95
+                  transition-all duration-100
+                `}
+                title="Accept (A)"
+                aria-label="Accept"
+              >
+                <Check size={12} />
+              </button>
+
+              <button
+                onClick={handleReject}
+                className={`
+                  p-1 rounded
+                  bg-rose-500/10 text-rose-400
+                  hover:bg-rose-500/20 hover:scale-110
+                  active:scale-95
+                  transition-all duration-100
+                `}
+                title="Reject (R)"
+                aria-label="Reject"
+              >
+                <X size={12} />
+              </button>
+            </div>
           )}
         </div>
       </div>
-
-      {/* Action menu */}
-      <div className="flex-shrink-0 relative" data-topic-menu>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenuOpen(!menuOpen);
-          }}
-          className="
-            p-1 rounded
-            hover:bg-[var(--bg-secondary)]
-            transition-colors
-            text-[var(--text-muted)]
-            hover:text-[var(--text-primary)]
-          "
-          aria-label={`Actions for ${topic.title}`}
-          aria-expanded={menuOpen}
-          aria-haspopup="menu"
-        >
-          <MoreVertical size={16} />
-        </button>
-
-        {menuOpen && (
-          <div
-            className="
-              absolute right-0 top-full mt-1
-              bg-[var(--bg-primary)] border border-[var(--border-default)]
-              rounded shadow-lg z-10 min-w-[140px]
-            "
-            role="menu"
-          >
-            {/* View Results for completed topics */}
-            {canViewResults && (
-              <button
-                onClick={handleViewResults}
-                className="
-                  w-full px-3 py-2 text-left text-sm
-                  flex items-center gap-2
-                  hover:bg-[var(--bg-hover)]
-                  text-[var(--text-primary)]
-                "
-                role="menuitem"
-              >
-                <Eye size={14} />
-                View Results
-              </button>
-            )}
-            {/* Research for new/failed topics (not completed) */}
-            {!canViewResults && (
-              <button
-                onClick={handleResearch}
-                disabled={!canResearch || researchLoading}
-                className="
-                  w-full px-3 py-2 text-left text-sm
-                  flex items-center gap-2
-                  hover:bg-[var(--bg-hover)]
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                  text-[var(--text-primary)]
-                "
-                role="menuitem"
-              >
-                {researchLoading ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Beaker size={14} />
-                )}
-                Research
-              </button>
-            )}
-            {/* Retry for failed topics */}
-            {canRetry && (
-              <button
-                onClick={handleRetry}
-                disabled={retryLoading}
-                className="
-                  w-full px-3 py-2 text-left text-sm
-                  flex items-center gap-2
-                  hover:bg-[var(--amber-light,#FEF3C7)]
-                  text-[var(--amber-primary,#D97706)]
-                  disabled:opacity-50
-                "
-                role="menuitem"
-              >
-                {retryLoading ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <RefreshCw size={14} />
-                )}
-                Retry
-              </button>
-            )}
-            <button
-              onClick={handleDelete}
-              className="
-                w-full px-3 py-2 text-left text-sm
-                flex items-center gap-2
-                hover:bg-[var(--red-light)]
-                text-[var(--red-primary)]
-              "
-              role="menuitem"
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+    );
+  }
+);

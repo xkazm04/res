@@ -97,7 +97,7 @@ interface InfoTooltipProps {
 export function InfoTooltip({ content, className }: InfoTooltipProps) {
   return (
     <SwissTooltip content={content} className={className}>
-      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--bg-hover)] text-[var(--text-muted)] text-[10px] font-medium cursor-help">
+      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--bg-hover)] text-[var(--text-muted)] text-[10px] font-medium cursor-help transition-colors duration-150 hover:bg-[var(--bg-active)] hover:text-[var(--text-secondary)]">
         ?
       </span>
     </SwissTooltip>

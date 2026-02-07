@@ -11,6 +11,7 @@ import { ViewHeader } from '../shared/ViewHeader';
 import { ViewModeToggle, type ViewModeOption } from '../shared/ViewModeToggle';
 import { EmptyState } from '../shared/EmptyState';
 import { FilterChip } from '../shared/FilterChip';
+import { CollapsibleSection, SectionGroup } from '../shared/CollapsibleSection';
 import { entityTypeConfig, getEntityConfig, type EntityType } from '../shared/typeConfig';
 
 interface EntitiesViewProps {
@@ -122,33 +123,49 @@ export function EntitiesView({ entities, initialSelectedId }: EntitiesViewProps)
 
       {/* Constellation view */}
       {viewMode === 'constellation' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <CollapsibleSection
+          sectionId="entities-constellation"
+          title="Entity Network"
+          subtitle="Visual representation of entity relationships"
+          icon="🌐"
+          count={filtered.length}
+          variant="card"
+        >
           <EntityConstellation
             entities={filtered}
             selectedEntity={selectedEntity || undefined}
             onEntitySelect={handleSelectEntity}
           />
-        </motion.div>
+        </CollapsibleSection>
       )}
 
       {/* Cards view */}
       {viewMode === 'cards' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <SectionGroup>
           {(['person', 'organization', 'location', 'event'] as EntityType[]).map(type => {
             const list = filterType === 'all' ? grouped[type] : (filterType === type ? grouped[type] : []);
             if (list.length === 0) return null;
+            const config = entityTypeConfig[type];
 
             return (
-              <EntityTypeColumn
+              <CollapsibleSection
                 key={type}
-                type={type}
-                entities={list}
-                selectedEntity={selectedEntity}
-                onSelect={handleSelectEntity}
-              />
+                sectionId={`entities-${type}`}
+                title={`${type.charAt(0).toUpperCase() + type.slice(1)}s`}
+                icon={config.icon}
+                count={list.length}
+                variant="card"
+              >
+                <EntityTypeList
+                  type={type}
+                  entities={list}
+                  selectedEntity={selectedEntity}
+                  onSelect={handleSelectEntity}
+                />
+              </CollapsibleSection>
             );
           })}
-        </div>
+        </SectionGroup>
       )}
 
       {/* Selected entity detail */}
@@ -161,7 +178,7 @@ export function EntitiesView({ entities, initialSelectedId }: EntitiesViewProps)
   );
 }
 
-function EntityTypeColumn({ type, entities, selectedEntity, onSelect }: {
+function EntityTypeList({ type, entities, selectedEntity, onSelect }: {
   type: EntityType;
   entities: KnowledgeEntity[];
   selectedEntity: string | null;
@@ -169,40 +186,34 @@ function EntityTypeColumn({ type, entities, selectedEntity, onSelect }: {
 }) {
   const { theme } = useReportTheme();
   const isRadar = theme === 'radar';
-  const config = entityTypeConfig[type];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`rounded-xl overflow-hidden ${isRadar ? 'bg-slate-900/60 border border-cyan-500/10' : 'bg-white border border-stone-200'}`}
+      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2"
+      variants={listContainerVariants}
+      initial="hidden"
+      animate="visible"
     >
-      <div className={`sticky top-0 z-10 p-3 backdrop-blur-sm ${isRadar ? `bg-gradient-to-r ${config.gradient}/95` : 'bg-stone-50/95 border-b border-stone-200'}`}>
-        <h4 className={`text-xs font-semibold capitalize flex items-center gap-2 ${isRadar ? 'text-white' : 'text-stone-900'}`}>
-          {config.icon} {type}s (<AnimatedNumber value={entities.length} />)
-        </h4>
-      </div>
-      <motion.div
-        className="p-2 max-h-64 overflow-y-auto space-y-1 scroll-smooth"
-        variants={listContainerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {entities.slice(0, 10).map((e) => (
-          <motion.button
-            key={e.id}
-            variants={listItemVariants}
-            onClick={() => onSelect(selectedEntity === e.id ? null : e.id)}
-            className={`w-full text-left p-2 rounded-lg text-xs transition-all ${
-              selectedEntity === e.id
-                ? isRadar ? 'bg-cyan-500/20 text-cyan-300' : 'bg-stone-800 text-white'
-                : isRadar ? 'text-slate-300 hover:bg-slate-800/50' : 'text-stone-700 hover:bg-stone-50'
-            }`}
-          >
-            {e.canonical_name}
-          </motion.button>
-        ))}
-      </motion.div>
+      {entities.slice(0, 20).map((e) => (
+        <motion.button
+          key={e.id}
+          variants={listItemVariants}
+          onClick={() => onSelect(selectedEntity === e.id ? null : e.id)}
+          data-testid={`entity-item-${e.id}`}
+          className={`w-full text-left p-3 rounded-lg text-xs transition-all ${
+            selectedEntity === e.id
+              ? isRadar ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30' : 'bg-stone-800 text-white'
+              : isRadar ? 'text-slate-300 hover:bg-slate-800/50 bg-slate-800/30' : 'text-stone-700 hover:bg-stone-100 bg-stone-50'
+          }`}
+        >
+          <div className="font-medium truncate">{e.canonical_name}</div>
+          {e.mention_count && (
+            <div className={`text-[10px] mt-1 ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
+              {e.mention_count} mentions
+            </div>
+          )}
+        </motion.button>
+      ))}
     </motion.div>
   );
 }

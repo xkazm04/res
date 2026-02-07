@@ -49,7 +49,7 @@ export function SwissProgress({
     <div className={cn('flex items-center gap-2', className)}>
       <div className={cn('progress-bar flex-1', variantClasses[effectiveVariant], sizeClasses[size])}>
         <div
-          className="progress-bar-fill"
+          className="progress-bar-fill transition-[width] duration-300 ease-out"
           style={{ width: `${clampedValue}%` }}
         />
       </div>

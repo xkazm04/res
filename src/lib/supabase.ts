@@ -15,6 +15,7 @@ import type {
   ClaimRelationship,
   SessionWithDetails,
 } from '@/src/types/research';
+import { mapPerspectiveType, type SchemaPerspectiveType } from '@/src/types/schema';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -549,38 +550,24 @@ export async function saveActorPerspectives(
 ): Promise<boolean> {
   if (perspectives.length === 0) return true;
 
-  // Map custom perspective types to schema-allowed values
-  const perspectiveTypeMap: Record<string, string> = {
-    forensic_financial: 'financial',
-    power_network: 'network',
-    psychological_behavioral: 'psychological',
-    legal_liability: 'political',
-    geopolitical_strategic: 'political',
-    institutional_investor: 'financial',
-    short_seller: 'financial',
-    quantitative_risk: 'financial',
-    activist_investor: 'financial',
-    macro_strategist: 'economic',
-    strategy_consultant: 'economic',
-    industry_insider: 'economic',
-    litigation_strategist: 'political',
-    regulatory_expert: 'political',
-  };
-
+  // Use unified schema mapping
   const { error } = await supabase
     .from('research_perspectives')
-    .insert(perspectives.map(p => ({
-      session_id: sessionId,
-      perspective_type: perspectiveTypeMap[p.perspective_type] || 'economic',
-      analysis_text: p.analysis_text,
-      key_insights: p.key_insights,
-      recommendations: p.recommendations,
-      warnings: p.warnings,
-      confidence: p.confidence,
-      specialized_data: {
-        original_type: p.perspective_type,
-      },
-    })));
+    .insert(perspectives.map(p => {
+      const { schemaType, originalType } = mapPerspectiveType(p.perspective_type);
+      return {
+        session_id: sessionId,
+        perspective_type: schemaType,
+        analysis_text: p.analysis_text,
+        key_insights: p.key_insights,
+        recommendations: p.recommendations,
+        warnings: p.warnings,
+        confidence: p.confidence,
+        specialized_data: {
+          original_type: originalType,
+        },
+      };
+    }));
 
   if (error) {
     console.error('Error saving research perspectives:', error);
@@ -660,31 +647,52 @@ export async function getTopicsWithSessionCounts(): Promise<TopicGroup[]> {
     return [];
   }
 
-  // For each topic, get linked sessions
-  const topicsWithSessions = await Promise.all(
-    (topics || []).map(async (topic) => {
-      const { data: sessionLinks } = await supabase
-        .from('session_topics')
-        .select('session_id')
-        .eq('topic_id', topic.id);
+  if (!topics || topics.length === 0) return [];
 
-      let sessions: Array<{ id: string; template_type: string; status: string }> = [];
-      if (sessionLinks && sessionLinks.length > 0) {
-        const sessionIds = sessionLinks.map((l) => l.session_id);
-        const { data: sessionsData } = await supabase
-          .from('research_sessions')
-          .select('id, template_type, status')
-          .in('id', sessionIds);
-        sessions = sessionsData || [];
-      }
+  const topicIds = topics.map((t) => t.id);
 
-      return {
-        ...topic,
-        sessions,
-        session_count: sessions.length || topic.session_count || 0,
-      } as TopicGroup;
-    })
+  // Batch fetch all session links for all topics at once
+  const { data: allSessionLinks } = await supabase
+    .from('session_topics')
+    .select('topic_id, session_id')
+    .in('topic_id', topicIds);
+
+  if (!allSessionLinks || allSessionLinks.length === 0) {
+    return [];
+  }
+
+  // Batch fetch all referenced sessions at once
+  const allSessionIds = [...new Set(allSessionLinks.map((l) => l.session_id))];
+  const { data: allSessions } = await supabase
+    .from('research_sessions')
+    .select('id, template_type, status')
+    .in('id', allSessionIds);
+
+  const sessionsById = new Map(
+    (allSessions || []).map((s) => [s.id, s])
   );
+
+  // Group session links by topic
+  const linksByTopic = new Map<string, string[]>();
+  for (const link of allSessionLinks) {
+    const existing = linksByTopic.get(link.topic_id) || [];
+    existing.push(link.session_id);
+    linksByTopic.set(link.topic_id, existing);
+  }
+
+  // Assemble results
+  const topicsWithSessions = topics.map((topic) => {
+    const sessionIds = linksByTopic.get(topic.id) || [];
+    const sessions = sessionIds
+      .map((id) => sessionsById.get(id))
+      .filter(Boolean) as Array<{ id: string; template_type: string; status: string }>;
+
+    return {
+      ...topic,
+      sessions,
+      session_count: sessions.length || topic.session_count || 0,
+    } as TopicGroup;
+  });
 
   return topicsWithSessions.filter((t) => t.session_count > 0);
 }
@@ -730,36 +738,55 @@ export async function getEntitiesWithSessions(): Promise<EntityGroup[]> {
     return [];
   }
 
-  // For each entity, find linked sessions via claims
-  const entitiesWithSessions = await Promise.all(
-    (entities || []).map(async (entity) => {
-      // Get claims linked to this entity
-      const { data: claimEntities } = await supabase
-        .from('claim_entities')
-        .select('claim_id')
-        .eq('entity_id', entity.id);
+  if (!entities || entities.length === 0) return [];
 
-      if (!claimEntities || claimEntities.length === 0) {
-        return { ...entity, session_ids: [] } as EntityGroup;
-      }
+  const entityIds = entities.map((e) => e.id);
 
-      const claimIds = claimEntities.map((ce) => ce.claim_id);
+  // Batch fetch all claim_entities for all entities at once
+  const { data: allClaimEntities } = await supabase
+    .from('claim_entities')
+    .select('entity_id, claim_id')
+    .in('entity_id', entityIds);
 
-      // Get sessions that originated these claims
-      const { data: claims } = await supabase
-        .from('knowledge_claims')
-        .select('origin_session_id')
-        .in('id', claimIds)
-        .not('origin_session_id', 'is', null);
+  if (!allClaimEntities || allClaimEntities.length === 0) {
+    return [];
+  }
 
-      const sessionIds = [...new Set((claims || []).map((c) => c.origin_session_id).filter(Boolean))];
+  // Batch fetch all claims with session IDs at once
+  const allClaimIds = [...new Set(allClaimEntities.map((ce) => ce.claim_id))];
+  const { data: allClaims } = await supabase
+    .from('knowledge_claims')
+    .select('id, origin_session_id')
+    .in('id', allClaimIds)
+    .not('origin_session_id', 'is', null);
 
-      return {
-        ...entity,
-        session_ids: sessionIds,
-      } as EntityGroup;
-    })
+  // Map claim_id -> session_id
+  const claimToSession = new Map(
+    (allClaims || []).map((c) => [c.id, c.origin_session_id])
   );
+
+  // Group claim_entities by entity
+  const claimsByEntity = new Map<string, string[]>();
+  for (const ce of allClaimEntities) {
+    const existing = claimsByEntity.get(ce.entity_id) || [];
+    existing.push(ce.claim_id);
+    claimsByEntity.set(ce.entity_id, existing);
+  }
+
+  // Assemble results
+  const entitiesWithSessions = entities.map((entity) => {
+    const claimIds = claimsByEntity.get(entity.id) || [];
+    const sessionIds = [...new Set(
+      claimIds
+        .map((cid) => claimToSession.get(cid))
+        .filter(Boolean) as string[]
+    )];
+
+    return {
+      ...entity,
+      session_ids: sessionIds,
+    } as EntityGroup;
+  });
 
   return entitiesWithSessions.filter((e) => e.session_ids.length > 0);
 }
@@ -826,11 +853,25 @@ export async function getFindingTypeCounts(sessionId?: string): Promise<FindingT
 // REAL-TIME SUBSCRIPTIONS
 // ============================================
 
+/**
+ * Subscribe to real-time updates for a research session.
+ * Returns an unsubscribe function that MUST be called on cleanup to prevent memory leaks.
+ *
+ * @example
+ * ```tsx
+ * useEffect(() => {
+ *   const unsubscribe = subscribeToSession(sessionId, (session) => {
+ *     // handle update
+ *   });
+ *   return unsubscribe; // cleanup on unmount
+ * }, [sessionId]);
+ * ```
+ */
 export function subscribeToSession(
   sessionId: string,
   onUpdate: (session: ResearchSession) => void
-) {
-  return supabase
+): () => void {
+  const channel = supabase
     .channel(`session:${sessionId}`)
     .on(
       'postgres_changes',
@@ -845,13 +886,32 @@ export function subscribeToSession(
       }
     )
     .subscribe();
+
+  // Return cleanup function
+  return () => {
+    channel.unsubscribe();
+  };
 }
 
+/**
+ * Subscribe to real-time inserts for research findings.
+ * Returns an unsubscribe function that MUST be called on cleanup to prevent memory leaks.
+ *
+ * @example
+ * ```tsx
+ * useEffect(() => {
+ *   const unsubscribe = subscribeToFindings(sessionId, (finding) => {
+ *     // handle new finding
+ *   });
+ *   return unsubscribe; // cleanup on unmount
+ * }, [sessionId]);
+ * ```
+ */
 export function subscribeToFindings(
   sessionId: string,
   onInsert: (finding: ResearchFinding) => void
-) {
-  return supabase
+): () => void {
+  const channel = supabase
     .channel(`findings:${sessionId}`)
     .on(
       'postgres_changes',
@@ -866,4 +926,120 @@ export function subscribeToFindings(
       }
     )
     .subscribe();
+
+  // Return cleanup function
+  return () => {
+    channel.unsubscribe();
+  };
+}
+
+// ============================================
+// VIDEO DRAFTS QUERIES
+// ============================================
+
+import type { VideoDraft, VideoDraftSelection, VideoDraftEnrichment, VideoDraftRewrite } from '@/src/types/research';
+
+export async function getDraftsForSession(sessionId: string): Promise<VideoDraft[]> {
+  const { data, error } = await supabase
+    .from('video_drafts')
+    .select('*')
+    .eq('session_id', sessionId)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching video drafts:', error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getDraft(draftId: string): Promise<VideoDraft | null> {
+  const { data, error } = await supabase
+    .from('video_drafts')
+    .select('*')
+    .eq('id', draftId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching video draft:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function createDraft(
+  sessionId: string,
+  draft: {
+    name?: string;
+    selection: VideoDraftSelection;
+    enrichments?: VideoDraftEnrichment[];
+    rewrites?: VideoDraftRewrite[];
+  }
+): Promise<VideoDraft | null> {
+  const { data, error } = await supabase
+    .from('video_drafts')
+    .insert({
+      session_id: sessionId,
+      name: draft.name || 'Draft 1',
+      selection: draft.selection,
+      enrichments: draft.enrichments || [],
+      rewrites: draft.rewrites || [],
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating video draft:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function updateDraft(
+  draftId: string,
+  updates: {
+    name?: string;
+    selection?: VideoDraftSelection;
+    enrichments?: VideoDraftEnrichment[];
+    rewrites?: VideoDraftRewrite[];
+  }
+): Promise<VideoDraft | null> {
+  const updateData: Record<string, unknown> = {};
+  if (updates.name !== undefined) updateData.name = updates.name;
+  if (updates.selection !== undefined) updateData.selection = updates.selection;
+  if (updates.enrichments !== undefined) updateData.enrichments = updates.enrichments;
+  if (updates.rewrites !== undefined) updateData.rewrites = updates.rewrites;
+
+  // Get current version for increment
+  const { data: current } = await supabase
+    .from('video_drafts')
+    .select('version')
+    .eq('id', draftId)
+    .single();
+
+  const { data, error } = await supabase
+    .from('video_drafts')
+    .update({ ...updateData, version: (current?.version || 1) + 1 })
+    .eq('id', draftId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating video draft:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function deleteDraft(draftId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('video_drafts')
+    .delete()
+    .eq('id', draftId);
+
+  if (error) {
+    console.error('Error deleting video draft:', error);
+    return false;
+  }
+  return true;
 }

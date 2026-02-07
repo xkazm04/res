@@ -36,10 +36,10 @@ export function MapBreadcrumb({ path, onNavigate, className }: MapBreadcrumbProp
           <button
             onClick={() => handleClick(index)}
             className={cn(
-              'flex items-center gap-1.5 px-2 py-1 rounded transition-colors',
+              'flex items-center gap-1.5 px-2 py-1 rounded transition-all duration-200',
               index === path.length - 1
-                ? 'text-[var(--text-primary)] font-medium bg-[var(--bg-hover)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
+                ? 'text-[var(--text-primary)] font-medium bg-[var(--bg-hover)] shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:shadow-sm active:scale-95'
             )}
           >
             {index === 0 && <Home className="w-3.5 h-3.5" />}

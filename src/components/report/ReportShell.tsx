@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { type ReactNode, useId } from 'react';
 import { useReportTheme, useThemeStyles } from './core/ThemeContext';
+import { useSemanticIntent } from '@/src/stores/reportStore';
 import { useFocusTrap } from '@/src/hooks/useFocusTrap';
 import { useShell, type ShellRequirements } from '@/src/lib/shell';
 
@@ -32,6 +33,7 @@ export const REPORT_SHELL_REQUIREMENTS: ShellRequirements = {
 export function ReportShell({ children, onClose, titleId }: ReportShellProps) {
   const { theme } = useReportTheme();
   const styles = useThemeStyles();
+  const { useAmbientEffects } = useSemanticIntent();
   const generatedTitleId = useId();
   const dialogTitleId = titleId || `report-dialog-${generatedTitleId}`;
 
@@ -55,6 +57,7 @@ export function ReportShell({ children, onClose, titleId }: ReportShellProps) {
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 flex"
         role="presentation"
+        data-testid="report-shell-container"
       >
         {/* Backdrop - staged cinematic reveal: fade → blur → content */}
         <motion.div
@@ -71,6 +74,7 @@ export function ReportShell({ children, onClose, titleId }: ReportShellProps) {
           style={{ WebkitBackdropFilter: 'blur(8px)' }}
           onClick={onClose}
           aria-hidden="true"
+          data-testid="report-shell-backdrop"
         />
 
         {/* Dialog content with focus trap and ARIA attributes - scales in after backdrop blur */}
@@ -89,10 +93,12 @@ export function ReportShell({ children, onClose, titleId }: ReportShellProps) {
           aria-modal="true"
           aria-labelledby={dialogTitleId}
           tabIndex={-1}
+          data-testid="report-shell-dialog"
         >
           {/* Hidden title for screen readers only when no visible title ID is provided */}
           {!titleId && <span id={dialogTitleId} className="sr-only">Research Intelligence Report</span>}
-          {theme === 'radar' && <RadarAmbience />}
+          {/* Use semantic intent flag instead of raw theme check */}
+          {useAmbientEffects && <RadarAmbience />}
           {children}
         </motion.div>
       </motion.div>

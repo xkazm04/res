@@ -8,13 +8,14 @@ import {
 import { SourceColumn } from '@/src/components/initiate/SourceColumn';
 import { ScrollIndicator } from '@/src/components/initiate/ScrollIndicator';
 import { QueueDashboard } from '@/src/components/initiate/QueueDashboard';
+import { InitiateThemeProvider, initiateTheme } from '@/src/components/initiate/InitiateTheme';
 import { SOURCES } from '@/src/lib/sources';
 import { supabase } from '@/src/lib/supabase';
-import { TopicStatus } from '@/src/types/research';
+import { TopicStatus, TOPIC_STATUSES } from '@/src/types/research';
 import { useStatusPolling, TopicStatusUpdate } from '@/src/hooks/useStatusPolling';
 import { useAppStore } from '@/src/stores/appStore';
 
-// Map source slugs to Lucide icons (icons can't be serialized in SOURCES)
+// Map source slugs to Lucide icons
 const ICON_MAP: Record<string, typeof Twitter> = {
   twitter: Twitter,
   bbc: Globe,
@@ -37,6 +38,12 @@ interface Topic {
   discoveredAt: string;
   updatedAt?: string;
   sessionId?: string;
+  signals?: string[];
+  researchQuery?: string;
+  suggestedTemplate?: string;
+  claim?: string;
+  sourceBias?: string;
+  debunkable?: number;
 }
 
 // Database row shape
@@ -48,6 +55,12 @@ interface TopicRow {
   discovered_at: string;
   updated_at: string;
   session_id: string | null;
+  signals: string[] | null;
+  research_query: string | null;
+  suggested_template: string | null;
+  claim: string | null;
+  source_bias: string | null;
+  debunkable: number | null;
 }
 
 // Transform database row to UI topic
@@ -56,14 +69,22 @@ function transformTopic(row: TopicRow): Topic {
     id: row.id,
     title: row.title,
     description: row.description ?? undefined,
-    status: row.status as TopicStatus,
+    status: (TOPIC_STATUSES as readonly string[]).includes(row.status)
+      ? (row.status as TopicStatus)
+      : 'new',
     discoveredAt: row.discovered_at,
     updatedAt: row.updated_at,
     sessionId: row.session_id ?? undefined,
+    signals: row.signals ?? undefined,
+    researchQuery: row.research_query ?? undefined,
+    suggestedTemplate: row.suggested_template ?? undefined,
+    claim: row.claim ?? undefined,
+    sourceBias: row.source_bias ?? undefined,
+    debunkable: row.debunkable ?? undefined,
   };
 }
 
-export default function InitiatePage() {
+function InitiatePageContent() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [topicsBySource, setTopicsBySource] = useState<Record<string, Topic[]>>({});
   const [discoveringSource, setDiscoveringSource] = useState<string | null>(null);
@@ -74,7 +95,6 @@ export default function InitiatePage() {
 
   // Fetch topics for a specific source
   const fetchTopicsForSource = useCallback(async (sourceSlug: string) => {
-    // Get source ID from slug
     const { data: source } = await supabase
       .from('data_sources')
       .select('id')
@@ -84,7 +104,7 @@ export default function InitiatePage() {
     if (source) {
       const { data: topics } = await supabase
         .from('research_topics')
-        .select('id, title, description, status, discovered_at, updated_at, session_id')
+        .select('id, title, description, status, discovered_at, updated_at, session_id, signals, research_query, suggested_template, claim, source_bias, debunkable')
         .eq('source_id', source.id)
         .neq('status', 'deleted')
         .order('discovered_at', { ascending: false });
@@ -106,27 +126,19 @@ export default function InitiatePage() {
   }, [fetchTopicsForSource]);
 
   // Handle successful topic discovery
-  const handleTopicsDiscovered = useCallback(async (slug: string, count: number) => {
-    // Refresh topics for this source
+  const handleTopicsDiscovered = useCallback(async (slug: string, _count: number) => {
     await fetchTopicsForSource(slug);
-
-    // Log success
-    console.log(`Discovered ${count} topic${count !== 1 ? 's' : ''} from ${slug}`);
   }, [fetchTopicsForSource]);
 
   // Handle discovery error
-  const handleDiscoveryError = useCallback((slug: string, error: string) => {
-    console.error(`Discovery failed for ${slug}: ${error}`);
-    // Show alert for user feedback (can upgrade to toast library later)
+  const handleDiscoveryError = useCallback((_slug: string, error: string) => {
     alert(`Discovery failed: ${error}`);
   }, []);
 
-  // Handle download (placeholder)
-  const handleDownload = useCallback((slug: string) => {
-    console.log(`Download requested for ${slug}`);
-  }, []);
+  // Handle download (not yet implemented - stub for SourceColumn prop)
+  const handleDownload = useCallback((_slug: string) => {}, []);
 
-  // Handle discover from empty state (triggers same flow as button)
+  // Handle discover from empty state
   const handleDiscover = useCallback((slug: string) => {
     setDiscoveringSource(slug);
   }, []);
@@ -136,7 +148,6 @@ export default function InitiatePage() {
     (id: string, status: TopicStatus, sessionId?: string) => {
       setTopicsBySource((prev) => {
         const updated = { ...prev };
-        // Find which source has this topic and update it
         for (const slug of Object.keys(updated)) {
           const topics = updated[slug];
           const topicIndex = topics.findIndex((t) => t.id === id);
@@ -149,11 +160,29 @@ export default function InitiatePage() {
         }
         return updated;
       });
-      // Log for debugging
-      console.log(`Topic ${id} status changed to ${status}${sessionId ? `, session: ${sessionId}` : ''}`);
     },
     []
   );
+
+  // Handle topic removal (after reject/delete)
+  const handleTopicRemoved = useCallback((id: string) => {
+    setTopicsBySource((prev) => {
+      const updated = { ...prev };
+      for (const slug of Object.keys(updated)) {
+        const topics = updated[slug];
+        const hasTopicIndex = topics.findIndex((t) => t.id === id);
+        if (hasTopicIndex !== -1) {
+          // Filter out the removed topic
+          updated[slug] = topics.filter((t) => t.id !== id);
+          break;
+        }
+      }
+      return updated;
+    });
+  }, []);
+
+  // Handle accept (stub - topic is already accepted via TopicCard's API call)
+  const handleAccept = useCallback((_id: string) => {}, []);
 
   // Handle viewing completed research session
   const handleViewSession = useCallback(
@@ -163,34 +192,7 @@ export default function InitiatePage() {
     [openReportModal]
   );
 
-  // Handle retrying failed research
-  const handleRetry = useCallback(
-    async (topicId: string) => {
-      try {
-        const res = await fetch(`/api/topics/${topicId}/research`, {
-          method: 'POST',
-        });
-
-        if (res.status === 202) {
-          const data = await res.json();
-          // Optimistic update to queued status
-          handleTopicStatusChange(topicId, 'queued', data.session_id);
-        } else if (res.status === 409) {
-          const data = await res.json();
-          alert(`Research already ${data.status} for this topic.`);
-        } else {
-          const data = await res.json();
-          alert(data.error || 'Failed to retry research');
-        }
-      } catch (error) {
-        console.error('Retry failed:', error);
-        alert('Failed to retry research. Please try again.');
-      }
-    },
-    [handleTopicStatusChange]
-  );
-
-  // Compute active topics count and existence
+  // Compute active topics count
   const activeTopicsCount = Object.values(topicsBySource).reduce(
     (count, topics) =>
       count + topics.filter((t) => t.status === 'queued' || t.status === 'researching').length,
@@ -200,29 +202,32 @@ export default function InitiatePage() {
 
   // Handle status updates from polling
   const handleStatusUpdate = useCallback((updates: TopicStatusUpdate[]) => {
+    // Build a lookup map for O(1) update matching
+    const updateMap = new Map(updates.map((u) => [u.id, u]));
+
     setTopicsBySource((prev) => {
-      const updated = { ...prev };
-      for (const update of updates) {
-        // Find which source has this topic and update it
-        for (const slug of Object.keys(updated)) {
-          const topics = updated[slug];
-          const topicIndex = topics.findIndex((t) => t.id === update.id);
-          if (topicIndex !== -1) {
-            updated[slug] = topics.map((t) =>
-              t.id === update.id
-                ? {
-                    ...t,
-                    status: update.status,
-                    updatedAt: update.updatedAt,
-                    sessionId: update.sessionId || t.sessionId,
-                  }
-                : t
-            );
-            break;
+      let changed = false;
+      const next: Record<string, Topic[]> = {};
+
+      for (const slug of Object.keys(prev)) {
+        const topics = prev[slug];
+        const newTopics = topics.map((t) => {
+          const update = updateMap.get(t.id);
+          if (update) {
+            changed = true;
+            return {
+              ...t,
+              status: update.status,
+              updatedAt: update.updatedAt,
+              sessionId: update.sessionId || t.sessionId,
+            };
           }
-        }
+          return t;
+        });
+        next[slug] = newTopics;
       }
-      return updated;
+
+      return changed ? next : prev;
     });
   }, []);
 
@@ -254,67 +259,100 @@ export default function InitiatePage() {
     }
   }, [handleStatusUpdate]);
 
+  // Count total topics to review
+  const totalToReview = Object.values(topicsBySource).reduce(
+    (count, topics) => count + topics.filter((t) => t.status === 'new').length,
+    0
+  );
+
   return (
-    <main className="h-screen bg-[var(--bg-primary)]">
-      {/* Page Header */}
-      <header className="h-[60px] flex items-center justify-between px-6 border-b border-[var(--border-default)]">
-        <h1 className="text-lg font-semibold text-[var(--text-primary)]">
-          Research Initiation
-        </h1>
-        <div className="flex items-center gap-4">
+    <main className="h-screen flex flex-col">
+      {/* Minimal Header */}
+      <header className={`
+        h-[44px] flex-shrink-0
+        flex items-center justify-between px-4
+        ${initiateTheme.bgSecondary}
+        border-b ${initiateTheme.borderSubtle}
+      `}>
+        <div className="flex items-center gap-3">
+          <h1 className={`text-sm font-medium ${initiateTheme.text}`}>
+            Initiate
+          </h1>
+          {totalToReview > 0 && (
+            <span className={`text-xs ${initiateTheme.textMuted}`}>
+              {totalToReview} to review
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
           {/* Queue button */}
           <button
             onClick={() => setIsQueueOpen(true)}
-            className="
+            className={`
               relative flex items-center gap-1.5 px-2 py-1
-              text-sm text-[var(--text-secondary)]
-              hover:text-[var(--text-primary)]
-              hover:bg-[var(--bg-hover)]
-              rounded transition-colors
-            "
-            title="View research queue"
+              text-xs rounded
+              ${initiateTheme.buttonSecondary}
+              transition-colors
+            `}
+            title="View queue"
           >
-            <List size={14} />
+            <List size={12} />
             Queue
             {activeTopicsCount > 0 && (
-              <span className="
-                absolute -top-1 -right-1
-                min-w-[18px] h-[18px]
+              <span className={`
+                ml-1 min-w-[16px] h-[16px]
                 flex items-center justify-center
-                px-1 rounded-full
-                text-[10px] font-medium
-                bg-[var(--blue-primary)] text-white
-              ">
+                text-[9px] font-semibold
+                bg-cyan-500 text-slate-950 rounded-full
+              `}>
                 {activeTopicsCount}
               </span>
             )}
           </button>
+
           {hasActiveTopics && (
             <button
               onClick={refreshAllActiveTopics}
               disabled={isRefreshing}
-              className="
-                flex items-center gap-1.5 px-2 py-1
-                text-sm text-[var(--text-secondary)]
-                hover:text-[var(--text-primary)]
-                hover:bg-[var(--bg-hover)]
-                rounded transition-colors
+              className={`
+                p-1.5 rounded
+                ${initiateTheme.textMuted}
+                hover:text-slate-100
+                ${initiateTheme.bgHover}
+                transition-colors
                 disabled:opacity-50
-              "
-              title="Refresh active topic statuses"
+              `}
+              title="Refresh"
             >
-              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
-              Refresh
+              <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
             </button>
           )}
-          <div className="text-sm text-[var(--text-muted)]">
-            {SOURCES.length} sources
+
+          {/* Keyboard hints */}
+          <div className={`
+            hidden sm:flex items-center gap-1
+            text-[9px] ${initiateTheme.textMuted}
+          `}>
+            <kbd className="px-1 py-0.5 rounded bg-slate-800/50 border border-slate-700/50">J</kbd>
+            <kbd className="px-1 py-0.5 rounded bg-slate-800/50 border border-slate-700/50">K</kbd>
+            <span>nav</span>
+            <kbd className="px-1 py-0.5 rounded bg-slate-800/50 border border-slate-700/50 ml-1">A</kbd>
+            <span>accept</span>
+            <kbd className="px-1 py-0.5 rounded bg-slate-800/50 border border-slate-700/50 ml-1">R</kbd>
+            <span>reject</span>
           </div>
         </div>
       </header>
 
-      {/* 10-Column Grid */}
-      <div ref={containerRef} className="initiate-grid-container">
+      {/* Source Columns Grid */}
+      <div
+        ref={containerRef}
+        className={`
+          initiate-grid-container flex-1 overflow-x-auto
+          ${initiateTheme.scrollbar}
+        `}
+      >
         {SOURCES.map((source, index) => (
           <SourceColumn
             key={source.slug}
@@ -330,8 +368,8 @@ export default function InitiatePage() {
             onDiscoveryError={handleDiscoveryError}
             isDiscovering={discoveringSource === source.slug}
             onTopicStatusChange={handleTopicStatusChange}
-            onViewSession={handleViewSession}
-            onRetry={handleRetry}
+            onTopicRemoved={handleTopicRemoved}
+            onAccept={handleAccept}
           />
         ))}
       </div>
@@ -351,5 +389,13 @@ export default function InitiatePage() {
         )}
       />
     </main>
+  );
+}
+
+export default function InitiatePage() {
+  return (
+    <InitiateThemeProvider>
+      <InitiatePageContent />
+    </InitiateThemeProvider>
   );
 }

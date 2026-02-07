@@ -4,49 +4,43 @@
 // ============================================
 
 // ============================================
-// ENUMS
+// SCHEMA TYPES - Import from unified source
 // ============================================
 
-export type SessionStatus = 'active' | 'searching' | 'analyzing' | 'completed' | 'paused' | 'failed';
+import {
+  type SchemaSessionStatus,
+  type SchemaFindingType,
+  type SchemaEntityType,
+  type SchemaRelationshipType,
+  type SchemaPerspectiveType,
+  type SchemaSourceType,
+  type SchemaVerificationStatus,
+  type SchemaTemporalContext,
+  type SchemaTopicType,
+  type SchemaTopicStatus,
+  SCHEMA_TOPIC_STATUSES,
+} from './schema';
 
-export type FindingType = 'fact' | 'claim' | 'event' | 'actor' | 'relationship' | 'pattern' | 'gap' | 'evidence';
+// Re-export schema types with legacy names for backwards compatibility
+export type SessionStatus = SchemaSessionStatus;
+export type FindingType = SchemaFindingType;
+export type EntityType = SchemaEntityType;
+export type RelationshipType = SchemaRelationshipType;
+export type PerspectiveType = SchemaPerspectiveType;
+export type SourceType = SchemaSourceType;
+export type VerificationStatus = SchemaVerificationStatus;
+export type TopicType = SchemaTopicType;
+
+// TemporalContext allows extended values for display/input, which get mapped to schema values on save
+// Schema values: 'past' | 'present' | 'ongoing' | 'prediction'
+// Extended aliases: 'historical' -> 'past', 'current' -> 'present', 'predicted' -> 'prediction'
+export type TemporalContext = SchemaTemporalContext | 'historical' | 'current' | 'predicted';
+
+// ============================================
+// ADDITIONAL ENUMS (not in schema.ts)
+// ============================================
 
 export type ClaimType = 'fact' | 'event' | 'relationship' | 'pattern' | 'prediction' | 'actor' | 'evidence' | 'gap';
-
-export type EntityType = 'person' | 'organization' | 'location' | 'product' | 'concept' | 'event';
-
-export type RelationshipType =
-  | 'causes'
-  | 'supports'
-  | 'contradicts'
-  | 'expands'
-  | 'supersedes'
-  | 'related_to'
-  | 'part_of'
-  | 'precedes'
-  | 'follows'
-  | 'enables'
-  | 'prevents'
-  | 'involves';
-
-export type PerspectiveType =
-  | 'historical'
-  | 'political'
-  | 'economic'
-  | 'psychological'
-  | 'military'
-  | 'social'
-  | 'technological'
-  | 'financial'
-  | 'journalist'
-  | 'conspirator'
-  | 'network';
-
-export type SourceType = 'news' | 'academic' | 'government' | 'corporate' | 'blog' | 'social' | 'wiki' | 'unknown';
-
-export type VerificationStatus = 'unverified' | 'corroborated' | 'disputed' | 'verified' | 'retracted';
-
-export type TemporalContext = 'historical' | 'current' | 'ongoing' | 'predicted' | 'past' | 'present' | 'prediction';
 
 export type DecompositionStrategy = 'temporal' | 'thematic' | 'actor' | 'hybrid' | 'none';
 
@@ -55,8 +49,6 @@ export type CompositionRole = 'background' | 'primary' | 'synthesis' | 'equal';
 export type GapType = 'temporal' | 'actor' | 'topic' | 'evidence' | 'geographic';
 
 export type GapPriority = 'high' | 'medium' | 'low';
-
-export type TopicType = 'domain' | 'event' | 'entity' | 'concept' | 'region' | 'timeperiod';
 
 export type EntityRole = 'subject' | 'object' | 'actor' | 'target' | 'location' | 'mentioned' | 'source' | 'beneficiary';
 
@@ -560,9 +552,20 @@ export interface DataSource {
   createdAt: string;
 }
 
-export type TopicStatus = 'new' | 'queued' | 'researching' | 'completed' | 'failed' | 'deleted';
+export type TopicStatus = SchemaTopicStatus;
+export { SCHEMA_TOPIC_STATUSES as TOPIC_STATUSES };
 
 export type TopicSignal = 'breaking' | 'trending' | 'controversial';
+
+export type SourceBias = 'left' | 'center-left' | 'center' | 'center-right' | 'right';
+
+export type SuggestedTemplate =
+  | 'debunk_claim'
+  | 'actor_investigation'
+  | 'event_timeline'
+  | 'policy_analysis'
+  | 'financial_investigation'
+  | 'controversy_analysis';
 
 export interface ResearchTopic {
   id: string;
@@ -573,6 +576,102 @@ export interface ResearchTopic {
   status: TopicStatus;
   sessionId?: string;
   signals: TopicSignal[];
+  /** Generated research query for direct use in research templates */
+  researchQuery?: string;
+  /** Recommended research template for this topic */
+  suggestedTemplate?: SuggestedTemplate;
+  /** Verifiable claim extracted from the story (not just headline) */
+  claim?: string;
+  /** Political bias indicator for the source */
+  sourceBias?: SourceBias;
+  /** Debunkability score 1-5: 1=hard to verify, 5=easily verifiable */
+  debunkable?: number;
   discoveredAt: string;
   updatedAt: string;
+}
+
+// ============================================
+// VIDEO RENDERING (Phase 21)
+// ============================================
+
+export type VideoRenderStatus = 'pending' | 'rendering' | 'encoding' | 'complete' | 'failed';
+
+export type VideoFormat = '16:9' | '9:16';
+
+export interface VideoRender {
+  id: string;
+  session_id: string;
+  template_type: string;
+  format: VideoFormat;
+  status: VideoRenderStatus;
+  progress_percent: number;
+  render_id?: string; // Remotion Lambda render ID
+  bucket_name?: string;
+  estimated_duration_seconds?: number;
+  estimated_cost_usd?: number;
+  started_at?: string;
+  completed_at?: string;
+  s3_output_key?: string;
+  signed_url?: string;
+  signed_url_expires_at?: string;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VideoRenderRequest {
+  session_id: string;
+  template_type: string;
+  format: VideoFormat;
+  selected_findings?: string[];
+  selected_sources?: string[];
+  selected_perspectives?: string[];
+}
+
+export interface VideoRenderProgress {
+  render_id: string;
+  status: VideoRenderStatus;
+  progress_percent: number;
+  frames_rendered?: number;
+  total_frames?: number;
+  estimated_time_remaining_seconds?: number;
+}
+
+// ============================================
+// VIDEO DRAFTS (Curated Snapshots)
+// ============================================
+
+export interface VideoDraftEnrichment {
+  itemId: string;
+  type: string;
+  content: string;
+  source?: string;
+}
+
+export interface VideoDraftRewrite {
+  itemId: string;
+  originalContent: string;
+  optimizedContent: string;
+}
+
+export interface VideoDraftSelection {
+  selectedFindings: string[];
+  selectedPerspectives: string[];
+  selectedContradictions: string[];
+  selectedGaps: string[];
+  selectedCausalChains: string[];
+  /** Section assignments - stored as string[] in DB, cast to VideoSection[] at runtime */
+  sectionAssignments: Record<string, string[]>;
+}
+
+export interface VideoDraft {
+  id: string;
+  session_id: string;
+  name: string;
+  selection: VideoDraftSelection;
+  enrichments: VideoDraftEnrichment[];
+  rewrites: VideoDraftRewrite[];
+  version: number;
+  created_at: string;
+  updated_at: string;
 }

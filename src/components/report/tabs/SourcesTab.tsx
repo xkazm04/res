@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback } from 'react';
 import type { ResearchSource } from '@/src/types/research';
 import { ThemedSection } from '../ThemedCards';
 import { EmptyState } from '../shared/EmptyState';
@@ -8,6 +8,7 @@ import { SourceTypeBadge, CredibilityBadge } from '../shared/Badges';
 import { ProgressBar } from '../shared/ProgressBar';
 import { LinkIcon } from '../shared/Icons';
 import { matchesConfidenceFilter, type ConfidenceFilterOption } from '../shared/typeConfig';
+import { useFilteredData, useCredibilityBuckets } from '@/src/hooks/useFilteredData';
 
 interface SourcesTabProps {
   sources: ResearchSource[];
@@ -16,10 +17,11 @@ interface SourcesTabProps {
 }
 
 export function SourcesTab({ sources, searchQuery, filterConfidence }: SourcesTabProps) {
-  const filteredSources = useMemo(() => {
-    return sources.filter((s) => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+  // Stabilize filter function to prevent re-filtering when only search query changes
+  const filterFn = useCallback(
+    (s: ResearchSource, debouncedQuery: string) => {
+      if (debouncedQuery) {
+        const query = debouncedQuery.toLowerCase();
         const matchesTitle = s.title?.toLowerCase().includes(query);
         const matchesDomain = s.domain?.toLowerCase().includes(query);
         const matchesSnippet = s.snippet?.toLowerCase().includes(query);
@@ -29,16 +31,22 @@ export function SourcesTab({ sources, searchQuery, filterConfidence }: SourcesTa
         return false;
       }
       return true;
-    });
-  }, [sources, searchQuery, filterConfidence]);
+    },
+    [filterConfidence]
+  );
 
-  // Group by credibility
-  const highCred = filteredSources.filter(s => (s.credibility_score || 0) >= 0.8);
-  const medCred = filteredSources.filter(s => {
-    const c = s.credibility_score || 0;
-    return c >= 0.5 && c < 0.8;
+  const { filteredData: filteredSources } = useFilteredData({
+    data: sources,
+    searchQuery,
+    filterFn,
   });
-  const lowCred = filteredSources.filter(s => (s.credibility_score || 0) < 0.5);
+
+  // Single-pass credibility bucketing
+  const getCredibilityScore = useCallback((s: ResearchSource) => s.credibility_score || 0, []);
+  const { high: highCred, medium: medCred, low: lowCred } = useCredibilityBuckets(
+    filteredSources,
+    getCredibilityScore
+  );
 
   if (filteredSources.length === 0) {
     return <EmptyState type="search" title="No sources match your filters" />;

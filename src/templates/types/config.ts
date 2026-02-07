@@ -206,6 +206,42 @@ export interface TemplateConfig {
 
   /** Default maximum number of web searches */
   defaultMaxSearches: number;
+
+  // ---- Input Variables ----
+
+  /** Template variables that users can fill in (optional) */
+  variables?: TemplateVariable[];
+}
+
+// ============================================
+// TEMPLATE VARIABLES
+// ============================================
+
+/**
+ * Configuration for a template input variable.
+ * Variables are replaced in the template using {{variableName}} syntax.
+ */
+export interface TemplateVariable {
+  /** Variable name (used in {{name}} placeholders) */
+  name: string;
+
+  /** Human-readable label for the input field */
+  label: string;
+
+  /** Input type: text for free-form, select for dropdown */
+  type: 'text' | 'select';
+
+  /** Whether this variable is required */
+  required?: boolean;
+
+  /** Default value if not provided */
+  default?: string;
+
+  /** Placeholder text for text inputs */
+  placeholder?: string;
+
+  /** Options for select inputs */
+  options?: Array<{ value: string; label: string }>;
 }
 
 // ============================================

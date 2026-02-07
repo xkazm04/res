@@ -110,11 +110,16 @@ export const SOURCES: Omit<DataSource, 'id' | 'createdAt'>[] = [
   },
 ];
 
+// Pre-built Map for O(1) slug lookups instead of O(n) array search
+const SOURCES_BY_SLUG = new Map<string, Omit<DataSource, 'id' | 'createdAt'>>(
+  SOURCES.map(source => [source.slug, source])
+);
+
 /**
- * Get a source by its slug
+ * Get a source by its slug - O(1) lookup via Map
  */
 export function getSourceBySlug(slug: string): Omit<DataSource, 'id' | 'createdAt'> | undefined {
-  return SOURCES.find((s) => s.slug === slug);
+  return SOURCES_BY_SLUG.get(slug);
 }
 
 /**

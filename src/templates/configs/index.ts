@@ -10,16 +10,21 @@
  */
 
 import { TemplateConfig } from '../types';
-import { techMarketConfig } from './tech_market';
-import { financialConfig } from './financial';
-import { competitiveConfig } from './competitive';
-import { dueDiligenceConfig } from './due_diligence';
-import { investigativeConfig } from './investigative';
-import { purchaseDecisionConfig } from './purchase_decision';
-import { understandingConfig } from './understanding';
-import { legalConfig } from './legal';
-import { contractConfig } from './contract';
-import { reputationConfig } from './reputation';
+
+// Research templates
+import { techMarketConfig } from '../research/tech_market';
+import { financialConfig } from '../research/financial';
+import { competitiveConfig } from '../research/competitive';
+import { dueDiligenceConfig } from '../research/due_diligence';
+import { investigativeConfig } from '../research/investigative';
+import { purchaseDecisionConfig } from '../research/purchase_decision';
+import { understandingConfig } from '../research/understanding';
+import { legalConfig } from '../research/legal';
+import { contractConfig } from '../research/contract';
+import { reputationConfig } from '../research/reputation';
+
+// Feed templates
+import { newsFeedConfig } from '../feed/news_feed';
 
 // ============================================
 // TEMPLATE REGISTRY
@@ -40,6 +45,7 @@ export const templates: Record<string, TemplateConfig> = {
   legal: legalConfig,
   contract: contractConfig,
   reputation: reputationConfig,
+  news_feed: newsFeedConfig,
 };
 
 // ============================================
@@ -90,13 +96,17 @@ export function isValidTemplate(templateId: string): boolean {
 // ============================================
 
 // Re-export individual configs for direct import
-export { techMarketConfig } from './tech_market';
-export { financialConfig } from './financial';
-export { competitiveConfig } from './competitive';
-export { dueDiligenceConfig } from './due_diligence';
-export { investigativeConfig } from './investigative';
-export { purchaseDecisionConfig } from './purchase_decision';
-export { understandingConfig } from './understanding';
-export { legalConfig } from './legal';
-export { contractConfig } from './contract';
-export { reputationConfig } from './reputation';
+// Research templates
+export { techMarketConfig } from '../research/tech_market';
+export { financialConfig } from '../research/financial';
+export { competitiveConfig } from '../research/competitive';
+export { dueDiligenceConfig } from '../research/due_diligence';
+export { investigativeConfig } from '../research/investigative';
+export { purchaseDecisionConfig } from '../research/purchase_decision';
+export { understandingConfig } from '../research/understanding';
+export { legalConfig } from '../research/legal';
+export { contractConfig } from '../research/contract';
+export { reputationConfig } from '../research/reputation';
+
+// Feed templates
+export { newsFeedConfig } from '../feed/news_feed';

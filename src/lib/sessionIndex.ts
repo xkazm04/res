@@ -146,27 +146,45 @@ export class SessionIndex {
   }
 
   /**
-   * Get all sessions for a template
+   * Get all sessions for a template - optimized single-pass iteration
    */
   getByTemplate(template: string): SessionSummary[] {
-    const ids = this.byTemplate.get(template) || new Set();
-    return [...ids].map(id => this.byId.get(id)!).filter(Boolean);
+    const ids = this.byTemplate.get(template);
+    if (!ids || ids.size === 0) return [];
+    const result: SessionSummary[] = [];
+    for (const id of ids) {
+      const session = this.byId.get(id);
+      if (session) result.push(session);
+    }
+    return result;
   }
 
   /**
-   * Get all sessions for a topic
+   * Get all sessions for a topic - optimized single-pass iteration
    */
   getByTopic(topicId: string): SessionSummary[] {
-    const ids = this.byTopic.get(topicId) || new Set();
-    return [...ids].map(id => this.byId.get(id)!).filter(Boolean);
+    const ids = this.byTopic.get(topicId);
+    if (!ids || ids.size === 0) return [];
+    const result: SessionSummary[] = [];
+    for (const id of ids) {
+      const session = this.byId.get(id);
+      if (session) result.push(session);
+    }
+    return result;
   }
 
   /**
-   * Get all sessions by status
+   * Get all sessions by status - optimized single-pass iteration
    */
   getByStatus(status: string): SessionSummary[] {
-    const ids = this.byStatus.get(status) || new Set();
-    return [...ids].map(id => this.byId.get(id)!).filter(Boolean);
+    const ids = this.byStatus.get(status);
+    if (!ids || ids.size === 0) return [];
+    const result: SessionSummary[] = [];
+    for (const id of ids) {
+      const session = this.byId.get(id);
+      if (session) result.push(session);
+    }
+    return result;
   }
 
   /**

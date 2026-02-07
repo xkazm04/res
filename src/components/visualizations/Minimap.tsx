@@ -171,13 +171,13 @@ export const Minimap = memo(function Minimap({
   }
 
   return (
-    <div className="bg-[#0F0F11]/90 backdrop-blur-sm rounded-lg overflow-hidden shadow-lg">
+    <div className="bg-[#0F0F11]/90 backdrop-blur-sm rounded-lg overflow-hidden shadow-lg border border-[#27272A] transition-all duration-200 hover:border-[#3F3F46] hover:shadow-xl">
       <canvas
         ref={canvasRef}
         width={MINIMAP_SIZE}
         height={MINIMAP_SIZE}
         style={{ width: MINIMAP_SIZE, height: MINIMAP_SIZE }}
-        className="cursor-crosshair"
+        className="cursor-crosshair transition-opacity duration-150 hover:opacity-100 opacity-90"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

@@ -704,11 +704,251 @@ export function bundleEdges(
 }
 
 // ============================================================================
+// Barnes-Hut Quadtree for O(n log n) Force Calculations
+// ============================================================================
+
+interface QuadTreeNode {
+  // Bounds of this cell
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  // Center of mass
+  cx: number;
+  cy: number;
+  // Total mass (number of nodes)
+  mass: number;
+  // Children (NW, NE, SW, SE) or null if leaf
+  children: [QuadTreeNode | null, QuadTreeNode | null, QuadTreeNode | null, QuadTreeNode | null] | null;
+  // Body (only for leaf nodes with exactly one node)
+  body: { x: number; y: number; index: number } | null;
+}
+
+/**
+ * Barnes-Hut quadtree for efficient force approximation.
+ * Reduces O(n²) pairwise force calculations to O(n log n).
+ */
+class BarnesHutTree {
+  private root: QuadTreeNode | null = null;
+  private theta: number;
+
+  /**
+   * @param theta - Barnes-Hut threshold (default 0.5). Lower values = more accuracy, higher = faster.
+   *                Typically 0.5-1.0 provides good balance.
+   */
+  constructor(theta = 0.5) {
+    this.theta = theta;
+  }
+
+  /**
+   * Build the quadtree from a set of nodes.
+   */
+  build(nodes: Array<{ x: number; y: number; index: number }>): void {
+    if (nodes.length === 0) {
+      this.root = null;
+      return;
+    }
+
+    // Find bounds
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    for (const node of nodes) {
+      minX = Math.min(minX, node.x);
+      maxX = Math.max(maxX, node.x);
+      minY = Math.min(minY, node.y);
+      maxY = Math.max(maxY, node.y);
+    }
+
+    // Make it square and add padding
+    const size = Math.max(maxX - minX, maxY - minY) + 1;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    this.root = this.createNode(centerX - size / 2, centerY - size / 2, size, size);
+
+    // Insert all nodes
+    for (const node of nodes) {
+      this.insert(this.root, node);
+    }
+
+    // Compute centers of mass
+    this.computeMass(this.root);
+  }
+
+  private createNode(x: number, y: number, width: number, height: number): QuadTreeNode {
+    return {
+      x,
+      y,
+      width,
+      height,
+      cx: 0,
+      cy: 0,
+      mass: 0,
+      children: null,
+      body: null,
+    };
+  }
+
+  private getQuadrant(node: QuadTreeNode, px: number, py: number): number {
+    const midX = node.x + node.width / 2;
+    const midY = node.y + node.height / 2;
+    const west = px < midX;
+    const north = py < midY;
+
+    if (north) {
+      return west ? 0 : 1; // NW : NE
+    } else {
+      return west ? 2 : 3; // SW : SE
+    }
+  }
+
+  private subdivide(node: QuadTreeNode): void {
+    const halfW = node.width / 2;
+    const halfH = node.height / 2;
+
+    node.children = [
+      this.createNode(node.x, node.y, halfW, halfH),                    // NW
+      this.createNode(node.x + halfW, node.y, halfW, halfH),            // NE
+      this.createNode(node.x, node.y + halfH, halfW, halfH),            // SW
+      this.createNode(node.x + halfW, node.y + halfH, halfW, halfH),    // SE
+    ];
+  }
+
+  private insert(node: QuadTreeNode, body: { x: number; y: number; index: number }): void {
+    // Empty node - just add the body
+    if (node.body === null && node.children === null) {
+      node.body = body;
+      return;
+    }
+
+    // Internal node - recurse into appropriate quadrant
+    if (node.children !== null) {
+      const quadrant = this.getQuadrant(node, body.x, body.y);
+      this.insert(node.children[quadrant]!, body);
+      return;
+    }
+
+    // Leaf with a body - need to subdivide
+    this.subdivide(node);
+
+    // Re-insert existing body
+    const existingBody = node.body!;
+    node.body = null;
+    const existingQuadrant = this.getQuadrant(node, existingBody.x, existingBody.y);
+    this.insert(node.children![existingQuadrant]!, existingBody);
+
+    // Insert new body
+    const newQuadrant = this.getQuadrant(node, body.x, body.y);
+    this.insert(node.children![newQuadrant]!, body);
+  }
+
+  private computeMass(node: QuadTreeNode): void {
+    if (node.body !== null) {
+      // Leaf node with a body
+      node.mass = 1;
+      node.cx = node.body.x;
+      node.cy = node.body.y;
+      return;
+    }
+
+    if (node.children === null) {
+      // Empty node
+      node.mass = 0;
+      return;
+    }
+
+    // Internal node - aggregate from children
+    let totalMass = 0;
+    let weightedX = 0;
+    let weightedY = 0;
+
+    for (const child of node.children) {
+      if (child) {
+        this.computeMass(child);
+        totalMass += child.mass;
+        weightedX += child.cx * child.mass;
+        weightedY += child.cy * child.mass;
+      }
+    }
+
+    node.mass = totalMass;
+    if (totalMass > 0) {
+      node.cx = weightedX / totalMass;
+      node.cy = weightedY / totalMass;
+    }
+  }
+
+  /**
+   * Calculate repulsion force on a node using Barnes-Hut approximation.
+   * Returns the force vector (fx, fy).
+   */
+  calculateForce(
+    px: number,
+    py: number,
+    nodeIndex: number,
+    repulsion: number,
+    alpha: number
+  ): { fx: number; fy: number } {
+    if (this.root === null) {
+      return { fx: 0, fy: 0 };
+    }
+
+    let fx = 0;
+    let fy = 0;
+
+    const stack: QuadTreeNode[] = [this.root];
+
+    while (stack.length > 0) {
+      const node = stack.pop()!;
+
+      if (node.mass === 0) continue;
+
+      const dx = px - node.cx;
+      const dy = py - node.cy;
+      const distSq = dx * dx + dy * dy;
+
+      // Avoid self-interaction and division by zero
+      if (distSq < 1) continue;
+
+      const dist = Math.sqrt(distSq);
+
+      // Check if we can use this node as an approximation
+      const s = Math.max(node.width, node.height);
+
+      if (node.children === null || s / dist < this.theta) {
+        // Use this node's center of mass as approximation
+        // Skip if this is the node itself (leaf with same index)
+        if (node.body !== null && node.body.index === nodeIndex) {
+          continue;
+        }
+
+        // Repulsion force: F = k * m1 * m2 / r²
+        // Using mass as number of nodes in cluster
+        const force = (repulsion * alpha * node.mass) / distSq;
+        fx += (dx / dist) * force;
+        fy += (dy / dist) * force;
+      } else {
+        // Node is too close - need to recurse into children
+        for (const child of node.children!) {
+          if (child && child.mass > 0) {
+            stack.push(child);
+          }
+        }
+      }
+    }
+
+    return { fx, fy };
+  }
+}
+
+// ============================================================================
 // Layout Algorithms
 // ============================================================================
 
 /**
  * Advanced force-directed layout with Barnes-Hut optimization.
+ * Uses O(n log n) approximation instead of O(n²) pairwise calculations.
  */
 export function forceLayout(
   nodes: GraphNode[],
@@ -746,34 +986,37 @@ export function forceLayout(
 
   const nodeMap = new Map(layoutNodes.map((n) => [n.id, n]));
 
+  // Barnes-Hut tree for O(n log n) repulsion calculations
+  // theta=0.5 provides good balance between accuracy and speed
+  const barnesHut = new BarnesHutTree(0.5);
+
   // Simulation
   for (let iter = 0; iter < iterations; iter++) {
     const alpha = 1 - iter / iterations;
 
-    // Repulsion (all pairs)
+    // Build Barnes-Hut tree for current positions
+    const bodies = layoutNodes.map((node, index) => ({
+      x: node.x,
+      y: node.y,
+      index,
+    }));
+    barnesHut.build(bodies);
+
+    // Repulsion using Barnes-Hut approximation - O(n log n)
     for (let i = 0; i < layoutNodes.length; i++) {
-      if (layoutNodes[i].fixed) continue;
+      const node = layoutNodes[i];
+      if (node.fixed) continue;
 
-      for (let j = i + 1; j < layoutNodes.length; j++) {
-        const n1 = layoutNodes[i];
-        const n2 = layoutNodes[j];
+      const { fx, fy } = barnesHut.calculateForce(
+        node.x,
+        node.y,
+        i,
+        repulsion,
+        alpha
+      );
 
-        const dx = n1.x - n2.x;
-        const dy = n1.y - n2.y;
-        const dist = Math.sqrt(dx ** 2 + dy ** 2) || 1;
-        const force = (repulsion * alpha) / (dist ** 2);
-
-        const fx = (dx / dist) * force;
-        const fy = (dy / dist) * force;
-
-        n1.vx! += fx;
-        n1.vy! += fy;
-
-        if (!n2.fixed) {
-          n2.vx! -= fx;
-          n2.vy! -= fy;
-        }
-      }
+      node.vx! += fx;
+      node.vy! += fy;
     }
 
     // Attraction (edges)

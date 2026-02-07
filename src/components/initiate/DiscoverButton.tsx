@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { initiateTheme } from './InitiateTheme';
 
 interface DiscoverButtonProps {
   sourceSlug: string;
@@ -55,16 +56,18 @@ export function DiscoverButton({
       onClick={handleClick}
       disabled={loading || disabled}
       className={`
-        p-1.5 rounded transition-colors
+        p-2 rounded-lg
+        transition-all duration-200
+        ${initiateTheme.focusRing}
         ${loading || disabled
           ? 'opacity-50 cursor-not-allowed'
-          : 'hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+          : `${initiateTheme.textMuted} hover:text-cyan-400 ${initiateTheme.bgHover}`
         }
       `}
       title={loading ? 'Discovering topics...' : 'Discover topics'}
     >
       {loading ? (
-        <Loader2 size={14} className="animate-spin" />
+        <Loader2 size={14} className="animate-spin text-cyan-400" />
       ) : (
         <Sparkles size={14} />
       )}

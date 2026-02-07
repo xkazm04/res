@@ -165,15 +165,15 @@ export function SearchOverlay({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] animate-in fade-in duration-150">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
         onClick={onClose}
       />
 
       {/* Search panel */}
-      <div className="relative w-full max-w-xl mx-4 bg-[#1A1A1E] border border-[#27272A] rounded-xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-xl mx-4 bg-[#1A1A1E] border border-[#27272A] rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-top-4 duration-200">
         {/* Input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[#27272A]">
           <svg
@@ -196,7 +196,7 @@ export function SearchOverlay({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search sessions..."
-            className="flex-1 bg-transparent text-[#E8E8E8] placeholder-[#52525B] outline-none text-lg"
+            className="flex-1 bg-transparent text-[#E8E8E8] placeholder-[#52525B] outline-none text-lg transition-colors duration-150 focus:text-white"
           />
           <kbd className="px-2 py-0.5 text-xs text-[#52525B] bg-[#27272A] rounded">
             esc
@@ -210,16 +210,17 @@ export function SearchOverlay({
               <button
                 key={result.id}
                 onClick={() => handleSelect(result)}
-                className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${
+                className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-all duration-150 ${
                   index === selectedIndex
                     ? 'bg-[#22D3EE]/10'
-                    : 'hover:bg-[#27272A]'
+                    : 'hover:bg-[#27272A] active:bg-[#27272A]/80'
                 }`}
               >
                 <div
-                  className="w-2 h-2 mt-2 rounded-full flex-shrink-0"
+                  className="w-2 h-2 mt-2 rounded-full flex-shrink-0 transition-transform duration-150 group-hover:scale-125"
                   style={{
                     backgroundColor: result.nodeId ? '#22D3EE' : '#52525B',
+                    boxShadow: result.nodeId ? '0 0 6px rgba(34, 211, 238, 0.4)' : 'none',
                   }}
                 />
                 <div className="flex-1 min-w-0">
@@ -246,7 +247,7 @@ export function SearchOverlay({
                 <button
                   key={i}
                   onClick={() => handleRecentClick(recent)}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-[#27272A] transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-[#27272A] transition-all duration-150 active:bg-[#27272A]/80"
                 >
                   <svg
                     className="w-4 h-4 text-[#52525B]"

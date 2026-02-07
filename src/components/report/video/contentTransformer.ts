@@ -1,4 +1,4 @@
-import type { SessionWithDetails, ResearchFinding, ResearchPerspective } from '@/src/types/research';
+import type { SessionWithDetails } from '@/src/types/research';
 import type { VideoContentSelection, VideoSection, SelectableItem } from './useContentSelection';
 
 /**

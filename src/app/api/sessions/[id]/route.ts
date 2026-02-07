@@ -1,6 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/src/lib/supabase-server';
 
+// DELETE /api/sessions/[id] - Delete a session and all related data
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: sessionId } = await params;
+
+  if (!sessionId) {
+    return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });
+  }
+
+  try {
+    // Delete in dependency order: children first, then the session
+    // Supabase cascading deletes handle most of this if FK ON DELETE CASCADE is set,
+    // but we delete explicitly to be safe and return clear errors.
+    const tables = [
+      'causal_chains',
+      'finding_relationships',
+      'research_contradictions',
+      'research_gaps',
+      'research_perspectives',
+      'research_findings',
+      'research_sources',
+      'research_queries',
+    ];
+
+    for (const table of tables) {
+      const { error } = await supabaseServer.from(table).delete().eq('session_id', sessionId);
+      if (error) {
+        console.error(`[API] Error deleting from ${table}:`, error);
+        // Continue - some tables may not have rows for this session
+      }
+    }
+
+    // Delete the session itself
+    const { error: sessionError } = await supabaseServer
+      .from('research_sessions')
+      .delete()
+      .eq('id', sessionId);
+
+    if (sessionError) {
+      console.error('[API] Error deleting session:', sessionError);
+      return NextResponse.json(
+        { error: 'Failed to delete session', details: sessionError.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, id: sessionId });
+  } catch (error) {
+    console.error('[API] Unexpected error deleting session:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 // GET /api/sessions/[id] - Get session with full details
 export async function GET(
   _request: NextRequest,

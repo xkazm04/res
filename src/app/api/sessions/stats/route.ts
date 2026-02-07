@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/src/lib/supabase-server';
 
 // GET /api/sessions/stats - Get aggregated statistics
+// Note: fetches all sessions but only selected columns (lightweight).
+// For very large datasets, consider using a database view or materialized aggregates.
 export async function GET() {
   try {
-    // Get all sessions for stats
     const { data: sessions, error } = await supabaseServer
       .from('research_sessions')
-      .select('id, template_type, status, claim_count, source_count');
+      .select('template_type, status, claim_count, source_count');
 
     if (error) {
       console.error('[API] Error fetching session stats:', error);
@@ -18,34 +19,40 @@ export async function GET() {
     }
 
     const sessionsList = sessions || [];
-
-    // Calculate totals
     const totalSessions = sessionsList.length;
-    const completedSessions = sessionsList.filter(s => s.status === 'completed').length;
-    const activeSessions = sessionsList.filter(s => ['active', 'searching', 'analyzing'].includes(s.status)).length;
 
-    // Sum up counts (fetching real counts for null values would be expensive, skip for stats)
-    const totalFindings = sessionsList.reduce((sum, s) => sum + (s.claim_count || 0), 0);
-    const totalSources = sessionsList.reduce((sum, s) => sum + (s.source_count || 0), 0);
-
-    // Group by template
+    // Single-pass aggregation for all statistics
+    const activeStatuses = new Set(['active', 'searching', 'analyzing']);
     const byTemplate: Record<string, { count: number; findings: number; sources: number }> = {};
-    sessionsList.forEach(session => {
+    const byStatus: Record<string, number> = {};
+    let completedSessions = 0;
+    let activeSessions = 0;
+    let totalFindings = 0;
+    let totalSources = 0;
+
+    for (const session of sessionsList) {
       const template = session.template_type || 'unknown';
+      const status = session.status || 'unknown';
+      const claimCount = session.claim_count || 0;
+      const sourceCount = session.source_count || 0;
+
+      // Accumulate totals
+      totalFindings += claimCount;
+      totalSources += sourceCount;
+
+      // Count by status
+      if (status === 'completed') completedSessions++;
+      else if (activeStatuses.has(status)) activeSessions++;
+      byStatus[status] = (byStatus[status] || 0) + 1;
+
+      // Aggregate by template
       if (!byTemplate[template]) {
         byTemplate[template] = { count: 0, findings: 0, sources: 0 };
       }
-      byTemplate[template].count += 1;
-      byTemplate[template].findings += session.claim_count || 0;
-      byTemplate[template].sources += session.source_count || 0;
-    });
-
-    // Group by status
-    const byStatus: Record<string, number> = {};
-    sessionsList.forEach(session => {
-      const status = session.status || 'unknown';
-      byStatus[status] = (byStatus[status] || 0) + 1;
-    });
+      byTemplate[template].count++;
+      byTemplate[template].findings += claimCount;
+      byTemplate[template].sources += sourceCount;
+    }
 
     return NextResponse.json({
       totals: {

@@ -37,14 +37,14 @@ export function FilterChip({
   return (
     <button
       onClick={onClick}
-      className={`${sizeClasses} rounded-lg flex items-center gap-1 transition-all ${
+      className={`${sizeClasses} rounded-lg flex items-center gap-1 transition-all duration-150 active:scale-95 ${
         active
           ? isRadar
-            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-            : 'bg-stone-800 text-white'
+            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shadow-sm'
+            : 'bg-stone-800 text-white shadow-sm'
           : isRadar
-            ? 'bg-slate-800/50 text-slate-400 hover:text-white'
-            : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+            ? 'bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-700/50'
+            : 'bg-stone-100 text-stone-600 hover:bg-stone-200 hover:shadow-sm'
       }`}
     >
       {label}

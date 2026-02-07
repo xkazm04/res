@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useReportTheme } from './core/ThemeContext';
 import { AnimatedNumber, AnimatedProgressRing, PulsingDot } from './core/AnimatedNumber';
+import { useCustomTabStore, type CustomTabComposition } from '@/src/stores/customTabStore';
 
 type TabId = 'overview' | 'findings' | 'sources' | 'perspectives' | 'analysis' | 'entities';
+type ExtendedTabId = TabId | `custom-${string}`;
 
 const SIDEBAR_COLLAPSED_KEY = 'report-sidebar-collapsed';
 
@@ -77,8 +79,8 @@ function TabIndicator({ theme }: { theme: 'radar' | 'swiss' }) {
 }
 
 interface ThemedSidebarProps {
-  activeTab: TabId;
-  onTabChange: (tab: TabId) => void;
+  activeTab: TabId | ExtendedTabId;
+  onTabChange: (tab: TabId | ExtendedTabId) => void;
   onTabHover?: (tab: TabId) => void;
   stats: {
     findings: number;
@@ -91,6 +93,8 @@ interface ThemedSidebarProps {
     entities: number;
   };
   onClose: () => void;
+  onOpenComposer?: () => void;
+  onEditCustomTab?: (id: string) => void;
 }
 
 const tabs: { id: TabId; label: string; key: keyof ThemedSidebarProps['stats'] | null }[] = [
@@ -102,18 +106,19 @@ const tabs: { id: TabId; label: string; key: keyof ThemedSidebarProps['stats'] |
   { id: 'entities', label: 'Entities', key: 'entities' },
 ];
 
-export function ThemedSidebar({ activeTab, onTabChange, onTabHover, stats, onClose }: ThemedSidebarProps) {
+export function ThemedSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, onOpenComposer, onEditCustomTab }: ThemedSidebarProps) {
   const { theme } = useReportTheme();
   const { collapsed, toggle } = useSidebarCollapsed();
+  const customTabs = useCustomTabStore((state) => state.customTabs);
 
   return theme === 'radar' ? (
-    <RadarSidebar activeTab={activeTab} onTabChange={onTabChange} onTabHover={onTabHover} stats={stats} onClose={onClose} collapsed={collapsed} onToggleCollapse={toggle} />
+    <RadarSidebar activeTab={activeTab} onTabChange={onTabChange} onTabHover={onTabHover} stats={stats} onClose={onClose} collapsed={collapsed} onToggleCollapse={toggle} customTabs={customTabs} onOpenComposer={onOpenComposer} onEditCustomTab={onEditCustomTab} />
   ) : (
-    <SwissSidebar activeTab={activeTab} onTabChange={onTabChange} onTabHover={onTabHover} stats={stats} onClose={onClose} collapsed={collapsed} onToggleCollapse={toggle} />
+    <SwissSidebar activeTab={activeTab} onTabChange={onTabChange} onTabHover={onTabHover} stats={stats} onClose={onClose} collapsed={collapsed} onToggleCollapse={toggle} customTabs={customTabs} onOpenComposer={onOpenComposer} onEditCustomTab={onEditCustomTab} />
   );
 }
 
-function RadarSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, collapsed, onToggleCollapse }: ThemedSidebarProps & { collapsed: boolean; onToggleCollapse: () => void }) {
+function RadarSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, collapsed, onToggleCollapse, customTabs, onOpenComposer, onEditCustomTab }: ThemedSidebarProps & { collapsed: boolean; onToggleCollapse: () => void; customTabs: CustomTabComposition[] }) {
   return (
     <motion.aside
       initial={false}
@@ -153,7 +158,7 @@ function RadarSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, coll
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-1">
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
         {tabs.map((tab, i) => {
           const count = tab.key ? stats[tab.key] : tab.id === 'analysis' ? stats.contradictions + stats.gaps : null;
           const isActive = activeTab === tab.id;
@@ -169,6 +174,7 @@ function RadarSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, coll
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
               } ${collapsed ? 'justify-center' : ''}`}
               style={{ animationDelay: `${i * 50}ms` }}
+              data-testid={`sidebar-tab-${tab.id}`}
             >
               {isActive && <TabIndicator theme="radar" />}
               {collapsed ? (
@@ -186,6 +192,79 @@ function RadarSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, coll
             </button>
           );
         })}
+
+        {/* Custom Tabs Section */}
+        {customTabs.length > 0 && (
+          <>
+            {!collapsed && (
+              <div className="pt-3 pb-1 px-1">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">Custom Tabs</div>
+              </div>
+            )}
+            {customTabs.map((customTab) => {
+              const customTabId = `custom-${customTab.id}`;
+              const isActive = activeTab === customTabId;
+              return (
+                <button
+                  key={customTab.id}
+                  onClick={() => onTabChange(customTabId as ExtendedTabId)}
+                  title={collapsed ? customTab.name : undefined}
+                  className={`group relative w-full px-3 py-2 rounded-lg text-left text-sm transition-all flex items-center gap-2 ${
+                    isActive
+                      ? 'bg-cyan-500/10 text-cyan-300'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  } ${collapsed ? 'justify-center' : ''}`}
+                  data-testid={`sidebar-custom-tab-${customTab.id}`}
+                >
+                  {isActive && <TabIndicator theme="radar" />}
+                  {collapsed ? (
+                    <span className="text-base">{customTab.icon || '📊'}</span>
+                  ) : (
+                    <>
+                      <span className="text-base flex-shrink-0">{customTab.icon || '📊'}</span>
+                      <span className="flex-1 whitespace-nowrap truncate">{customTab.name}</span>
+                      {onEditCustomTab && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditCustomTab(customTab.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-cyan-400 transition-opacity"
+                          data-testid={`edit-custom-tab-${customTab.id}`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </>
+        )}
+
+        {/* Create Custom Tab Button */}
+        {onOpenComposer && (
+          <button
+            onClick={onOpenComposer}
+            title={collapsed ? 'Create Custom Tab' : undefined}
+            className={`w-full px-3 py-2 rounded-lg text-left text-sm transition-all flex items-center gap-2 text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/5 border border-dashed border-cyan-500/20 hover:border-cyan-500/40 ${
+              collapsed ? 'justify-center' : ''
+            }`}
+            data-testid="create-custom-tab-btn"
+          >
+            {collapsed ? (
+              <span className="text-lg">+</span>
+            ) : (
+              <>
+                <span className="text-lg">+</span>
+                <span className="whitespace-nowrap">Create Custom Tab</span>
+              </>
+            )}
+          </button>
+        )}
       </nav>
 
       {/* Stats */}
@@ -220,7 +299,7 @@ function RadarSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, coll
   );
 }
 
-function SwissSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, collapsed, onToggleCollapse }: ThemedSidebarProps & { collapsed: boolean; onToggleCollapse: () => void }) {
+function SwissSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, collapsed, onToggleCollapse, customTabs, onOpenComposer, onEditCustomTab }: ThemedSidebarProps & { collapsed: boolean; onToggleCollapse: () => void; customTabs: CustomTabComposition[] }) {
   return (
     <motion.aside
       initial={false}
@@ -253,7 +332,7 @@ function SwissSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, coll
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-2">
+      <nav className="flex-1 py-2 overflow-y-auto">
         {tabs.map((tab, i) => {
           const count = tab.key ? stats[tab.key] : tab.id === 'analysis' ? stats.contradictions + stats.gaps : null;
           const isActive = activeTab === tab.id;
@@ -269,6 +348,7 @@ function SwissSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, coll
                   : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
               } ${collapsed ? 'justify-center px-2' : ''}`}
               style={{ animationDelay: `${i * 30}ms` }}
+              data-testid={`sidebar-tab-${tab.id}`}
             >
               {isActive && <TabIndicator theme="swiss" />}
               {collapsed ? (
@@ -284,6 +364,81 @@ function SwissSidebar({ activeTab, onTabChange, onTabHover, stats, onClose, coll
             </button>
           );
         })}
+
+        {/* Custom Tabs Section */}
+        {customTabs.length > 0 && (
+          <>
+            {!collapsed && (
+              <div className="pt-3 pb-1 px-4">
+                <div className="text-[10px] uppercase tracking-wider text-stone-400">Custom Tabs</div>
+              </div>
+            )}
+            {customTabs.map((customTab) => {
+              const customTabId = `custom-${customTab.id}`;
+              const isActive = activeTab === customTabId;
+              return (
+                <button
+                  key={customTab.id}
+                  onClick={() => onTabChange(customTabId as ExtendedTabId)}
+                  title={collapsed ? customTab.name : undefined}
+                  className={`group relative w-full px-4 py-2.5 text-left text-sm flex items-center transition-all ${
+                    isActive
+                      ? 'bg-stone-50 text-stone-900 font-medium'
+                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
+                  } ${collapsed ? 'justify-center px-2' : ''}`}
+                  data-testid={`sidebar-custom-tab-${customTab.id}`}
+                >
+                  {isActive && <TabIndicator theme="swiss" />}
+                  {collapsed ? (
+                    <span className="text-base">{customTab.icon || '📊'}</span>
+                  ) : (
+                    <>
+                      <span className="text-base flex-shrink-0 mr-2">{customTab.icon || '📊'}</span>
+                      <span className="flex-1 whitespace-nowrap truncate">{customTab.name}</span>
+                      {onEditCustomTab && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditCustomTab(customTab.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-stone-400 hover:text-stone-900 transition-opacity"
+                          data-testid={`edit-custom-tab-${customTab.id}`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </>
+        )}
+
+        {/* Create Custom Tab Button */}
+        {onOpenComposer && (
+          <div className="px-3 pt-2">
+            <button
+              onClick={onOpenComposer}
+              title={collapsed ? 'Create Custom Tab' : undefined}
+              className={`w-full px-3 py-2 rounded text-left text-sm transition-all flex items-center gap-2 text-stone-400 hover:text-stone-900 hover:bg-stone-50 border border-dashed border-stone-200 hover:border-stone-400 ${
+                collapsed ? 'justify-center px-2' : ''
+              }`}
+              data-testid="create-custom-tab-btn"
+            >
+              {collapsed ? (
+                <span className="text-lg">+</span>
+              ) : (
+                <>
+                  <span className="text-lg">+</span>
+                  <span className="whitespace-nowrap">Create Custom Tab</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* Stats */}

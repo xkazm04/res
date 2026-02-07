@@ -27,16 +27,16 @@ export const ZoomControls = memo(function ZoomControls({
   const canZoomOut = scale > minScale;
 
   return (
-    <div className="flex flex-col gap-1 bg-[#1A1A1E]/90 backdrop-blur-sm rounded-lg p-1 border border-[#27272A]">
+    <div className="flex flex-col gap-1 bg-[#1A1A1E]/90 backdrop-blur-sm rounded-lg p-1 border border-[#27272A] shadow-lg transition-all duration-200 hover:border-[#3F3F46]">
       {/* Zoom In */}
       <button
         onClick={onZoomIn}
         disabled={!canZoomIn}
         className={`
-          w-8 h-8 flex items-center justify-center rounded-md transition-colors
+          w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150
           ${canZoomIn
-            ? 'text-[#A1A1AA] hover:text-[#E8E8E8] hover:bg-[#27272A]'
-            : 'text-[#52525B] cursor-not-allowed'
+            ? 'text-[#A1A1AA] hover:text-[#E8E8E8] hover:bg-[#27272A] active:scale-90 focus-visible:ring-2 focus-visible:ring-[#22D3EE]/50 focus-visible:outline-none'
+            : 'text-[#52525B] cursor-not-allowed opacity-50'
           }
         `}
         title="Zoom In (+)"
@@ -66,10 +66,10 @@ export const ZoomControls = memo(function ZoomControls({
         onClick={onZoomOut}
         disabled={!canZoomOut}
         className={`
-          w-8 h-8 flex items-center justify-center rounded-md transition-colors
+          w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150
           ${canZoomOut
-            ? 'text-[#A1A1AA] hover:text-[#E8E8E8] hover:bg-[#27272A]'
-            : 'text-[#52525B] cursor-not-allowed'
+            ? 'text-[#A1A1AA] hover:text-[#E8E8E8] hover:bg-[#27272A] active:scale-90 focus-visible:ring-2 focus-visible:ring-[#22D3EE]/50 focus-visible:outline-none'
+            : 'text-[#52525B] cursor-not-allowed opacity-50'
           }
         `}
         title="Zoom Out (-)"
@@ -95,7 +95,7 @@ export const ZoomControls = memo(function ZoomControls({
       {/* Reset */}
       <button
         onClick={onReset}
-        className="w-8 h-8 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#E8E8E8] hover:bg-[#27272A] transition-colors"
+        className="w-8 h-8 flex items-center justify-center rounded-md text-[#A1A1AA] hover:text-[#E8E8E8] hover:bg-[#27272A] transition-all duration-150 active:scale-90 focus-visible:ring-2 focus-visible:ring-[#22D3EE]/50 focus-visible:outline-none"
         title="Reset View (Home)"
         aria-label="Reset view"
       >

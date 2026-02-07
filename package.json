@@ -14,10 +14,17 @@
     "validate:research": "tsx scripts/validate-research.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-lambda": "^3.983.0",
+    "@aws-sdk/client-s3": "^3.983.0",
+    "@aws-sdk/s3-request-presigner": "^3.983.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@genkit-ai/ai": "^1.27.0",
     "@genkit-ai/googleai": "^1.27.0",
+    "@remotion/bundler": "^4.0.417",
+    "@remotion/cli": "^4.0.417",
+    "@remotion/lambda": "^4.0.417",
+    "@remotion/player": "^4.0.417",
     "@supabase/supabase-js": "^2.89.0",
     "@tanstack/react-virtual": "^3.13.18",
     "@types/d3": "^7.4.3",
@@ -35,6 +42,7 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "recharts": "^3.6.0",
+    "remotion": "^4.0.417",
     "resend": "^6.6.0",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.9"

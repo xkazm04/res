@@ -8,18 +8,27 @@ A research initiation and exploration platform. Users discover newsworthy topics
 
 Enable users to efficiently discover, prioritize, and initiate research on newsworthy topics from diverse data sources.
 
-## Current Milestone: v3.0 Claude Code Research Engine
+## Current State: v4.0 Video Maker (IN PROGRESS)
 
-**Goal:** Replace Python actor + Cloud Run Gemini with Claude Code CLI as the research engine.
+**Goal:** Compose research findings into YouTube-ready shorts with server-side Remotion rendering.
 
 **Target features:**
+- `/maker` page with browse → select → preview → export workflow
+- Left sidebar: compact research sessions list with filters
+- Main area: component selection (findings, sources, perspectives)
+- Live video preview with format toggle (9:16 Shorts / 16:9 Standard)
+- Server-side Remotion rendering to MP4
+- YouTube upload integration
+
+## Previous State: v3.0 Claude Code Research Engine (SHIPPED 2026-02-02)
+
+**Delivered:**
 - TypeScript template builder generating .md prompt files
-- 3rd party app spawns Claude Code headless CLI for research
-- Claude Code uses built-in web search (replaces Gemini grounded search)
+- Claude Code CLI with built-in web search for research
 - Same Supabase persistence structure as current system
-- Perplexity-quality deep research via prompt engineering
+- 7-phase research pipeline with meta-analysis
 - All 10 templates migrated to new system
-- Legacy actor/serverless code deleted after validation
+- Legacy actor/serverless code deleted (38k lines removed)
 
 ## Previous State (v2.0 Shipped)
 
@@ -65,16 +74,15 @@ Enable users to efficiently discover, prioritize, and initiate research on newsw
 - ✓ Theme switcher with persistence (Radar, Swiss, Organic)
 - ✓ Semantic CSS variable system (~35 variables)
 
-### Active (v3.0)
+### Validated (v3.0)
 
-**Claude Code Research Engine:**
-- [ ] TypeScript template builder with composable prompt parts
-- [ ] Template configs for all 10 templates (tech_market, financial, etc.)
-- [ ] 6-phase research pipeline embedded in prompts
-- [ ] Claude Code CLI invocation with --prompt-file
-- [ ] Supabase API integration for persistence
-- [ ] Quality validation against existing research output
-- [ ] Legacy code deletion (actor/, serverless/)
+- ✓ TypeScript template builder with composable prompt parts — v3.0
+- ✓ Template configs for all 10 templates — v3.0
+- ✓ 7-phase research pipeline (with meta-analysis) — v3.0
+- ✓ Claude Code CLI invocation with --prompt-file — v3.0
+- ✓ Supabase API integration for persistence — v3.0
+- ✓ Quality validation against existing research output — v3.0
+- ✓ Legacy code deletion (actor/, serverless/) — v3.0
 
 **Deferred (v4+ Candidates):**
 - [ ] Signal badges (breaking/trending/controversial) on topic cards
@@ -136,4 +144,4 @@ Enable users to efficiently discover, prioritize, and initiate research on newsw
 | Visibility API for polling | Pause on hidden tabs | ✓ Good |
 
 ---
-*Last updated: 2026-02-01 after v3.0 milestone started*
+*Last updated: 2026-02-04 after v4.0 milestone started*

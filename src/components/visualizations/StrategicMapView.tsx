@@ -490,7 +490,7 @@ export function StrategicMapView({
       {/* Search button */}
       <button
         onClick={() => setIsSearchOpen(true)}
-        className="absolute bottom-24 left-4 z-10 flex items-center gap-2 px-3 py-1.5 bg-[#1A1A1E] border border-[#27272A] rounded-lg text-[#A1A1AA] hover:text-[#E8E8E8] hover:border-[#3F3F46] transition-colors"
+        className="absolute bottom-24 left-4 z-10 flex items-center gap-2 px-3 py-1.5 bg-[#1A1A1E] border border-[#27272A] rounded-lg text-[#A1A1AA] hover:text-[#E8E8E8] hover:border-[#3F3F46] transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 focus-visible:ring-2 focus-visible:ring-[#22D3EE]/50 focus-visible:outline-none"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -567,7 +567,7 @@ function NodeTooltip({ node, containerRef }: NodeTooltipProps) {
 
   return (
     <div
-      className="absolute pointer-events-none z-20 bg-[#1A1A1E] border border-[#27272A] rounded-lg p-3 shadow-xl max-w-[280px]"
+      className="absolute pointer-events-none z-20 bg-[#1A1A1E]/95 backdrop-blur-sm border border-[#27272A] rounded-lg p-3 shadow-xl max-w-[280px] animate-in fade-in zoom-in-95 duration-150"
       style={{
         left: position.x,
         top: position.y,
@@ -575,7 +575,7 @@ function NodeTooltip({ node, containerRef }: NodeTooltipProps) {
     >
       <div className="flex items-center gap-2 mb-2">
         <div
-          className="w-3 h-3 rounded-full"
+          className="w-3 h-3 rounded-full transition-transform duration-150"
           style={{ backgroundColor: node.color, boxShadow: `0 0 8px ${node.color}` }}
         />
         <span className="text-[#E8E8E8] font-medium truncate">{node.label}</span>
@@ -620,18 +620,18 @@ function FocusedNodePanel({ node, onSessionSelect, onClose }: FocusedNodePanelPr
   const sessions = node.sessions || [];
 
   return (
-    <div className="absolute top-4 right-16 z-10 bg-[#1A1A1E]/95 backdrop-blur-sm border border-[#27272A] rounded-lg p-4 max-w-xs shadow-xl">
+    <div className="absolute top-4 right-16 z-10 bg-[#1A1A1E]/95 backdrop-blur-sm border border-[#27272A] rounded-lg p-4 max-w-xs shadow-xl animate-in slide-in-from-right-2 fade-in duration-200">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div
             className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: node.color }}
+            style={{ backgroundColor: node.color, boxShadow: `0 0 6px ${node.color}40` }}
           />
-          <h3 className="text-[#E8E8E8] font-medium">{node.label}</h3>
+          <h3 className="text-[#E8E8E8] font-medium tracking-tight">{node.label}</h3>
         </div>
         <button
           onClick={onClose}
-          className="text-[#71717A] hover:text-[#E8E8E8] transition-colors"
+          className="text-[#71717A] hover:text-[#E8E8E8] transition-all duration-150 hover:bg-[#27272A] rounded p-1 -m-1 active:scale-90"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M12 4L4 12M4 4L12 12" />
@@ -639,7 +639,7 @@ function FocusedNodePanel({ node, onSessionSelect, onClose }: FocusedNodePanelPr
         </button>
       </div>
 
-      <p className="text-xs text-[#A1A1AA] mb-3">
+      <p className="text-xs text-[#A1A1AA] mb-3 tabular-nums">
         {sessions.length} research session{sessions.length !== 1 ? 's' : ''}
       </p>
 
@@ -648,7 +648,7 @@ function FocusedNodePanel({ node, onSessionSelect, onClose }: FocusedNodePanelPr
           <button
             key={session.id}
             onClick={() => onSessionSelect?.(session)}
-            className="w-full text-left text-sm text-[#A1A1AA] hover:text-[#22D3EE] truncate transition-colors py-1"
+            className="w-full text-left text-sm text-[#A1A1AA] hover:text-[#22D3EE] truncate transition-all duration-150 py-1 hover:pl-1"
           >
             {session.title}
           </button>

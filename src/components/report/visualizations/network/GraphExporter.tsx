@@ -38,8 +38,7 @@ export function GraphExporter({ canvasRef, graphData }: GraphExporterProps) {
       link.click();
       setExportStatus('success');
       setTimeout(() => setExportStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Export PNG failed:', error);
+    } catch {
       setExportStatus('error');
       setTimeout(() => setExportStatus('idle'), 2000);
     }
@@ -84,8 +83,7 @@ export function GraphExporter({ canvasRef, graphData }: GraphExporterProps) {
 
       setExportStatus('success');
       setTimeout(() => setExportStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Export JSON failed:', error);
+    } catch {
       setExportStatus('error');
       setTimeout(() => setExportStatus('idle'), 2000);
     }
@@ -164,8 +162,7 @@ export function GraphExporter({ canvasRef, graphData }: GraphExporterProps) {
 
       setExportStatus('success');
       setTimeout(() => setExportStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Export SVG failed:', error);
+    } catch {
       setExportStatus('error');
       setTimeout(() => setExportStatus('idle'), 2000);
     }

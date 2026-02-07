@@ -439,7 +439,7 @@ export function SwissMapView({
             <button
               onClick={handleLoadMore}
               disabled={isLoadingMore}
-              className="w-full py-3 bg-white hover:bg-gray-50 border-t border-black text-xs uppercase tracking-widest text-gray-500 hover:text-black transition-colors disabled:opacity-50"
+              className="w-full py-3 bg-white hover:bg-gray-50 border-t border-black text-xs uppercase tracking-widest text-gray-500 hover:text-black transition-all duration-150 disabled:opacity-50 active:bg-gray-100 focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:outline-none"
               style={{ width: `${Math.min(containerSize.width - 32, 900)}px` }}
             >
               {isLoadingMore ? 'Loading...' : 'Load More'}
@@ -457,13 +457,13 @@ export function SwissMapView({
 
       {/* Fixed UI overlay */}
       {/* Header with breadcrumb */}
-      <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-black z-10">
+      <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-black z-10 shadow-sm">
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-3">
             {drill.level !== 'overview' && (
               <button
                 onClick={handleBack}
-                className="text-xs uppercase tracking-widest text-gray-500 hover:text-black transition-colors"
+                className="text-xs uppercase tracking-widest text-gray-500 hover:text-black transition-all duration-150 active:scale-90 p-1 -m-1 rounded hover:bg-gray-100"
               >
                 ←
               </button>
@@ -474,7 +474,7 @@ export function SwissMapView({
                   {i > 0 && <span className="text-gray-300">/</span>}
                   <button
                     onClick={() => handleBreadcrumbClick(i)}
-                    className={`uppercase tracking-widest ${
+                    className={`uppercase tracking-widest transition-all duration-150 px-1 rounded hover:bg-gray-100 ${
                       i === viewData.breadcrumb.length - 1
                         ? 'text-black font-medium'
                         : 'text-gray-400 hover:text-black'
@@ -486,7 +486,7 @@ export function SwissMapView({
               ))}
             </div>
           </div>
-          <div className="text-xs text-gray-400 font-mono">
+          <div className="text-xs text-gray-400 font-mono tabular-nums">
             {viewData.items.length} items
           </div>
         </div>
@@ -568,18 +568,18 @@ function ItemCard({ item, index, zoomConfig, onClick, drillLevel, cardHeight }: 
   return (
     <button
       onClick={onClick}
-      className={`bg-white hover:bg-gray-50 transition-colors text-left group ${padding}`}
+      className={`bg-white hover:bg-gray-50 transition-all duration-150 text-left group ${padding} active:bg-gray-100 focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:outline-none focus-visible:ring-inset`}
       style={{ minHeight }}
     >
       <div className="h-full flex flex-col justify-between">
         <div>
           {/* Index number - only show at normal/detail zoom */}
           {zoomConfig.showStats && (
-            <div className="text-[8px] uppercase tracking-widest text-gray-300 mb-0.5">
+            <div className="text-[8px] uppercase tracking-widest text-gray-300 mb-0.5 tabular-nums">
               {String(index + 1).padStart(2, '0')}
             </div>
           )}
-          <h3 className={`${titleSize} font-light leading-tight group-hover:underline decoration-1 underline-offset-2 line-clamp-2`}>
+          <h3 className={`${titleSize} font-light leading-tight group-hover:underline decoration-1 underline-offset-2 line-clamp-2 transition-colors duration-150`}>
             {item.label}
           </h3>
           {showDescription && (
@@ -589,7 +589,7 @@ function ItemCard({ item, index, zoomConfig, onClick, drillLevel, cardHeight }: 
           )}
         </div>
         <div className="flex items-end justify-between mt-1">
-          <div className={`${countSize} font-light leading-none`}>
+          <div className={`${countSize} font-light leading-none tabular-nums`}>
             {isSession ? item.count : item.sessions.length}
           </div>
           {zoomConfig.showStats && (

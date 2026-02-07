@@ -9,6 +9,7 @@ import { ProgressBar } from '../shared/ProgressBar';
 import { ClockIcon, LinkIcon } from '../shared/Icons';
 import { matchesConfidenceFilter, type ConfidenceFilterOption } from '../shared/typeConfig';
 import { UniversalCard, CardMetaRow, CardDataPanel, CardSourcesPanel } from '../shared/UniversalCard';
+import { useFilteredData } from '@/src/hooks/useFilteredData';
 
 interface FindingsTabProps {
   findings: ResearchFinding[];
@@ -30,9 +31,10 @@ export function FindingsTab({
   const containerRef = useRef<HTMLDivElement>(null);
   const findingRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  const filteredFindings = useMemo(() => {
-    return findings.filter((f) => {
-      if (searchQuery && !f.content.toLowerCase().includes(searchQuery.toLowerCase())) {
+  // Stabilize filter function to prevent re-filtering when only search query changes
+  const filterFn = useCallback(
+    (f: ResearchFinding, debouncedQuery: string) => {
+      if (debouncedQuery && !f.content.toLowerCase().includes(debouncedQuery.toLowerCase())) {
         return false;
       }
       if (filterType !== 'all' && f.finding_type !== filterType) {
@@ -42,8 +44,15 @@ export function FindingsTab({
         return false;
       }
       return true;
-    });
-  }, [findings, searchQuery, filterType, filterConfidence]);
+    },
+    [filterType, filterConfidence]
+  );
+
+  const { filteredData: filteredFindings, debouncedQuery } = useFilteredData({
+    data: findings,
+    searchQuery,
+    filterFn,
+  });
 
   const sourceMap = useMemo(() => {
     const map = new Map<string, ResearchSource>();
@@ -51,10 +60,10 @@ export function FindingsTab({
     return map;
   }, [sources]);
 
-  // Reset focus when filters change
+  // Reset focus when filters change (uses debounced query to avoid reset during typing)
   useEffect(() => {
     setFocusedIndex(-1);
-  }, [searchQuery, filterType, filterConfidence]);
+  }, [debouncedQuery, filterType, filterConfidence]);
 
   const toggleExpanded = useCallback((id: string) => {
     setExpandedIds((prev) => {

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReportTheme, useThemeStyles } from '../core/ThemeContext';
+import { useSemanticIntent } from '@/src/stores/reportStore';
 import { AnimatedNumber } from '../core/AnimatedNumber';
 import { FilterChip } from '../shared/FilterChip';
 
@@ -47,6 +48,13 @@ export function KeyPointsPanel({
   const { theme } = useReportTheme();
   const styles = useThemeStyles();
   const isRadar = theme === 'radar';
+  const {
+    showUncertainty,
+    showInlineSources,
+    enableDeepDive,
+    prioritizeReadability,
+    highlightContradictions,
+  } = useSemanticIntent();
   const [filter, setFilter] = useState<KeyPoint['type'] | 'all'>('all');
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -61,8 +69,23 @@ export function KeyPointsPanel({
   // Get semantic colors for a KeyPoint type from the theme
   const getSemanticColors = (type: KeyPoint['type']) => styles.semantic[type];
 
+  // Format confidence based on semantic intent
+  const formatConfidence = (confidence: number) => {
+    if (showUncertainty) {
+      // Show precise percentage with decimal
+      return `${(confidence * 100).toFixed(1)}% confidence`;
+    }
+    // Show simplified label for readability mode
+    if (confidence >= 0.8) return 'High confidence';
+    if (confidence >= 0.5) return 'Medium confidence';
+    return 'Low confidence';
+  };
+
   return (
-    <div className={`rounded-2xl overflow-hidden ${isRadar ? 'bg-slate-900/60 border border-cyan-500/10' : 'bg-white border border-stone-200'}`}>
+    <div
+      className={`rounded-2xl overflow-hidden ${isRadar ? 'bg-slate-900/60 border border-cyan-500/10' : 'bg-white border border-stone-200'}`}
+      data-testid="key-points-panel"
+    >
       {/* Header */}
       <div className={`p-4 border-b ${isRadar ? 'border-cyan-500/10' : 'border-stone-200'}`}>
         <div className="flex items-center justify-between mb-3">
@@ -109,11 +132,15 @@ export function KeyPointsPanel({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ delay: i * 0.03 }}
-                className={`rounded-xl border cursor-pointer overflow-hidden transition-all ${semanticColors.bg} ${semanticColors.border} ${semanticColors.bgHover} ${isHighlighted ? (isRadar ? 'ring-2 ring-cyan-400' : 'ring-2 ring-stone-800') : ''}`}
+                className={`rounded-xl border ${enableDeepDive ? 'cursor-pointer' : ''} overflow-hidden transition-all ${semanticColors.bg} ${semanticColors.border} ${enableDeepDive ? semanticColors.bgHover : ''} ${isHighlighted ? (isRadar ? 'ring-2 ring-cyan-400' : 'ring-2 ring-stone-800') : ''}`}
                 onClick={() => {
-                  setExpanded(isExpanded ? null : point.id);
-                  onPointClick?.(point.id);
+                  // Semantic intent: only enable expansion in deep-dive mode
+                  if (enableDeepDive) {
+                    setExpanded(isExpanded ? null : point.id);
+                    onPointClick?.(point.id);
+                  }
                 }}
+                data-testid={`key-point-${point.id}`}
               >
                 {/* Main content */}
                 <div className="p-3">
@@ -125,19 +152,22 @@ export function KeyPointsPanel({
                       </p>
                       <div className="flex items-center gap-3 mt-2">
                         <span className={`text-[10px] ${styles.textMuted}`}>
-                          {Math.round(point.confidence * 100)}% confidence
+                          {formatConfidence(point.confidence)}
                         </span>
-                        <span className={`text-[10px] ${styles.textMuted}`}>
-                          {point.sourceCount} sources
-                        </span>
+                        {/* Semantic intent: show source count inline when sources should be visible */}
+                        {showInlineSources && (
+                          <span className={`text-[10px] ${styles.textMuted}`}>
+                            {point.sourceCount} sources
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Expanded details */}
+                {/* Expanded details - only show when deep dive is enabled */}
                 <AnimatePresence>
-                  {isExpanded && (point.relatedFindings || point.sourceIds) && (
+                  {enableDeepDive && isExpanded && (point.relatedFindings || point.sourceIds) && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}

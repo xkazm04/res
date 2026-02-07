@@ -3,76 +3,66 @@
  *
  * Provides type-safe access to visualization theme colors and utilities.
  * Integrates with the ReportThemeProvider context.
+ *
+ * Now also exposes semantic intent flags for behavior-based decisions.
+ * Use semantic flags (showUncertainty, emphasizeData, etc.) to decide
+ * WHAT to show, and use colors/classes to decide HOW to style it.
+ *
+ * NOTE: For components that only need colors/classes and not semantic intent,
+ * prefer using getVizColors(theme) directly - it's a pure function with no
+ * React dependencies and can be tree-shaken.
  */
 
 import { useMemo } from 'react';
 import { useReportTheme } from '../core/ThemeContext';
-import {
-  visualizationThemes,
-  getConfidenceColor,
-  getCredibilityColor,
-  getStatusColor,
-  getTimelineTypeConfig,
-  getCardClasses,
-  getSurfaceClasses,
-  getTooltipClasses,
-  getHeaderClasses,
-  getButtonClasses,
-  getGlowStyle,
-  type VisualizationColors,
-  type EntityTypeColors,
-} from './theme';
+import { useSemanticIntent, type SemanticIntentValue } from '@/src/stores/reportStore';
+import { getVizColors, type VizColorsReturn, type VisualizationColors, type EntityTypeColors } from './theme';
 
-export interface UseVisualizationThemeReturn {
-  /** Current theme name */
-  theme: 'radar' | 'swiss';
+export interface UseVisualizationThemeReturn extends VizColorsReturn {
+  // ============================================
+  // Semantic Intent Flags
+  // ============================================
+  // Use these to decide WHAT to render, not just HOW to style it
 
-  /** Whether current theme is radar (dark) */
-  isRadar: boolean;
+  /** Whether to show uncertainty/confidence ranges */
+  showUncertainty: boolean;
 
-  /** All semantic color tokens */
-  colors: VisualizationColors;
+  /** Whether to emphasize data density over readability */
+  emphasizeData: boolean;
 
-  /** Entity type color mapping */
-  entityColors: EntityTypeColors;
+  /** Whether to show technical details (timestamps, IDs, raw scores) */
+  showTechnicalDetails: boolean;
 
-  /** Get color for entity type */
-  getEntityColor: (type: string) => string;
+  /** Whether to use ambient/glow effects */
+  useAmbientEffects: boolean;
 
-  /** Get confidence-based color (0-1 value) */
-  getConfidenceColor: (value: number) => string;
+  /** Whether to animate data updates */
+  animateUpdates: boolean;
 
-  /** Get credibility-based color (0-1 score) */
-  getCredibilityColor: (score: number) => string;
+  /** Whether to prioritize readability over completeness */
+  prioritizeReadability: boolean;
 
-  /** Get status-based colors */
-  getStatusColor: (status: 'resolved' | 'investigating' | 'unresolved') => {
-    bg: string;
-    text: string;
-    border: string;
-  };
+  /** Whether to show inline sources/citations */
+  showInlineSources: boolean;
 
-  /** Get timeline event type config */
-  getTimelineTypeConfig: () => Record<'finding' | 'event' | 'prediction', { color: string; icon: string }>;
+  /** Whether to highlight contradictions prominently */
+  highlightContradictions: boolean;
 
-  // Tailwind class utilities
-  /** Card background classes */
-  cardClasses: string;
-  /** Surface background classes */
-  surfaceClasses: string;
-  /** Tooltip classes */
-  tooltipClasses: string;
-  /** Header text classes */
-  headerClasses: string;
-  /** Get button classes */
-  getButtonClasses: (isActive: boolean) => string;
+  /** Whether deep-dive interactions are enabled */
+  enableDeepDive: boolean;
 
-  /** Get glow style for radar theme */
-  getGlowStyle: (color: string, intensity?: 'low' | 'medium' | 'high') => React.CSSProperties;
+  /** Whether comparison tools are enabled */
+  enableComparison: boolean;
+
+  /** Full semantic intent object for advanced use */
+  intent: SemanticIntentValue;
 }
 
 /**
  * Hook for accessing visualization theme colors and utilities.
+ *
+ * For components that only need colors and don't use semantic intent flags,
+ * prefer using getVizColors(theme) directly - it's a pure function.
  *
  * @example
  * ```tsx
@@ -90,38 +80,29 @@ export interface UseVisualizationThemeReturn {
  */
 export function useVisualizationTheme(): UseVisualizationThemeReturn {
   const { theme } = useReportTheme();
-  const isRadar = theme === 'radar';
+  const intent = useSemanticIntent();
 
   return useMemo(() => {
-    const themeConfig = visualizationThemes[theme];
-    const { colors, entityColors } = themeConfig;
+    // Use the pure utility function for colors
+    const vizColors = getVizColors(theme);
 
     return {
-      theme,
-      isRadar,
-      colors,
-      entityColors,
+      ...vizColors,
 
-      getEntityColor: (type: string) => {
-        const normalizedType = type.toLowerCase();
-        return entityColors[normalizedType as keyof EntityTypeColors] || entityColors.other;
-      },
-
-      getConfidenceColor: (value: number) => getConfidenceColor(value, colors),
-      getCredibilityColor: (score: number) => getCredibilityColor(score, colors),
-      getStatusColor: (status) => getStatusColor(status, colors),
-      getTimelineTypeConfig: () => getTimelineTypeConfig(colors),
-
-      cardClasses: getCardClasses(isRadar),
-      surfaceClasses: getSurfaceClasses(isRadar),
-      tooltipClasses: getTooltipClasses(isRadar),
-      headerClasses: getHeaderClasses(isRadar),
-      getButtonClasses: (isActive: boolean) => getButtonClasses(isRadar, isActive),
-
-      getGlowStyle: (color: string, intensity?: 'low' | 'medium' | 'high') =>
-        isRadar ? getGlowStyle(color, intensity) : {},
+      // Semantic intent flags - use these for behavioral decisions
+      showUncertainty: intent.showUncertainty,
+      emphasizeData: intent.emphasizeData,
+      showTechnicalDetails: intent.showTechnicalDetails,
+      useAmbientEffects: intent.useAmbientEffects,
+      animateUpdates: intent.animateUpdates,
+      prioritizeReadability: intent.prioritizeReadability,
+      showInlineSources: intent.showInlineSources,
+      highlightContradictions: intent.highlightContradictions,
+      enableDeepDive: intent.enableDeepDive,
+      enableComparison: intent.enableComparison,
+      intent,
     };
-  }, [theme, isRadar]);
+  }, [theme, intent]);
 }
 
 // Re-export types for convenience

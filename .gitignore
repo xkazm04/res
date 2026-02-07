@@ -48,3 +48,6 @@ next-env.d.ts
 
 # generated prompts (local only)
 .prompts/
+
+# claude code logs
+.claude/logs/

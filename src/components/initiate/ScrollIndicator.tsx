@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, RefObject } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { initiateTheme } from './InitiateTheme';
 
 interface ScrollIndicatorProps {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -83,17 +84,24 @@ export function ScrollIndicator({ containerRef, totalColumns }: ScrollIndicatorP
   }, [scrollTo, canScrollLeft, canScrollRight]);
 
   return (
-    <div className="fixed bottom-6 right-6 flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-full px-2 py-1.5 shadow-md z-20">
+    <div className={`
+      fixed bottom-6 right-6 z-20
+      flex items-center gap-1
+      ${initiateTheme.bgCard}
+      border ${initiateTheme.borderAccent}
+      rounded-full px-3 py-2
+      ${initiateTheme.elevation2}
+    `}>
       {/* Left: Key hint + button */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         <kbd
           className={`
-            min-w-[20px] h-[20px] flex items-center justify-center
-            text-[10px] font-mono font-medium uppercase
-            rounded border transition-colors duration-100
+            min-w-[22px] h-[22px] flex items-center justify-center
+            text-[10px] font-mono font-semibold uppercase
+            rounded border transition-all duration-100
             ${activeKey === 'left'
-              ? 'bg-[var(--blue-light)] border-[var(--blue-primary)] text-[var(--blue-primary)]'
-              : 'bg-[var(--bg-tertiary)] border-[var(--border-default)] text-[var(--text-muted)]'
+              ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.3)]'
+              : `${initiateTheme.bgGlass} ${initiateTheme.borderSubtle} ${initiateTheme.textMuted}`
             }
             ${!canScrollLeft ? 'opacity-30' : ''}
           `}
@@ -103,36 +111,50 @@ export function ScrollIndicator({ containerRef, totalColumns }: ScrollIndicatorP
         <button
           onClick={() => scrollTo('left')}
           disabled={!canScrollLeft}
-          className="p-1 rounded-full hover:bg-[var(--bg-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className={`
+            p-1.5 rounded-full
+            transition-all duration-200
+            disabled:opacity-30 disabled:cursor-not-allowed
+            ${initiateTheme.bgHover}
+            ${initiateTheme.textSecondary}
+            hover:text-cyan-400
+          `}
           aria-label="Scroll left (or press A)"
         >
-          <ChevronLeft size={16} className="text-[var(--text-secondary)]" />
+          <ChevronLeft size={16} />
         </button>
       </div>
 
       {/* Column indicator */}
-      <span className="text-xs text-[var(--text-muted)] min-w-[50px] text-center tabular-nums">
+      <span className={`text-xs ${initiateTheme.textMuted} min-w-[50px] text-center tabular-nums`}>
         {visibleColumns}/{totalColumns}
       </span>
 
       {/* Right: button + Key hint */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         <button
           onClick={() => scrollTo('right')}
           disabled={!canScrollRight}
-          className="p-1 rounded-full hover:bg-[var(--bg-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className={`
+            p-1.5 rounded-full
+            transition-all duration-200
+            disabled:opacity-30 disabled:cursor-not-allowed
+            ${initiateTheme.bgHover}
+            ${initiateTheme.textSecondary}
+            hover:text-cyan-400
+          `}
           aria-label="Scroll right (or press D)"
         >
-          <ChevronRight size={16} className="text-[var(--text-secondary)]" />
+          <ChevronRight size={16} />
         </button>
         <kbd
           className={`
-            min-w-[20px] h-[20px] flex items-center justify-center
-            text-[10px] font-mono font-medium uppercase
-            rounded border transition-colors duration-100
+            min-w-[22px] h-[22px] flex items-center justify-center
+            text-[10px] font-mono font-semibold uppercase
+            rounded border transition-all duration-100
             ${activeKey === 'right'
-              ? 'bg-[var(--blue-light)] border-[var(--blue-primary)] text-[var(--blue-primary)]'
-              : 'bg-[var(--bg-tertiary)] border-[var(--border-default)] text-[var(--text-muted)]'
+              ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.3)]'
+              : `${initiateTheme.bgGlass} ${initiateTheme.borderSubtle} ${initiateTheme.textMuted}`
             }
             ${!canScrollRight ? 'opacity-30' : ''}
           `}

@@ -17,10 +17,10 @@ const paddingClasses = {
 };
 
 const variantClasses = {
-  default: 'card',
-  elevated: 'card-elevated',
-  outlined: 'card',
-  interactive: 'card-interactive',
+  default: 'card transition-shadow duration-150',
+  elevated: 'card-elevated transition-shadow duration-150 hover:shadow-md',
+  outlined: 'card transition-shadow duration-150',
+  interactive: 'card-interactive active:scale-[0.995]',
 };
 
 export function SwissCard({

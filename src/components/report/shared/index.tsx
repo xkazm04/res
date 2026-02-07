@@ -15,3 +15,7 @@ export * from './UniversalCard';
 // Semantic color system - meaning-based colors
 export * from './semanticColors';
 export * from './SemanticColorContext';
+
+// Collapsible sections
+export * from './CollapsibleSection';
+export * from './SectionControls';

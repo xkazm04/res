@@ -1,6 +1,7 @@
 'use client';
 
 import { spring, easeOutCubic, easeOutQuart, easeInOutCubic } from '../useVideoPlayback';
+import { spreadEntrance } from '@/src/lib/animation/motion';
 import { SceneHeader, SceneContainer, BackgroundOrb, type SceneProps } from './primitives';
 
 interface InsightsSceneProps extends SceneProps {
@@ -11,11 +12,14 @@ interface InsightsSceneProps extends SceneProps {
 /**
  * Insights scene displaying key findings and alerts in a two-column layout.
  */
-export function InsightsScene({ frame, fps, isRadar, format, insights, warnings }: InsightsSceneProps) {
+export function InsightsScene({ frame, fps, isRadar, format, insights, warnings, sceneFrame, sceneDuration }: InsightsSceneProps) {
   const isMobile = format === 'mobile';
-  const headerProgress = spring({ frame, fps, delay: 0, durationFrames: 18, easing: easeOutCubic });
-  const col1Progress = spring({ frame, fps, delay: 6, durationFrames: 20, easing: easeOutQuart });
-  const col2Progress = spring({ frame, fps, delay: 12, durationFrames: 20, easing: easeOutQuart });
+  const f = sceneFrame ?? frame;
+  const dur = sceneDuration ?? 120;
+  const getDelay = spreadEntrance(dur, 3, { startPct: 0.03, endPct: 0.45 });
+  const headerProgress = spring({ frame: f, fps, delay: getDelay(0), durationFrames: 18, easing: easeOutCubic });
+  const col1Progress = spring({ frame: f, fps, delay: getDelay(1), durationFrames: 20, easing: easeOutQuart });
+  const col2Progress = spring({ frame: f, fps, delay: getDelay(2), durationFrames: 20, easing: easeOutQuart });
 
   // Mobile: vertical stack
   if (isMobile) {
@@ -38,7 +42,7 @@ export function InsightsScene({ frame, fps, isRadar, format, insights, warnings 
         />
 
         {/* Vertical stack for mobile */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Insights */}
           <InsightColumn
             title="Insights"
@@ -48,9 +52,11 @@ export function InsightsScene({ frame, fps, isRadar, format, insights, warnings 
             progress={col1Progress}
             isRadar={isRadar}
             isMobile
-            frame={frame}
+            frame={f}
             fps={fps}
             baseIndex={0}
+            sceneDuration={dur}
+            totalItems={insights.length + warnings.length}
           />
 
           {/* Warnings */}
@@ -62,9 +68,11 @@ export function InsightsScene({ frame, fps, isRadar, format, insights, warnings 
             progress={col2Progress}
             isRadar={isRadar}
             isMobile
-            frame={frame}
+            frame={f}
             fps={fps}
             baseIndex={insights.length}
+            sceneDuration={dur}
+            totalItems={insights.length + warnings.length}
           />
         </div>
       </SceneContainer>
@@ -96,7 +104,7 @@ export function InsightsScene({ frame, fps, isRadar, format, insights, warnings 
         accentGradient="from-emerald-400 to-emerald-600"
       />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-5">
         <InsightColumn
           title="Insights"
           icon="💡"
@@ -104,10 +112,12 @@ export function InsightsScene({ frame, fps, isRadar, format, insights, warnings 
           type="insight"
           progress={col1Progress}
           isRadar={isRadar}
-          frame={frame}
+          frame={f}
           fps={fps}
           baseIndex={0}
           transformDir="left"
+          sceneDuration={dur}
+          totalItems={insights.length + warnings.length}
         />
 
         <InsightColumn
@@ -117,10 +127,12 @@ export function InsightsScene({ frame, fps, isRadar, format, insights, warnings 
           type="warning"
           progress={col2Progress}
           isRadar={isRadar}
-          frame={frame}
+          frame={f}
           fps={fps}
           baseIndex={insights.length}
           transformDir="right"
+          sceneDuration={dur}
+          totalItems={insights.length + warnings.length}
         />
       </div>
     </SceneContainer>
@@ -139,6 +151,8 @@ interface InsightColumnProps {
   fps: number;
   baseIndex: number;
   transformDir?: 'left' | 'right';
+  sceneDuration: number;
+  totalItems: number;
 }
 
 function InsightColumn({
@@ -153,6 +167,8 @@ function InsightColumn({
   fps,
   baseIndex,
   transformDir,
+  sceneDuration,
+  totalItems,
 }: InsightColumnProps) {
   const isInsight = type === 'insight';
   const bgColor = isInsight
@@ -170,13 +186,13 @@ function InsightColumn({
 
   return (
     <div
-      className={`p-3 rounded-xl border ${bgColor}`}
+      className={`p-4 rounded-xl border ${bgColor}`}
       style={{ opacity: progress, transform }}
     >
-      <div className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} uppercase tracking-wider font-semibold mb-${isMobile ? '2' : '3'} flex items-center gap-1.5 ${titleColor}`}>
+      <div className={`${isMobile ? 'text-xs' : 'text-[13px]'} uppercase tracking-wider font-semibold mb-${isMobile ? '2' : '3'} flex items-center gap-1.5 ${titleColor}`}>
         <span>{icon}</span> {title}
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {items.map((text, i) => (
           <InsightItem
             key={i}
@@ -187,10 +203,12 @@ function InsightColumn({
             fps={fps}
             isRadar={isRadar}
             isMobile={isMobile}
+            sceneDuration={sceneDuration}
+            totalItems={totalItems}
           />
         ))}
         {items.length === 0 && (
-          <p className={`text-xs italic ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
+          <p className={`text-sm italic ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
             No {type === 'insight' ? 'insights available' : 'alerts'}
           </p>
         )}
@@ -207,10 +225,13 @@ interface InsightItemProps {
   fps: number;
   isRadar: boolean;
   isMobile: boolean;
+  sceneDuration: number;
+  totalItems: number;
 }
 
-function InsightItem({ text, type, index, frame, fps, isRadar, isMobile }: InsightItemProps) {
-  const progress = spring({ frame, fps, delay: 6 + index * 6, durationFrames: 22, easing: easeOutCubic });
+function InsightItem({ text, type, index, frame, fps, isRadar, isMobile, sceneDuration, totalItems }: InsightItemProps) {
+  const getDelay = spreadEntrance(sceneDuration, totalItems, { startPct: 0.15, endPct: 0.65 });
+  const progress = spring({ frame, fps, delay: getDelay(index), durationFrames: 22, easing: easeOutCubic });
 
   const isInsight = type === 'insight';
   const textColor = isInsight
@@ -228,7 +249,7 @@ function InsightItem({ text, type, index, frame, fps, isRadar, isMobile }: Insig
       style={{ opacity: progress, transform: `translateY(${(1 - progress) * 8}px)` }}
     >
       <div className={`w-1 h-1 rounded-full mt-1.5 flex-shrink-0 ${dotColor}`} />
-      <p className={`${isMobile ? 'text-[11px]' : 'text-xs'} leading-relaxed ${textColor}`}>
+      <p className={`text-sm leading-relaxed ${textColor}`}>
         {text.slice(0, maxLen)}{text.length > maxLen ? '...' : ''}
       </p>
     </div>

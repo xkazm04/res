@@ -60,3 +60,6 @@ export { CausalChainScene } from './CausalChainScene';
 // Due Diligence Template Scenes
 export { RedFlagCompilationScene } from './RedFlagCompilationScene';
 export { LeadershipHistoryScene } from './LeadershipHistoryScene';
+
+// Stock Footage Scene (uses Remotion <Video> — requires Player context)
+export { StockFootageScene } from './StockFootageScene';

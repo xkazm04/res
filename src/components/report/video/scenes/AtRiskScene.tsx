@@ -1,8 +1,9 @@
 'use client';
 
-import { spring, easeOutCubic, easeOutQuart, easeOutExpo } from '../useVideoPlayback';
+import { spring, easeOutQuart } from '../useVideoPlayback';
 import { TargetIcon, CriticalIcon, WarningIcon, InfoIcon } from '../icons';
 import type { BaseSceneProps } from '../configs/types';
+import { spreadEntrance } from '@/src/lib/animation/motion';
 
 interface AtRiskEntity {
   name: string;
@@ -26,6 +27,7 @@ export function AtRiskScene({
   isRadar,
   format,
   sceneFrame,
+  sceneDuration,
   entities,
   title = 'Who Is At Risk',
   accentColor,
@@ -34,8 +36,9 @@ export function AtRiskScene({
 
   // Animation timings
   const headerProgress = spring({ frame: sceneFrame, fps, delay: 0, durationFrames: 25, easing: easeOutQuart });
-  const summaryProgress = spring({ frame: sceneFrame, fps, delay: 8, durationFrames: 22, easing: easeOutCubic });
-  const cardsProgress = spring({ frame: sceneFrame, fps, delay: 15, durationFrames: 35, easing: easeOutExpo });
+
+  // Proportional stagger delays for entity items
+  const getEntityDelay = spreadEntrance(sceneDuration, entities.length, { startPct: 0.05, endPct: 0.65 });
 
   // Animated pulse
   const pulse = Math.sin((sceneFrame / fps) * Math.PI * 2) * 0.5 + 0.5;
@@ -112,14 +115,7 @@ export function AtRiskScene({
   );
 
   return (
-    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
-      {/* Cinematic letterbox */}
-      {!isMobile && (
-        <>
-          <div className="absolute top-0 left-0 right-0 bg-black z-10" style={{ height: '6%', opacity: headerProgress * 0.9 }} />
-          <div className="absolute bottom-0 left-0 right-0 bg-black z-10" style={{ height: '6%', opacity: headerProgress * 0.9 }} />
-        </>
-      )}
+    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
 
       {/* Background gradient */}
       <div
@@ -183,16 +179,16 @@ export function AtRiskScene({
               className={`relative flex items-center justify-center rounded-xl backdrop-blur-sm ${
                 isRadar ? 'bg-red-500/30 border border-red-400/30' : 'bg-red-100/80 border border-red-200'
               }`}
-              style={{ width: isMobile ? 42 : 50, height: isMobile ? 42 : 50 }}
+              style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72 }}
             >
-              <TargetIcon size={isMobile ? 22 : 26} color="#ef4444" />
+              <TargetIcon size={isMobile ? 30 : 36} color="#ef4444" />
             </div>
           </div>
           <div>
-            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               {title}
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               {entities.length} entities analyzed
             </p>
           </div>
@@ -203,42 +199,10 @@ export function AtRiskScene({
         />
       </div>
 
-      {/* Risk summary badges - glassmorphism */}
-      <div
-        className={`
-          relative z-20 inline-flex flex-wrap gap-2 mb-4 p-3 rounded-xl backdrop-blur-sm
-          ${isRadar ? 'bg-slate-800/50 border border-slate-700/50' : 'bg-white/60 border border-stone-200'}
-        `}
-        style={{ opacity: summaryProgress, transform: `translateY(${(1 - summaryProgress) * 10}px)` }}
-      >
-        {(['critical', 'high', 'moderate', 'low'] as const).map((level, i) => {
-          const count = entities.filter(e => e.riskLevel === level).length;
-          if (count === 0) return null;
-          const style = getRiskStyle(level);
-          const itemProgress = spring({ frame: sceneFrame, fps, delay: 10 + i * 3, durationFrames: 15, easing: easeOutCubic });
-
-          return (
-            <div
-              key={level}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full`}
-              style={{ backgroundColor: `${style.color}15`, opacity: itemProgress }}
-            >
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full" style={{ backgroundColor: style.color, filter: 'blur(3px)', opacity: 0.4 }} />
-                <style.Icon size={12} color={style.color} />
-              </div>
-              <span className={`text-xs font-bold ${style.text}`}>
-                {count} {level}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Entity cards - premium */}
-      <div className={`relative z-20 space-y-3 ${isMobile ? '' : 'px-1'}`}>
-        {sortedEntities.slice(0, isMobile ? 3 : 4).map((entity, i) => {
-          const delay = 18 + i * 7;
+      {/* Entity cards - compact layout */}
+      <div className={`relative z-20 space-y-2 ${isMobile ? '' : 'px-1'}`}>
+        {sortedEntities.slice(0, 3).map((entity, i) => {
+          const delay = getEntityDelay(i);
           const cardProgress = spring({ frame: sceneFrame, fps, delay, durationFrames: 28, easing: easeOutQuart });
           const style = getRiskStyle(entity.riskLevel);
 
@@ -246,59 +210,44 @@ export function AtRiskScene({
             <div
               key={i}
               className={`
-                relative overflow-hidden p-4 rounded-2xl border backdrop-blur-sm
-                bg-gradient-to-br ${style.gradient}
+                relative overflow-hidden px-3 py-2.5 rounded-xl border backdrop-blur-sm
                 ${isRadar ? 'border-slate-700/50' : 'border-stone-200'}
               `}
               style={{
                 opacity: cardProgress,
-                transform: `translateX(${(1 - cardProgress) * 30}px)`,
-                borderLeftWidth: 4,
+                transform: `translateX(${(1 - cardProgress) * 20}px)`,
+                borderLeftWidth: 3,
                 borderLeftColor: style.border,
-                boxShadow: `0 4px 20px ${style.color}10`,
+                backgroundColor: isRadar ? 'rgba(30,41,59,0.5)' : 'rgba(255,255,255,0.7)',
               }}
             >
-              {/* Card inner glow */}
-              <div
-                className="absolute inset-0 rounded-2xl"
-                style={{ background: `radial-gradient(ellipse at top left, ${style.color}${Math.round(8 + pulse * 5).toString(16)} 0%, transparent 50%)` }}
-              />
-
-              <div className="relative flex items-start gap-3">
-                <div className="relative flex-shrink-0">
-                  <div
-                    className="absolute inset-0 rounded-xl"
-                    style={{ backgroundColor: style.color, filter: 'blur(8px)', opacity: 0.25 + pulse * 0.1 }}
-                  />
-                  <div
-                    className="relative flex items-center justify-center rounded-xl"
-                    style={{ width: 40, height: 40, backgroundColor: `${style.color}20` }}
-                  >
-                    <style.Icon size={20} color={style.color} />
-                  </div>
+              <div className="relative flex items-center gap-3">
+                {/* Icon */}
+                <div
+                  className="relative flex items-center justify-center rounded-lg flex-shrink-0"
+                  style={{ width: 44, height: 44, backgroundColor: `${style.color}18` }}
+                >
+                  <style.Icon size={22} color={style.color} />
                 </div>
 
+                {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2 mb-0.5">
                     <span className={`text-sm font-bold ${isRadar ? 'text-white' : 'text-stone-800'}`}>
                       {entity.name}
                     </span>
                     <span
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase"
-                      style={{ backgroundColor: `${style.color}20`, color: style.color }}
+                      className="px-1.5 py-0.5 rounded text-xs font-bold uppercase flex-shrink-0"
+                      style={{ backgroundColor: `${style.color}18`, color: style.color }}
                     >
                       {entity.riskLevel}
                     </span>
+                    <span className={`text-xs flex-shrink-0 ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
+                      {entity.type}
+                    </span>
                   </div>
-
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium mb-2 ${
-                    isRadar ? 'bg-slate-700/80 text-slate-300' : 'bg-stone-100 text-stone-600'
-                  }`}>
-                    {entity.type}
-                  </span>
-
-                  <p className={`text-xs leading-relaxed ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
-                    {entity.reason.length > 80 ? entity.reason.slice(0, 77) + '...' : entity.reason}
+                  <p className={`text-[13px] leading-snug truncate ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+                    {entity.reason}
                   </p>
                 </div>
               </div>
@@ -307,32 +256,20 @@ export function AtRiskScene({
         })}
       </div>
 
-      {/* More indicator */}
-      {entities.length > (isMobile ? 3 : 4) && (
-        <div
-          className="relative z-20 mt-4 text-center"
-          style={{ opacity: spring({ frame: sceneFrame, fps, delay: 55, durationFrames: 20, easing: easeOutCubic }) }}
-        >
-          <span className={`text-sm font-medium ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
-            +{entities.length - (isMobile ? 3 : 4)} more entities at risk
-          </span>
-        </div>
-      )}
-
       {/* Premium corner accents */}
       {!isMobile && (
         <>
-          <svg className="absolute top-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 0 32 L 0 6 Q 0 0 6 0 L 32 0" fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute top-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 0 40 L 0 8 Q 0 0 8 0 L 40 0" fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute top-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 48 32 L 48 6 Q 48 0 42 0 L 16 0" fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute top-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 64 40 L 64 8 Q 64 0 56 0 L 24 0" fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute bottom-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 0 16 L 0 42 Q 0 48 6 48 L 32 48" fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute bottom-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 0 24 L 0 56 Q 0 64 8 64 L 40 64" fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute bottom-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 48 16 L 48 42 Q 48 48 42 48 L 16 48" fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute bottom-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 64 24 L 64 56 Q 64 64 56 64 L 24 64" fill="none" stroke="#ef4444" strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
         </>
       )}

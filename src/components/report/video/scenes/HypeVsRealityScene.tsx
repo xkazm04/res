@@ -112,14 +112,7 @@ export function HypeVsRealityScene({
   const insight = getInsightStyle();
 
   return (
-    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
-      {/* Cinematic letterbox */}
-      {!isMobile && (
-        <>
-          <div className="absolute top-0 left-0 right-0 bg-black z-10" style={{ height: '6%', opacity: headerProgress * 0.9 }} />
-          <div className="absolute bottom-0 left-0 right-0 bg-black z-10" style={{ height: '6%', opacity: headerProgress * 0.9 }} />
-        </>
-      )}
+    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
 
       {/* Split background gradients */}
       <div
@@ -175,16 +168,16 @@ export function HypeVsRealityScene({
               className={`relative flex items-center justify-center rounded-xl backdrop-blur-sm ${
                 isRadar ? 'bg-purple-500/30 border border-purple-400/30' : 'bg-purple-100/80 border border-purple-200'
               }`}
-              style={{ width: isMobile ? 42 : 50, height: isMobile ? 42 : 50 }}
+              style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72 }}
             >
-              <MaskIcon size={isMobile ? 22 : 26} color="#8b5cf6" />
+              <MaskIcon size={isMobile ? 30 : 36} color="#8b5cf6" />
             </div>
           </div>
           <div>
-            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               {title}
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               {items.length} claims analyzed
             </p>
           </div>
@@ -208,7 +201,7 @@ export function HypeVsRealityScene({
             <div className="absolute inset-0 rounded-full bg-purple-500" style={{ filter: 'blur(4px)', opacity: 0.5 }} />
             <div className="relative w-4 h-4 rounded-full bg-purple-500" />
           </div>
-          <span className={`text-xs font-medium ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>Media Hype</span>
+          <span className={`text-sm font-medium ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>Media Hype</span>
         </div>
         <div className={`h-5 w-px ${isRadar ? 'bg-slate-600' : 'bg-stone-300'}`} />
         <div className="flex items-center gap-2">
@@ -216,7 +209,7 @@ export function HypeVsRealityScene({
             <div className="absolute inset-0 rounded-full bg-cyan-500" style={{ filter: 'blur(4px)', opacity: 0.5 }} />
             <div className="relative w-4 h-4 rounded-full bg-cyan-500" />
           </div>
-          <span className={`text-xs font-medium ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>Developer Reality</span>
+          <span className={`text-sm font-medium ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>Developer Reality</span>
         </div>
       </div>
 
@@ -277,17 +270,17 @@ export function HypeVsRealityScene({
                 style={{ backgroundColor: insight.color, filter: 'blur(8px)', opacity: 0.4 + pulse * insight.pulseIntensity }}
               />
               <div
-                className="relative w-10 h-10 rounded-full flex items-center justify-center"
+                className="relative w-12 h-12 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: `${insight.color}20` }}
               >
-                <insight.Icon size={20} color={insight.color} />
+                <insight.Icon size={24} color={insight.color} />
               </div>
             </div>
             <div className="text-left">
-              <p className={`text-sm font-bold ${insight.text}`}>
+              <p className={`text-base font-bold ${insight.text}`}>
                 {insight.message}
               </p>
-              <p className={`text-xs ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
+              <p className={`text-sm ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
                 Average gap: <span className="font-semibold" style={{ color: insight.color }}>{hypeGap > 0 ? '+' : ''}{hypeGap.toFixed(0)}</span> points
               </p>
             </div>
@@ -298,17 +291,17 @@ export function HypeVsRealityScene({
       {/* Premium corner accents */}
       {!isMobile && (
         <>
-          <svg className="absolute top-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 0 32 L 0 6 Q 0 0 6 0 L 32 0" fill="none" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute top-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 0 42 L 0 8 Q 0 0 8 0 L 42 0" fill="none" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute top-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 48 32 L 48 6 Q 48 0 42 0 L 16 0" fill="none" stroke="#06b6d4" strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute top-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 64 42 L 64 8 Q 64 0 56 0 L 22 0" fill="none" stroke="#06b6d4" strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute bottom-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 0 16 L 0 42 Q 0 48 6 48 L 32 48" fill="none" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute bottom-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 0 22 L 0 56 Q 0 64 8 64 L 42 64" fill="none" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute bottom-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 48 16 L 48 42 Q 48 48 42 48 L 16 48" fill="none" stroke="#06b6d4" strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute bottom-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 64 22 L 64 56 Q 64 64 56 64 L 22 64" fill="none" stroke="#06b6d4" strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
         </>
       )}

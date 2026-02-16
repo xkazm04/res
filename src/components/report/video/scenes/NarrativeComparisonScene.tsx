@@ -73,20 +73,7 @@ export function NarrativeComparisonScene({
   };
 
   return (
-    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
-      {/* Cinematic letterbox for desktop */}
-      {!isMobile && (
-        <>
-          <div
-            className="absolute top-0 left-0 right-0 bg-black z-10"
-            style={{ height: '8%', opacity: headerProgress * 0.9 }}
-          />
-          <div
-            className="absolute bottom-0 left-0 right-0 bg-black z-10"
-            style={{ height: '8%', opacity: headerProgress * 0.9 }}
-          />
-        </>
-      )}
+    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
 
       {/* Background gradient */}
       <div
@@ -141,16 +128,16 @@ export function NarrativeComparisonScene({
               className={`relative flex items-center justify-center rounded-xl backdrop-blur-sm ${
                 isRadar ? 'bg-purple-500/30 border border-purple-400/30' : 'bg-purple-100/80 border border-purple-200'
               }`}
-              style={{ width: isMobile ? 42 : 52, height: isMobile ? 42 : 52 }}
+              style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72 }}
             >
-              <SplitCompareIcon size={isMobile ? 22 : 28} color="#a855f7" />
+              <SplitCompareIcon size={isMobile ? 30 : 36} color="#a855f7" />
             </div>
           </div>
           <div>
-            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               The Two Stories
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               What they say vs. what happened
             </p>
           </div>
@@ -189,12 +176,12 @@ export function NarrativeComparisonScene({
             {/* Title */}
             <div className="flex items-center gap-2 mb-4">
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                className="w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)' }}
               >
-                <NewsIcon size={16} color="#3b82f6" />
+                <NewsIcon size={20} color="#3b82f6" />
               </div>
-              <h3 className={`text-sm font-bold ${isRadar ? 'text-blue-400' : 'text-blue-700'}`}>
+              <h3 className={`text-base font-bold ${isRadar ? 'text-blue-400' : 'text-blue-700'}`}>
                 Official Story
               </h3>
             </div>
@@ -220,7 +207,7 @@ export function NarrativeComparisonScene({
                       className="absolute left-0 top-2 bottom-2 w-1 rounded-full"
                       style={{ backgroundColor: '#3b82f6' }}
                     />
-                    <p className={`text-xs pl-3 leading-relaxed ${isRadar ? 'text-slate-300' : 'text-stone-700'}`}>
+                    <p className={`text-sm pl-3 leading-relaxed ${isRadar ? 'text-slate-300' : 'text-stone-700'}`}>
                       {animateWords(point.length > 60 ? point.slice(0, 57) + '...' : point, 20, i)}
                     </p>
                   </div>
@@ -277,7 +264,7 @@ export function NarrativeComparisonScene({
               />
               <div
                 className={`
-                  relative w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm
+                  relative w-14 h-14 rounded-full flex items-center justify-center font-bold text-base
                   ${isRadar ? 'bg-slate-900 text-white border border-slate-600' : 'bg-white text-stone-900 border border-stone-200'}
                 `}
                 style={{
@@ -322,12 +309,12 @@ export function NarrativeComparisonScene({
             {/* Title */}
             <div className="flex items-center gap-2 mb-4">
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                className="w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: 'rgba(168, 85, 247, 0.2)' }}
               >
-                <InvestigativeIcon size={16} color="#a855f7" />
+                <InvestigativeIcon size={20} color="#a855f7" />
               </div>
-              <h3 className={`text-sm font-bold ${isRadar ? 'text-purple-400' : 'text-purple-700'}`}>
+              <h3 className={`text-base font-bold ${isRadar ? 'text-purple-400' : 'text-purple-700'}`}>
                 Real Story
               </h3>
             </div>
@@ -353,7 +340,7 @@ export function NarrativeComparisonScene({
                       className="absolute left-0 top-2 bottom-2 w-1 rounded-full"
                       style={{ backgroundColor: '#a855f7' }}
                     />
-                    <p className={`text-xs pl-3 leading-relaxed ${isRadar ? 'text-slate-300' : 'text-stone-700'}`}>
+                    <p className={`text-sm pl-3 leading-relaxed ${isRadar ? 'text-slate-300' : 'text-stone-700'}`}>
                       {animateWords(point.length > 60 ? point.slice(0, 57) + '...' : point, 27, i)}
                     </p>
                   </div>
@@ -393,7 +380,7 @@ export function NarrativeComparisonScene({
 
             <div className="relative flex items-center gap-3">
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center"
+                className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{
                   backgroundColor: 'rgba(245, 158, 11, 0.2)',
                   boxShadow: `0 0 ${10 + pulse * 5}px rgba(245, 158, 11, 0.3)`,
@@ -402,10 +389,10 @@ export function NarrativeComparisonScene({
                 <WarningIcon size={16} color="#f59e0b" />
               </div>
               <div>
-                <p className={`text-sm font-bold ${isRadar ? 'text-amber-400' : 'text-amber-700'}`}>
+                <p className={`text-base font-bold ${isRadar ? 'text-amber-400' : 'text-amber-700'}`}>
                   {discrepancies.length} Major Discrepancies
                 </p>
-                <p className={`text-xs ${isRadar ? 'text-amber-500/70' : 'text-amber-600/70'}`}>
+                <p className={`text-sm ${isRadar ? 'text-amber-500/70' : 'text-amber-600/70'}`}>
                   Critical contradictions identified
                 </p>
               </div>

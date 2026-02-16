@@ -31,3 +31,12 @@ export { SplitScreen, SplitContentItem } from './SplitScreen';
 // Verdict display badges
 export { VerdictBadge, VerdictIndicator } from './VerdictBadge';
 export type { VerdictType } from './VerdictBadge';
+
+// Kinetic text animation for social media impact
+export { KineticText } from './KineticText';
+
+// Scene transitions (enter/exit effects between scenes)
+export { SceneTransition } from './SceneTransition';
+
+// Animated background atmosphere (particles, mesh gradient, vignette)
+export { VideoAtmosphere } from './VideoAtmosphere';

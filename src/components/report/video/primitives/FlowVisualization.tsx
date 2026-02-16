@@ -50,9 +50,9 @@ export function FlowVisualization({
   accentColor = '#22c55e',
 }: FlowVisualizationProps) {
   const isHorizontal = direction === 'horizontal';
-  const padding = 40;
-  const nodeWidth = isHorizontal ? 80 : 100;
-  const nodeHeight = isHorizontal ? 50 : 40;
+  const padding = 50;
+  const nodeWidth = isHorizontal ? 110 : 130;
+  const nodeHeight = isHorizontal ? 65 : 55;
 
   // Position nodes in a line
   const positionedNodes = nodes.map((node, i) => {
@@ -179,10 +179,10 @@ export function FlowVisualization({
               {flow.amount && lineProgress > 0.6 && (
                 <g>
                   <rect
-                    x={(startX + endX) / 2 - 30}
-                    y={(startY + endY) / 2 - 10}
-                    width={60}
-                    height={20}
+                    x={(startX + endX) / 2 - 40}
+                    y={(startY + endY) / 2 - 12}
+                    width={80}
+                    height={24}
                     rx={4}
                     fill={isRadar ? '#1e293b' : '#fafaf9'}
                     stroke={getFlowColor(flow.type)}
@@ -193,7 +193,7 @@ export function FlowVisualization({
                     x={(startX + endX) / 2}
                     y={(startY + endY) / 2 + 4}
                     textAnchor="middle"
-                    className="text-[10px] font-bold"
+                    className="text-[13px] font-bold"
                     fill={getFlowColor(flow.type)}
                     opacity={(lineProgress - 0.6) * 2.5}
                   >
@@ -225,11 +225,11 @@ export function FlowVisualization({
               transform: `scale(${0.8 + nodeProgress * 0.2})`,
             }}
           >
-            <span className={`text-xs font-semibold ${colors.text} truncate max-w-[70px]`}>
+            <span className={`text-sm font-semibold ${colors.text} truncate max-w-[100px]`}>
               {node.label}
             </span>
             {node.sublabel && (
-              <span className={`text-[9px] ${isRadar ? 'text-slate-400' : 'text-stone-500'} truncate max-w-[70px]`}>
+              <span className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'} truncate max-w-[100px]`}>
                 {node.sublabel}
               </span>
             )}

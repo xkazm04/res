@@ -1,7 +1,13 @@
 'use client';
 
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import {
+  useRef,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  memo,
+} from 'react';
 import type { ResearchSession } from '@/src/types/research';
 import {
   useAppStore,
@@ -11,17 +17,22 @@ import {
   getUncategorizedSessions,
   type TopicWithSessions,
 } from '@/src/stores/appStore';
+import { getTemplateColor } from '@/src/stores/appStore';
 import { useReducedMotion } from '@/src/hooks/useReducedMotion';
 import {
   SwissInteractionManager,
-  getSwissZoomLevel,
   getSwissZoomLevelName,
   type SwissViewState,
   type SwissMapConfig,
   DEFAULT_SWISS_CONFIG,
 } from '@/src/lib/swissMap';
 import { getSessionCache } from '@/src/lib/sessionCache';
+import { useMapNavigation } from '@/src/hooks/useMapNavigation';
 import { ZoomControls } from './ZoomControls';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 interface SwissMapViewProps {
   sessions: ResearchSession[];
@@ -37,52 +48,511 @@ interface DrillState {
 }
 
 // ============================================================================
-// Dynamic Grid Layout Calculation
+// Number Formatting
 // ============================================================================
 
-interface GridLayout {
-  columnCount: number;
-  columnWidth: number;
-  cardHeight: number;
-  gap: number;
+const numFmt = new Intl.NumberFormat('en-US');
+
+function formatNumber(n: number): string {
+  return numFmt.format(n);
 }
 
-/**
- * Calculate optimal grid layout based on container width and item count
- * Replaces fixed 12-column grid with adaptive layout
- */
-function calculateGridLayout(containerWidth: number, itemCount: number): GridLayout {
-  // Minimum card width for readability
-  const minCardWidth = 180;
+// ============================================================================
+// Relative Time
+// ============================================================================
 
-  // Maximum columns based on container width
-  const maxColumns = Math.min(12, Math.floor(containerWidth / minCardWidth));
+function relativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
 
-  // Adaptive column count based on item count (avoid too sparse grids)
-  const columnCount = Math.max(2, Math.min(maxColumns, Math.ceil(Math.sqrt(itemCount))));
+  if (diffMs < 0) return 'just now';
 
-  // Column width fills available space
-  const gap = 1; // 1px gap (bg-black shows through)
-  const columnWidth = (containerWidth - gap * (columnCount - 1)) / columnCount;
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return 'just now';
 
-  // Card height adapts to density
-  const cardHeight = itemCount > 50 ? 80 : itemCount > 20 ? 100 : 120;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
 
-  return { columnCount, columnWidth, cardHeight, gap };
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+
+  const years = Math.floor(months / 12);
+  return `${years}y ago`;
 }
 
-// Use session threshold for when to show virtualized list vs grid
-const VIRTUALIZATION_THRESHOLD = 100;
+// ============================================================================
+// Animated Count-Up Hook
+// ============================================================================
 
-/**
- * Swiss Map View
- *
- * An infinite Swiss-style map with:
- * - Keyboard navigation (WASD, Arrows)
- * - Semantic zoom levels
- * - Space-efficient compact design
- * - Hierarchical drill-down navigation
- */
+function useCountUp(target: number, duration = 800): number {
+  const [current, setCurrent] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  const startRef = useRef<number | null>(null);
+  const prevTargetRef = useRef(0);
+
+  useEffect(() => {
+    const from = prevTargetRef.current;
+    prevTargetRef.current = target;
+    startRef.current = null;
+
+    if (from === target) {
+      setCurrent(target);
+      return;
+    }
+
+    const tick = (ts: number) => {
+      if (startRef.current === null) startRef.current = ts;
+      const elapsed = ts - startRef.current;
+      const t = Math.min(1, elapsed / duration);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - t, 3);
+      const val = Math.round(from + (target - from) * eased);
+      setCurrent(val);
+
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [target, duration]);
+
+  return current;
+}
+
+// ============================================================================
+// Micro-Sparkline: 30-day activity
+// ============================================================================
+
+function buildSparklineData(sessions: ResearchSession[]): number[] {
+  const now = Date.now();
+  const bins = new Array<number>(30).fill(0);
+
+  for (const s of sessions) {
+    const age = now - new Date(s.created_at).getTime();
+    const dayIndex = 29 - Math.floor(age / (1000 * 60 * 60 * 24));
+    if (dayIndex >= 0 && dayIndex < 30) {
+      bins[dayIndex]++;
+    }
+  }
+  return bins;
+}
+
+// ============================================================================
+// Sub-Components (inline, memo'd)
+// ============================================================================
+
+// --- Stats Header ---
+
+interface StatsHeaderProps {
+  sessions: ResearchSession[];
+  templates: string[];
+  grouped: Record<string, ResearchSession[]>;
+  stats: { sessions: number; templates: number; findings: number; sources: number };
+}
+
+const StatsHeader = memo(function StatsHeader({
+  sessions: _sessions,
+  templates,
+  grouped,
+  stats,
+}: StatsHeaderProps) {
+  const animSessions = useCountUp(stats.sessions);
+  const animTemplates = useCountUp(stats.templates);
+  const animFindings = useCountUp(stats.findings);
+  const animSources = useCountUp(stats.sources);
+
+  // Calculate template proportion bar
+  const total = stats.sessions || 1;
+  const segments = templates.map((t) => ({
+    template: t,
+    color: getTemplateColor(t),
+    fraction: (grouped[t]?.length || 0) / total,
+  }));
+
+  return (
+    <div className="mb-px">
+      {/* Proportion bar */}
+      <div className="flex w-full h-1" style={{ gap: 0 }}>
+        {segments.map((seg) => (
+          <div
+            key={seg.template}
+            style={{
+              width: `${seg.fraction * 100}%`,
+              backgroundColor: seg.color,
+              minWidth: seg.fraction > 0 ? 2 : 0,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Stats row */}
+      <div className="bg-white px-4 py-3 flex items-baseline gap-6 flex-wrap">
+        <StatItem value={animSessions} label="SESSIONS" />
+        <Divider />
+        <StatItem value={animTemplates} label="CATEGORIES" />
+        <Divider />
+        <StatItem value={animFindings} label="FINDINGS" />
+        <Divider />
+        <StatItem value={animSources} label="SOURCES" />
+      </div>
+    </div>
+  );
+});
+
+function StatItem({ value, label }: { value: number; label: string }) {
+  return (
+    <span className="flex items-baseline gap-2">
+      <span className="font-mono tabular-nums text-sm text-black">
+        {formatNumber(value)}
+      </span>
+      <span className="text-[10px] uppercase tracking-widest text-gray-400">
+        {label}
+      </span>
+    </span>
+  );
+}
+
+function Divider() {
+  return <span className="text-gray-200 text-xs select-none">|</span>;
+}
+
+// --- Template Card ---
+
+interface TemplateCardProps {
+  templateId: string;
+  sessions: ResearchSession[];
+  onClick: () => void;
+}
+
+const TemplateCard = memo(function TemplateCard({
+  templateId,
+  sessions,
+  onClick,
+}: TemplateCardProps) {
+  const color = getTemplateColor(templateId);
+  const name = getTemplateDisplayName(templateId);
+  const count = sessions.length;
+  const sparkline = useMemo(() => buildSparklineData(sessions), [sessions]);
+  const maxBin = Math.max(1, ...sparkline);
+
+  // Top 3 topic-like groupings: use thematic_group or unique query prefixes
+  const topLabels = useMemo(() => {
+    const groups = new Map<string, number>();
+    for (const s of sessions) {
+      const key = s.thematic_group || s.query.split(/\s+/).slice(0, 3).join(' ');
+      groups.set(key, (groups.get(key) || 0) + 1);
+    }
+    return Array.from(groups.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([k]) => k);
+  }, [sessions]);
+
+  return (
+    <button
+      onClick={onClick}
+      aria-label={`${name} template: ${count} sessions`}
+      className="bg-white text-left group transition-all duration-200 hover:shadow-lg hover:scale-[1.01] focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:outline-none relative overflow-hidden"
+      style={{ minHeight: 140, contain: 'layout style paint' }}
+    >
+      {/* Full-bleed color header bar */}
+      <div className="w-full" style={{ height: 6, backgroundColor: color }} />
+
+      <div className="px-4 pt-3 pb-3 flex flex-col justify-between h-[calc(100%-6px)]">
+        <div>
+          {/* Large monospace count */}
+          <div className="text-5xl font-light tabular-nums font-mono leading-none text-black">
+            {formatNumber(count)}
+          </div>
+          {/* Template name */}
+          <div className="text-[11px] uppercase tracking-widest text-gray-500 mt-2">
+            {name}
+          </div>
+        </div>
+
+        {/* Micro-sparkline */}
+        <div className="flex items-end gap-px mt-3" style={{ height: 20 }}>
+          {sparkline.map((v, i) => (
+            <div
+              key={i}
+              className="flex-1"
+              style={{
+                height: `${(v / maxBin) * 100}%`,
+                minHeight: v > 0 ? 1 : 0,
+                backgroundColor: color,
+                opacity: 0.4,
+                borderRadius: '1px 1px 0 0',
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Hover: top 3 topics */}
+        <div className="overflow-hidden max-h-0 group-hover:max-h-16 transition-all duration-200">
+          <div className="pt-2 space-y-0.5">
+            {topLabels.map((label, i) => (
+              <div
+                key={i}
+                className="text-[10px] text-gray-400 truncate leading-tight"
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+});
+
+// --- Topic Card ---
+
+interface TopicCardProps {
+  topicId: string;
+  templateId: string;
+  name: string;
+  description?: string;
+  sessions: ResearchSession[];
+  onClick: () => void;
+}
+
+const TopicCard = memo(function TopicCard({
+  topicId: _topicId,
+  templateId,
+  name,
+  description,
+  sessions,
+  onClick,
+}: TopicCardProps) {
+  const color = getTemplateColor(templateId);
+  const count = sessions.length;
+
+  // Status counts
+  const statusCounts = useMemo(() => {
+    let completed = 0;
+    let active = 0;
+    let failed = 0;
+    for (const s of sessions) {
+      if (s.status === 'completed') completed++;
+      else if (s.status === 'active' || s.status === 'searching' || s.status === 'analyzing') active++;
+      else if (s.status === 'failed') failed++;
+    }
+    const total = completed + active + failed || 1;
+    return { completed, active, failed, total };
+  }, [sessions]);
+
+  return (
+    <button
+      onClick={onClick}
+      aria-label={`${name}: ${count} sessions`}
+      className="bg-white text-left group transition-all duration-150 hover:shadow-md focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:outline-none relative overflow-hidden flex"
+      style={{ minHeight: 100, contain: 'layout style paint' }}
+    >
+      {/* Left color bar */}
+      <div className="flex-shrink-0" style={{ width: 3, backgroundColor: color }} />
+
+      <div className="flex-1 px-4 py-3 flex flex-col justify-between min-w-0">
+        <div className="min-w-0">
+          {/* Session count */}
+          <div className="text-4xl font-light tabular-nums font-mono leading-none text-black">
+            {formatNumber(count)}
+          </div>
+          {/* Topic name */}
+          <div className="text-[15px] font-medium text-black mt-1 truncate">
+            {name}
+          </div>
+          {/* Description */}
+          {description && (
+            <div className="text-[11px] text-gray-400 mt-0.5 line-clamp-2 leading-tight">
+              {description}
+            </div>
+          )}
+        </div>
+
+        {/* Status bar at bottom */}
+        <div className="flex w-full h-1 mt-3 rounded-full overflow-hidden bg-gray-100">
+          {statusCounts.completed > 0 && (
+            <div
+              style={{
+                width: `${(statusCounts.completed / statusCounts.total) * 100}%`,
+                backgroundColor: '#22C55E',
+              }}
+            />
+          )}
+          {statusCounts.active > 0 && (
+            <div
+              style={{
+                width: `${(statusCounts.active / statusCounts.total) * 100}%`,
+                backgroundColor: '#FACC15',
+              }}
+            />
+          )}
+          {statusCounts.failed > 0 && (
+            <div
+              style={{
+                width: `${(statusCounts.failed / statusCounts.total) * 100}%`,
+                backgroundColor: '#EF4444',
+              }}
+            />
+          )}
+        </div>
+      </div>
+    </button>
+  );
+});
+
+// --- Session Card ---
+
+interface SessionCardProps {
+  session: ResearchSession;
+  templateId: string;
+  onClick: () => void;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  completed: '#22C55E',
+  active: '#FACC15',
+  searching: '#FACC15',
+  analyzing: '#FACC15',
+  failed: '#EF4444',
+};
+
+const SessionCard = memo(function SessionCard({
+  session,
+  templateId,
+  onClick,
+}: SessionCardProps) {
+  const color = getTemplateColor(templateId);
+  const statusColor = STATUS_COLORS[session.status] || '#9CA3AF';
+
+  return (
+    <button
+      onClick={onClick}
+      aria-label={`${session.title || session.query}: ${session.status}`}
+      className="bg-white text-left w-full hover:bg-gray-50 transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:outline-none border-b border-gray-100 last:border-b-0"
+      style={{ minHeight: 56, contain: 'layout style paint', contentVisibility: 'auto', containIntrinsicSize: '0 56px' } as React.CSSProperties}
+    >
+      <div className="px-4 py-2.5 flex items-center gap-3">
+        {/* Left: color dot + status */}
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+          <div
+            className="rounded-full"
+            style={{ width: 6, height: 6, backgroundColor: color }}
+          />
+        </div>
+
+        {/* Center: title + query */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] font-medium text-black truncate">
+              {session.title}
+            </span>
+            <span
+              className="text-[9px] uppercase tracking-widest flex-shrink-0 px-1.5 py-0.5 rounded"
+              style={{
+                color: statusColor,
+                backgroundColor: `${statusColor}14`,
+              }}
+            >
+              {session.status}
+            </span>
+          </div>
+          <div className="text-[11px] text-gray-400 truncate leading-tight mt-0.5">
+            {session.query}
+          </div>
+        </div>
+
+        {/* Right: claim count + timestamp */}
+        <div className="flex-shrink-0 text-right">
+          <div className="font-mono tabular-nums text-sm text-black">
+            {formatNumber(session.claim_count || 0)}
+          </div>
+          <div className="text-[9px] uppercase tracking-widest text-gray-400">
+            FINDINGS
+          </div>
+        </div>
+
+        {/* Far right: relative time */}
+        <div className="flex-shrink-0 text-[10px] text-gray-300 font-mono tabular-nums w-14 text-right">
+          {relativeTime(session.created_at)}
+        </div>
+      </div>
+    </button>
+  );
+});
+
+// --- Breadcrumb Nav ---
+
+interface BreadcrumbNavProps {
+  breadcrumb: string[];
+  itemCount: number;
+  canGoBack: boolean;
+  onBack: () => void;
+  onBreadcrumbClick: (index: number) => void;
+}
+
+const BreadcrumbNav = memo(function BreadcrumbNav({
+  breadcrumb,
+  itemCount,
+  canGoBack,
+  onBack,
+  onBreadcrumbClick,
+}: BreadcrumbNavProps) {
+  return (
+    <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-10">
+      <div className="flex items-center justify-between px-4 py-2">
+        <div className="flex items-center gap-3">
+          {canGoBack && (
+            <button
+              onClick={onBack}
+              className="text-xs uppercase tracking-widest text-gray-400 hover:text-black transition-colors duration-150 p-1 -m-1 rounded hover:bg-gray-100"
+              aria-label="Go back"
+            >
+              &larr;
+            </button>
+          )}
+          <div className="flex items-center gap-1 text-xs">
+            {breadcrumb.map((crumb, i) => (
+              <span key={i} className="flex items-center gap-1">
+                {i > 0 && <span className="text-gray-300">/</span>}
+                <button
+                  onClick={() => onBreadcrumbClick(i)}
+                  className={`uppercase tracking-widest transition-colors duration-150 px-1 rounded hover:bg-gray-100 ${
+                    i === breadcrumb.length - 1
+                      ? 'text-black font-medium'
+                      : 'text-gray-400 hover:text-black'
+                  }`}
+                >
+                  {crumb}
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="text-xs text-gray-400 font-mono tabular-nums">
+          {formatNumber(itemCount)} items
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
 export function SwissMapView({
   sessions,
   onSessionSelect,
@@ -98,6 +568,26 @@ export function SwissMapView({
   });
   const [drill, setDrill] = useState<DrillState>({ level: 'overview' });
 
+  // URL state integration for browser back/forward
+  const handleUrlNavigate = useCallback((state: { level: DrillLevel; templateId: string | null; topicId: string | null }) => {
+    setDrill({
+      level: state.level,
+      templateId: state.templateId ?? undefined,
+      topicId: state.topicId ?? undefined,
+    });
+    interactionRef.current?.setView({ offsetX: 0, offsetY: 0 }, true);
+  }, []);
+
+  useMapNavigation({
+    drillState: {
+      level: drill.level,
+      focusedTemplateId: drill.templateId ?? null,
+      focusedTopicId: drill.topicId ?? null,
+      breadcrumbs: [],
+    },
+    onNavigate: handleUrlNavigate,
+  });
+
   const {
     topics,
     fetchTopics,
@@ -108,36 +598,30 @@ export function SwissMapView({
   } = useAppStore();
   const reducedMotion = useReducedMotion();
 
-  // Container size for dynamic grid
-  const [containerSize, setContainerSize] = useState({ width: 900, height: 600 });
-
-  // Virtualized list parent ref
-  const listParentRef = useRef<HTMLDivElement>(null);
+  // Container size for responsive layout
+  const [containerWidth, setContainerWidth] = useState(1200);
 
   // Loading state for lazy loading
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Fetch topics
+  // Fetch topics on mount
   useEffect(() => {
     fetchTopics();
   }, [fetchTopics]);
 
-  // Track container size for dynamic grid
+  // Track container width
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const resizeObserver = new ResizeObserver((entries) => {
+    const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setContainerSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
+        setContainerWidth(entry.contentRect.width);
       }
     });
 
-    resizeObserver.observe(container);
-    return () => resizeObserver.disconnect();
+    observer.observe(container);
+    return () => observer.disconnect();
   }, []);
 
   // Data processing
@@ -168,12 +652,21 @@ export function SwissMapView({
       );
 
       const templateId = drill.templateId;
-      const items = templateTopics.map((topic) => ({
+      const items: Array<{
+        id: string;
+        type: 'topic';
+        label: string;
+        description?: string;
+        count: number;
+        sessions: ResearchSession[];
+        topic?: TopicWithSessions;
+      }> = templateTopics.map((topic) => ({
         id: topic.id,
         type: 'topic' as const,
         label: topic.name,
         description: topic.description,
-        count: topic.sessions?.filter((s) => s.template_type === templateId).length || 0,
+        count:
+          topic.sessions?.filter((s) => s.template_type === templateId).length || 0,
         sessions: (grouped[templateId] || []).filter((s: ResearchSession) =>
           topic.sessions?.some((ts) => ts.id === s.id)
         ),
@@ -188,7 +681,7 @@ export function SwissMapView({
           description: undefined,
           count: uncategorized.length,
           sessions: uncategorized,
-          topic: undefined as unknown as TopicWithSessions,
+          topic: undefined,
         });
       }
 
@@ -235,21 +728,15 @@ export function SwissMapView({
   }, [drill, templates, grouped, topics]);
 
   // Stats
-  const stats = useMemo(() => ({
-    sessions: sessions.length,
-    templates: templates.length,
-    findings: sessions.reduce((sum, s) => sum + (s.claim_count || 0), 0),
-    sources: sessions.reduce((sum, s) => sum + (s.source_count || 0), 0),
-  }), [sessions, templates]);
-
-  // Calculate dynamic grid layout
-  const gridLayout = useMemo(() => {
-    const width = Math.min(containerSize.width - 32, 900); // Max 900px with padding
-    return calculateGridLayout(width, viewData.items.length);
-  }, [containerSize.width, viewData.items.length]);
-
-  // Determine if we should use virtualized list (for session-level views with many items)
-  const shouldVirtualize = drill.level === 'topic' && viewData.items.length > VIRTUALIZATION_THRESHOLD;
+  const stats = useMemo(
+    () => ({
+      sessions: sessions.length,
+      templates: templates.length,
+      findings: sessions.reduce((sum, s) => sum + (s.claim_count || 0), 0),
+      sources: sessions.reduce((sum, s) => sum + (s.source_count || 0), 0),
+    }),
+    [sessions, templates]
+  );
 
   // Initialize interactions
   useEffect(() => {
@@ -277,7 +764,6 @@ export function SwissMapView({
   useEffect(() => {
     const content = contentRef.current;
     if (!content) return;
-
     content.style.transform = `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})`;
   }, [view]);
 
@@ -285,7 +771,6 @@ export function SwissMapView({
   const handleItemClick = useCallback(
     async (item: (typeof viewData.items)[0]) => {
       if (item.type === 'template') {
-        // Lazy load template data if not cached
         const cache = getSessionCache();
         if (!cache.hasTemplateData(item.id)) {
           setIsLoadingMore(true);
@@ -295,11 +780,9 @@ export function SwissMapView({
             setIsLoadingMore(false);
           }
         }
-
         setDrill({ level: 'template', templateId: item.id });
         interactionRef.current?.setView({ offsetX: 0, offsetY: 0 }, true);
       } else if (item.type === 'topic') {
-        // Lazy load topic sessions if not cached
         const cache = getSessionCache();
         if (!cache.hasTopicData(item.id)) {
           setIsLoadingMore(true);
@@ -309,7 +792,6 @@ export function SwissMapView({
             setIsLoadingMore(false);
           }
         }
-
         setDrill({
           level: 'topic',
           templateId: drill.templateId,
@@ -359,14 +841,17 @@ export function SwissMapView({
     interactionRef.current?.setView({ offsetX: 0, offsetY: 0 }, true);
   }, [drill]);
 
-  const handleBreadcrumbClick = useCallback((index: number) => {
-    if (index === 0) {
-      setDrill({ level: 'overview' });
-    } else if (index === 1 && drill.templateId) {
-      setDrill({ level: 'template', templateId: drill.templateId });
-    }
-    interactionRef.current?.setView({ offsetX: 0, offsetY: 0 }, true);
-  }, [drill.templateId]);
+  const handleBreadcrumbClick = useCallback(
+    (index: number) => {
+      if (index === 0) {
+        setDrill({ level: 'overview' });
+      } else if (index === 1 && drill.templateId) {
+        setDrill({ level: 'template', templateId: drill.templateId });
+      }
+      interactionRef.current?.setView({ offsetX: 0, offsetY: 0 }, true);
+    },
+    [drill.templateId]
+  );
 
   // Zoom handlers
   const handleZoomIn = useCallback(() => {
@@ -382,8 +867,35 @@ export function SwissMapView({
     setDrill({ level: 'overview' });
   }, []);
 
-  const zoomConfig = getSwissZoomLevel(view.scale);
   const zoomLevelName = getSwissZoomLevelName(view.scale);
+
+  // Grid column style based on drill level
+  const gridStyle = useMemo((): React.CSSProperties => {
+    if (drill.level === 'overview') {
+      return {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+        gap: 1,
+        width: containerWidth,
+      };
+    }
+    if (drill.level === 'template') {
+      return {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+        gap: 1,
+        width: containerWidth,
+      };
+    }
+    // topic level: single column list
+    return {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: 0,
+      width: Math.min(700, containerWidth),
+      margin: '0 auto',
+    };
+  }, [drill.level, containerWidth]);
 
   return (
     <div
@@ -403,94 +915,124 @@ export function SwissMapView({
         }}
       >
         <div className="relative -translate-x-1/2 -translate-y-1/2">
-          {/* Stats bar - compact */}
-          {drill.level === 'overview' && zoomConfig.showStats && (
-            <div className="flex gap-px bg-black mb-px" style={{ width: '900px' }}>
-              <StatBox label="Sessions" value={stats.sessions} />
-              <StatBox label="Categories" value={stats.templates} />
-              <StatBox label="Findings" value={stats.findings} />
-              <StatBox label="Sources" value={stats.sources} />
+          {/* Stats header - overview only */}
+          {drill.level === 'overview' && (
+            <div style={{ width: containerWidth }}>
+              <StatsHeader
+                sessions={sessions}
+                templates={templates}
+                grouped={grouped}
+                stats={stats}
+              />
             </div>
           )}
 
-          {/* Grid layout - dynamic based on data */}
+          {/* Grid with bg-black for 1px grid lines */}
           <div
-            className="grid gap-px bg-black"
-            style={{
-              gridTemplateColumns: `repeat(${gridLayout.columnCount}, 1fr)`,
-              width: `${Math.min(containerSize.width - 32, 900)}px`,
-            }}
+            className={drill.level !== 'topic' ? 'bg-black' : ''}
+            style={
+              drill.level === 'topic'
+                ? { width: containerWidth, display: 'flex', justifyContent: 'center' }
+                : { width: containerWidth }
+            }
           >
-            {viewData.items.map((item, idx) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                index={idx}
-                zoomConfig={zoomConfig}
-                onClick={() => handleItemClick(item)}
-                drillLevel={drill.level}
-                cardHeight={gridLayout.cardHeight}
-              />
-            ))}
+            <div style={gridStyle}>
+              {/* Overview: Template cards */}
+              {drill.level === 'overview' &&
+                viewData.items.map((item) => (
+                  <TemplateCard
+                    key={item.id}
+                    templateId={item.id}
+                    sessions={item.sessions}
+                    onClick={() => handleItemClick(item)}
+                  />
+                ))}
+
+              {/* Template level: Topic cards */}
+              {drill.level === 'template' &&
+                drill.templateId &&
+                viewData.items.map((item) => (
+                  <TopicCard
+                    key={item.id}
+                    topicId={item.id}
+                    templateId={drill.templateId!}
+                    name={item.label}
+                    description={'description' in item ? item.description : undefined}
+                    sessions={item.sessions}
+                    onClick={() => handleItemClick(item)}
+                  />
+                ))}
+
+              {/* Topic level: Session cards */}
+              {drill.level === 'topic' &&
+                drill.templateId &&
+                viewData.items.map((item) => {
+                  const session = 'session' in item ? item.session : undefined;
+                  if (!session) return null;
+                  return (
+                    <SessionCard
+                      key={item.id}
+                      session={session}
+                      templateId={drill.templateId!}
+                      onClick={() => handleItemClick(item)}
+                    />
+                  );
+                })}
+            </div>
           </div>
 
-          {/* Load more button for pagination */}
+          {/* Load more button */}
           {hasMoreData && (
-            <button
-              onClick={handleLoadMore}
-              disabled={isLoadingMore}
-              className="w-full py-3 bg-white hover:bg-gray-50 border-t border-black text-xs uppercase tracking-widest text-gray-500 hover:text-black transition-all duration-150 disabled:opacity-50 active:bg-gray-100 focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:outline-none"
-              style={{ width: `${Math.min(containerSize.width - 32, 900)}px` }}
+            <div
+              style={{ width: drill.level === 'topic' ? Math.min(700, containerWidth) : containerWidth }}
+              className={drill.level === 'topic' ? 'mx-auto' : ''}
             >
-              {isLoadingMore ? 'Loading...' : 'Load More'}
-            </button>
+              <button
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                className="w-full py-3 bg-white hover:bg-gray-50 border-t border-gray-200 text-[10px] uppercase tracking-widest text-gray-400 hover:text-black transition-colors duration-150 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:outline-none"
+              >
+                {isLoadingMore ? 'LOADING...' : 'LOAD MORE'}
+              </button>
+            </div>
           )}
 
           {/* Empty state */}
-          {viewData.items.length === 0 && (
-            <div className="bg-white p-8 text-center text-gray-400" style={{ width: '600px' }}>
-              No items found
+          {viewData.items.length === 0 && !isLoadingMore && (
+            <div
+              className="bg-white flex items-center justify-center"
+              style={{ width: containerWidth, height: 200 }}
+            >
+              <span className="text-[11px] uppercase tracking-widest text-gray-300">
+                NO ITEMS
+              </span>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {isLoadingMore && viewData.items.length === 0 && (
+            <div
+              className="bg-white flex items-center justify-center"
+              style={{ width: containerWidth, height: 200 }}
+            >
+              <span className="text-[11px] uppercase tracking-widest text-gray-400 animate-pulse">
+                LOADING...
+              </span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Fixed UI overlay */}
-      {/* Header with breadcrumb */}
-      <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-black z-10 shadow-sm">
-        <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-3">
-            {drill.level !== 'overview' && (
-              <button
-                onClick={handleBack}
-                className="text-xs uppercase tracking-widest text-gray-500 hover:text-black transition-all duration-150 active:scale-90 p-1 -m-1 rounded hover:bg-gray-100"
-              >
-                ←
-              </button>
-            )}
-            <div className="flex items-center gap-1 text-xs">
-              {viewData.breadcrumb.map((crumb, i) => (
-                <span key={i} className="flex items-center gap-1">
-                  {i > 0 && <span className="text-gray-300">/</span>}
-                  <button
-                    onClick={() => handleBreadcrumbClick(i)}
-                    className={`uppercase tracking-widest transition-all duration-150 px-1 rounded hover:bg-gray-100 ${
-                      i === viewData.breadcrumb.length - 1
-                        ? 'text-black font-medium'
-                        : 'text-gray-400 hover:text-black'
-                    }`}
-                  >
-                    {crumb}
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="text-xs text-gray-400 font-mono tabular-nums">
-            {viewData.items.length} items
-          </div>
-        </div>
-      </div>
+      {/* Fixed UI overlays */}
+
+      {/* Breadcrumb navigation */}
+      <BreadcrumbNav
+        breadcrumb={viewData.breadcrumb}
+        itemCount={viewData.items.length}
+        canGoBack={drill.level !== 'overview'}
+        onBack={handleBack}
+        onBreadcrumbClick={handleBreadcrumbClick}
+      />
 
       {/* Zoom controls */}
       <div className="absolute bottom-16 right-3 z-10">
@@ -503,102 +1045,16 @@ export function SwissMapView({
       </div>
 
       {/* Keyboard hints */}
-      <div className="absolute bottom-3 left-3 text-gray-400 text-[10px] font-mono">
+      <div className="absolute bottom-3 left-3 text-gray-300 text-[10px] font-mono">
         <span className="hidden sm:inline">
           WASD: Pan &bull; Scroll: Zoom &bull; Click: Open
         </span>
       </div>
 
       {/* Zoom level indicator */}
-      <div className="absolute bottom-3 right-3 text-gray-400 text-[10px] font-mono">
+      <div className="absolute bottom-3 right-3 text-gray-300 text-[10px] font-mono tabular-nums">
         {zoomLevelName} &bull; {Math.round(view.scale * 100)}%
       </div>
     </div>
-  );
-}
-
-// ============================================================================
-// Sub-components - Compact Design
-// ============================================================================
-
-interface StatBoxProps {
-  label: string;
-  value: number;
-}
-
-function StatBox({ label, value }: StatBoxProps) {
-  return (
-    <div className="flex-1 bg-white px-3 py-2">
-      <div className="text-2xl font-light leading-none">{value}</div>
-      <div className="text-[9px] uppercase tracking-widest text-gray-400 mt-1">{label}</div>
-    </div>
-  );
-}
-
-interface ItemCardProps {
-  item: {
-    id: string;
-    type: 'template' | 'topic' | 'session';
-    label: string;
-    description?: string;
-    count: number;
-    sessions: ResearchSession[];
-  };
-  index: number;
-  zoomConfig: ReturnType<typeof getSwissZoomLevel>;
-  onClick: () => void;
-  drillLevel: DrillLevel;
-  cardHeight?: number;
-}
-
-function ItemCard({ item, index, zoomConfig, onClick, drillLevel, cardHeight }: ItemCardProps) {
-  const isSession = item.type === 'session';
-  const showDescription = zoomConfig.showDescriptions && item.description;
-
-  // Compact sizing based on zoom level
-  const padding = zoomConfig.cardSize === 'compact' ? 'p-2' : zoomConfig.cardSize === 'normal' ? 'p-3' : 'p-4';
-  const titleSize = zoomConfig.cardSize === 'compact' ? 'text-sm' : zoomConfig.cardSize === 'normal' ? 'text-base' : 'text-lg';
-  const countSize = zoomConfig.cardSize === 'compact' ? 'text-lg' : zoomConfig.cardSize === 'normal' ? 'text-xl' : 'text-2xl';
-
-  // Dynamic card height from grid layout or fallback
-  const minHeight = cardHeight ?? (drillLevel === 'topic'
-    ? (zoomConfig.cardSize === 'compact' ? 60 : 80)
-    : (zoomConfig.cardSize === 'compact' ? 70 : 90));
-
-  return (
-    <button
-      onClick={onClick}
-      className={`bg-white hover:bg-gray-50 transition-all duration-150 text-left group ${padding} active:bg-gray-100 focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:outline-none focus-visible:ring-inset`}
-      style={{ minHeight }}
-    >
-      <div className="h-full flex flex-col justify-between">
-        <div>
-          {/* Index number - only show at normal/detail zoom */}
-          {zoomConfig.showStats && (
-            <div className="text-[8px] uppercase tracking-widest text-gray-300 mb-0.5 tabular-nums">
-              {String(index + 1).padStart(2, '0')}
-            </div>
-          )}
-          <h3 className={`${titleSize} font-light leading-tight group-hover:underline decoration-1 underline-offset-2 line-clamp-2 transition-colors duration-150`}>
-            {item.label}
-          </h3>
-          {showDescription && (
-            <p className="text-[10px] text-gray-400 mt-1 line-clamp-2 leading-tight">
-              {item.description}
-            </p>
-          )}
-        </div>
-        <div className="flex items-end justify-between mt-1">
-          <div className={`${countSize} font-light leading-none tabular-nums`}>
-            {isSession ? item.count : item.sessions.length}
-          </div>
-          {zoomConfig.showStats && (
-            <div className="text-[8px] text-gray-400 uppercase tracking-widest">
-              {isSession ? 'findings' : drillLevel === 'overview' ? 'sessions' : 'sessions'}
-            </div>
-          )}
-        </div>
-      </div>
-    </button>
   );
 }

@@ -24,7 +24,7 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const { name, selection, enrichments, rewrites } = body;
+    const { name, selection, enrichments, rewrites, scene_composition } = body;
 
     if (!selection) {
       return NextResponse.json({ error: 'selection is required' }, { status: 400 });
@@ -35,6 +35,7 @@ export async function POST(
       selection,
       enrichments,
       rewrites,
+      scene_composition,
     });
 
     if (!draft) {

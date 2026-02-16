@@ -1,6 +1,7 @@
 'use client';
 
 import { spring, easeOutCubic, easeOutQuart, easeInOutCubic } from '../useVideoPlayback';
+import { spreadEntrance } from '@/src/lib/animation/motion';
 import { SceneHeader, SceneContainer, BackgroundOrb, pulse, getColorClasses, type SceneProps, type MetricColor } from './primitives';
 
 interface MetricsSceneProps extends SceneProps {
@@ -10,9 +11,11 @@ interface MetricsSceneProps extends SceneProps {
 /**
  * Metrics scene with animated counter cards in a responsive grid.
  */
-export function MetricsScene({ frame, fps, isRadar, format, metrics }: MetricsSceneProps) {
+export function MetricsScene({ frame, fps, isRadar, format, metrics, sceneFrame, sceneDuration }: MetricsSceneProps) {
   const isMobile = format === 'mobile';
-  const headerProgress = spring({ frame, fps, delay: 0, durationFrames: 18, easing: easeOutCubic });
+  const f = sceneFrame ?? frame;
+  const dur = sceneDuration ?? 120;
+  const headerProgress = spring({ frame: f, fps, delay: 0, durationFrames: 18, easing: easeOutCubic });
 
   return (
     <SceneContainer isMobile={isMobile}>
@@ -35,7 +38,7 @@ export function MetricsScene({ frame, fps, isRadar, format, metrics }: MetricsSc
       />
 
       {/* Metrics grid */}
-      <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-4 gap-3'}`}>
+      <div className={`grid ${isMobile ? 'grid-cols-2 gap-4' : 'grid-cols-4 gap-4'}`}>
         {metrics.map((m, i) => (
           <MetricCard
             key={i}
@@ -44,10 +47,12 @@ export function MetricsScene({ frame, fps, isRadar, format, metrics }: MetricsSc
             suffix={m.suffix}
             color={m.color as MetricColor}
             index={i}
-            frame={frame}
+            frame={f}
             fps={fps}
             isRadar={isRadar}
             isMobile={isMobile}
+            sceneDuration={dur}
+            itemCount={metrics.length}
           />
         ))}
       </div>
@@ -65,6 +70,8 @@ interface MetricCardProps {
   fps: number;
   isRadar: boolean;
   isMobile: boolean;
+  sceneDuration: number;
+  itemCount: number;
 }
 
 function MetricCard({
@@ -77,10 +84,14 @@ function MetricCard({
   fps,
   isRadar,
   isMobile,
+  sceneDuration,
+  itemCount,
 }: MetricCardProps) {
-  const progress = spring({ frame, fps, delay: 6 + index * 4, durationFrames: 22, easing: easeOutQuart });
-  const countProgress = spring({ frame, fps, delay: 12 + index * 4, durationFrames: 32, easing: easeOutCubic });
-  const glowProgress = spring({ frame, fps, delay: 16 + index * 4, durationFrames: 18, easing: easeOutCubic });
+  const getDelay = spreadEntrance(sceneDuration, itemCount, { startPct: 0.05, endPct: 0.55 });
+  const d = getDelay(index);
+  const progress = spring({ frame, fps, delay: d, durationFrames: 22, easing: easeOutQuart });
+  const countProgress = spring({ frame, fps, delay: d + 6, durationFrames: 32, easing: easeOutCubic });
+  const glowProgress = spring({ frame, fps, delay: d + 10, durationFrames: 18, easing: easeOutCubic });
   const breathe = pulse(frame, fps, 0.6);
 
   const colors = getColorClasses(color, isRadar);
@@ -92,13 +103,13 @@ function MetricCard({
         style={{ opacity: glowProgress * 0.4, transform: `scale(${1.1 * breathe})` }}
       />
       <div
-        className={`relative ${isMobile ? 'p-3' : 'p-3'} rounded-xl border backdrop-blur-sm ${colors.bg} ${colors.border}`}
+        className={`relative ${isMobile ? 'p-3' : 'p-4'} rounded-xl border backdrop-blur-sm ${colors.bg} ${colors.border}`}
         style={{ opacity: progress, transform: `translateY(${(1 - progress) * 15}px)` }}
       >
-        <div className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} uppercase tracking-wider font-medium mb-1 ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+        <div className={`${isMobile ? 'text-xs' : 'text-[13px]'} uppercase tracking-wider font-medium mb-1 ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
           {label}
         </div>
-        <div className={`${isMobile ? 'text-2xl' : 'text-2xl'} font-bold tabular-nums ${colors.text}`}>
+        <div className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold tabular-nums ${colors.text}`}>
           {Math.round(value * countProgress)}{suffix}
         </div>
         {/* Mini progress bar */}

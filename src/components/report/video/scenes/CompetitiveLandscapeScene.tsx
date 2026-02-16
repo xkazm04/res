@@ -3,6 +3,7 @@
 import { spring, easeOutCubic, easeOutQuart, easeOutExpo } from '../useVideoPlayback';
 import { CompetitiveIcon, TrendUpIcon, TrendDownIcon, SuccessIcon } from '../icons';
 import type { BaseSceneProps } from '../configs/types';
+import { spreadEntrance } from '@/src/lib/animation/motion';
 
 interface Competitor {
   name: string;
@@ -26,6 +27,7 @@ export function CompetitiveLandscapeScene({
   isRadar,
   format,
   sceneFrame,
+  sceneDuration,
   competitors,
   marketName = 'Market',
   accentColor,
@@ -36,6 +38,9 @@ export function CompetitiveLandscapeScene({
   const headerProgress = spring({ frame: sceneFrame, fps, delay: 0, durationFrames: 25, easing: easeOutQuart });
   const legendProgress = spring({ frame: sceneFrame, fps, delay: 5, durationFrames: 22, easing: easeOutCubic });
   const summaryProgress = spring({ frame: sceneFrame, fps, delay: 55, durationFrames: 25, easing: easeOutCubic });
+
+  // Proportional stagger delays for competitor items
+  const getCompetitorDelay = spreadEntrance(sceneDuration, competitors.length, { startPct: 0.05, endPct: 0.65 });
 
   // Animated pulse
   const pulse = Math.sin((sceneFrame / fps) * Math.PI * 2) * 0.5 + 0.5;
@@ -90,14 +95,7 @@ export function CompetitiveLandscapeScene({
   const challengerCount = competitors.filter(c => c.position === 'challenger').length;
 
   return (
-    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
-      {/* Cinematic letterbox */}
-      {!isMobile && (
-        <>
-          <div className="absolute top-0 left-0 right-0 bg-black z-10" style={{ height: '6%', opacity: headerProgress * 0.9 }} />
-          <div className="absolute bottom-0 left-0 right-0 bg-black z-10" style={{ height: '6%', opacity: headerProgress * 0.9 }} />
-        </>
-      )}
+    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
 
       {/* Background gradient */}
       <div
@@ -143,16 +141,16 @@ export function CompetitiveLandscapeScene({
               className={`relative flex items-center justify-center rounded-xl backdrop-blur-sm ${
                 isRadar ? 'bg-purple-500/30 border border-purple-400/30' : 'bg-purple-100/80 border border-purple-200'
               }`}
-              style={{ width: isMobile ? 42 : 50, height: isMobile ? 42 : 50 }}
+              style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72 }}
             >
-              <CompetitiveIcon size={isMobile ? 22 : 26} color={accentColor} />
+              <CompetitiveIcon size={isMobile ? 30 : 36} color={accentColor} />
             </div>
           </div>
           <div>
-            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               {marketName} Landscape
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               {competitors.length} competitors analyzed
             </p>
           </div>
@@ -180,7 +178,7 @@ export function CompetitiveLandscapeScene({
                 <div className="absolute inset-0 rounded-full" style={{ backgroundColor: style.border, filter: 'blur(4px)', opacity: 0.4 }} />
                 <div className="relative w-3 h-3 rounded-full" style={{ backgroundColor: style.border }} />
               </div>
-              <span className={`text-[11px] font-medium capitalize ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>
+              <span className={`text-sm font-medium capitalize ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>
                 {pos}
               </span>
             </div>
@@ -191,7 +189,7 @@ export function CompetitiveLandscapeScene({
       {/* Competitor cards - premium */}
       <div className="relative z-20 space-y-3">
         {sortedCompetitors.slice(0, isMobile ? 4 : 5).map((comp, i) => {
-          const delay = 15 + i * 7;
+          const delay = getCompetitorDelay(i);
           const cardProgress = spring({ frame: sceneFrame, fps, delay, durationFrames: 26, easing: easeOutQuart });
           const barProgress = spring({ frame: sceneFrame, fps, delay: delay + 8, durationFrames: 30, easing: easeOutExpo });
           const style = positionStyles[comp.position];
@@ -247,7 +245,7 @@ export function CompetitiveLandscapeScene({
                       {comp.name}
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase ${style.text}`}
+                      className={`px-2 py-0.5 rounded-lg text-[13px] font-bold uppercase ${style.text}`}
                       style={{ backgroundColor: `${style.border}20` }}
                     >
                       {comp.position}
@@ -270,12 +268,12 @@ export function CompetitiveLandscapeScene({
                 {/* Strength value */}
                 <div className="flex-shrink-0 text-right">
                   <span
-                    className={`text-2xl font-bold tabular-nums`}
+                    className={`text-3xl font-bold tabular-nums`}
                     style={{ color: style.border }}
                   >
                     {Math.round(comp.strength * barProgress)}
                   </span>
-                  <span className={`text-xs ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>%</span>
+                  <span className={`text-sm ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>%</span>
                 </div>
               </div>
             </div>
@@ -317,17 +315,17 @@ export function CompetitiveLandscapeScene({
       {/* Corner accents */}
       {!isMobile && (
         <>
-          <svg className="absolute top-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 0 32 L 0 6 Q 0 0 6 0 L 32 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute top-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 0 42 L 0 8 Q 0 0 8 0 L 42 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute top-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 48 32 L 48 6 Q 48 0 42 0 L 16 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute top-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 64 42 L 64 8 Q 64 0 56 0 L 22 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute bottom-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 0 16 L 0 42 Q 0 48 6 48 L 32 48" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute bottom-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 0 22 L 0 56 Q 0 64 8 64 L 42 64" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute bottom-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 48 16 L 48 42 Q 48 48 42 48 L 16 48" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute bottom-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 64 22 L 64 56 Q 64 64 56 64 L 22 64" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
         </>
       )}

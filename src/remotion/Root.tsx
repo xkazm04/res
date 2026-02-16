@@ -18,16 +18,8 @@ export type VideoFormat = 'standard' | 'mobile';
  * Standard dimensions for each format
  */
 export const DIMENSIONS = {
-  standard: { width: 1920, height: 1080 }, // 16:9 Full HD
-  mobile: { width: 1080, height: 1920 },   // 9:16 Full HD vertical
-} as const;
-
-/**
- * Preview dimensions (smaller for faster preview)
- */
-export const PREVIEW_DIMENSIONS = {
-  standard: { width: 640, height: 360 },  // 16:9
-  mobile: { width: 360, height: 640 },    // 9:16
+  standard: { width: 960, height: 540 },  // 16:9 design viewport (export uses scale:2 → 1920×1080)
+  mobile: { width: 540, height: 960 },    // 9:16 design viewport (export uses scale:2 → 1080×1920)
 } as const;
 
 /**

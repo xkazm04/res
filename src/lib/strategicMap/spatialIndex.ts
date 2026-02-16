@@ -253,11 +253,64 @@ export class SpatialIndex {
     return results;
   }
 
+  // ============================================================================
+  // Incremental Updates
+  // ============================================================================
+
+  /**
+   * Add nodes incrementally without full rebuild.
+   * More efficient than rebuild for small additions to large datasets.
+   */
+  addNodes(nodes: StrategicMapNode[]): void {
+    if (!this.quadtree) {
+      // No existing tree - do a full build
+      this.build(nodes);
+      return;
+    }
+
+    for (const node of nodes) {
+      // Skip if already indexed
+      if (this.nodes.has(node.id)) continue;
+
+      const qnode: QuadtreeNode = {
+        id: node.id,
+        x: node.x,
+        y: node.y,
+        radius: node.radius,
+        data: node,
+      };
+      this.nodes.set(node.id, qnode);
+      this.quadtree.add(qnode);
+    }
+  }
+
+  /**
+   * Remove nodes incrementally without full rebuild.
+   */
+  removeNodes(nodeIds: string[]): void {
+    if (!this.quadtree) return;
+
+    for (const id of nodeIds) {
+      const qnode = this.nodes.get(id);
+      if (!qnode) continue;
+
+      this.quadtree.remove(qnode);
+      this.nodes.delete(id);
+    }
+  }
+
   /**
    * Get all nodes (for debugging)
    */
   getAllNodes(): StrategicMapNode[] {
     return Array.from(this.nodes.values()).map(n => n.data);
+  }
+
+  /**
+   * Check if a node exists in the index
+   */
+  hasNode(nodeId: string): boolean {
+    return this.nodes.has(nodeId);
   }
 
   /**

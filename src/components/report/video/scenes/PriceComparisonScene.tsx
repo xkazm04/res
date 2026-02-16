@@ -81,14 +81,7 @@ export function PriceComparisonScene({
   const statusBorder = isOvercharged ? 'border-red-400/30' : 'border-emerald-400/30';
 
   return (
-    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
-      {/* Cinematic letterbox */}
-      {!isMobile && (
-        <>
-          <div className="absolute top-0 left-0 right-0 bg-black z-10" style={{ height: '6%', opacity: headerProgress * 0.9 }} />
-          <div className="absolute bottom-0 left-0 right-0 bg-black z-10" style={{ height: '6%', opacity: headerProgress * 0.9 }} />
-        </>
-      )}
+    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
 
       {/* Background gradient */}
       <div
@@ -134,16 +127,16 @@ export function PriceComparisonScene({
               className={`relative flex items-center justify-center rounded-xl backdrop-blur-sm ${
                 isRadar ? 'bg-amber-500/30 border border-amber-400/30' : 'bg-amber-100/80 border border-amber-200'
               }`}
-              style={{ width: isMobile ? 42 : 50, height: isMobile ? 42 : 50 }}
+              style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72 }}
             >
-              <ContractIcon size={isMobile ? 22 : 26} color="#f59e0b" />
+              <ContractIcon size={isMobile ? 30 : 36} color="#f59e0b" />
             </div>
           </div>
           <div>
-            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               Price Analysis
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               {items.length} line items compared
             </p>
           </div>
@@ -167,7 +160,7 @@ export function PriceComparisonScene({
             <div className="absolute inset-0 rounded-full bg-red-500" style={{ filter: 'blur(4px)', opacity: 0.5 }} />
             <div className="relative w-4 h-4 rounded-full bg-red-500" />
           </div>
-          <span className={`text-xs font-medium ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>{contractName}</span>
+          <span className={`text-sm font-medium ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>{contractName}</span>
         </div>
         <div className={`h-5 w-px ${isRadar ? 'bg-slate-600' : 'bg-stone-300'}`} />
         <div className="flex items-center gap-2">
@@ -175,7 +168,7 @@ export function PriceComparisonScene({
             <div className="absolute inset-0 rounded-full bg-emerald-500" style={{ filter: 'blur(4px)', opacity: 0.5 }} />
             <div className="relative w-4 h-4 rounded-full bg-emerald-500" />
           </div>
-          <span className={`text-xs font-medium ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>Market Rate</span>
+          <span className={`text-sm font-medium ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>Market Rate</span>
         </div>
       </div>
 
@@ -189,7 +182,7 @@ export function PriceComparisonScene({
           frame={sceneFrame - 12}
           fps={fps}
           isRadar={isRadar}
-          width={isMobile ? 300 : 800}
+          width={isMobile ? 440 : 840}
           leftHeader={contractName}
           rightHeader="Market Rate"
           leftColor="#ef4444"
@@ -247,19 +240,19 @@ export function PriceComparisonScene({
                 </div>
               </div>
               <div>
-                <p className={`text-[10px] uppercase font-bold tracking-wider ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+                <p className={`text-[13px] uppercase font-bold tracking-wider ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
                   {isOvercharged ? 'OVERCHARGE DETECTED' : 'FAIR PRICING'}
                 </p>
-                <p className="text-2xl font-bold tabular-nums" style={{ color: statusColor }}>
+                <p className="text-3xl font-bold tabular-nums" style={{ color: statusColor }}>
                   {isOvercharged ? '+' : ''}{formatCurrency(Math.abs(overcharge))}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className={`text-[10px] font-medium ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+              <p className={`text-[13px] font-medium ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
                 vs market
               </p>
-              <p className="text-xl font-bold tabular-nums" style={{ color: statusColor }}>
+              <p className="text-2xl font-bold tabular-nums" style={{ color: statusColor }}>
                 {overchargePercent > 0 ? '+' : ''}{overchargePercent.toFixed(0)}%
               </p>
             </div>
@@ -270,17 +263,17 @@ export function PriceComparisonScene({
       {/* Premium corner accents */}
       {!isMobile && (
         <>
-          <svg className="absolute top-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 0 32 L 0 6 Q 0 0 6 0 L 32 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute top-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 0 40 L 0 8 Q 0 0 8 0 L 40 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute top-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 48 32 L 48 6 Q 48 0 42 0 L 16 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute top-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 64 40 L 64 8 Q 64 0 56 0 L 24 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute bottom-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 0 16 L 0 42 Q 0 48 6 48 L 32 48" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute bottom-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 0 24 L 0 56 Q 0 64 8 64 L 40 64" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute bottom-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 48 16 L 48 42 Q 48 48 42 48 L 16 48" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute bottom-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 64 24 L 64 56 Q 64 64 56 64 L 24 64" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
         </>
       )}

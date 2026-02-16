@@ -52,8 +52,8 @@ export function AdoptionCurveScene({
   const currentPhase = phaseInfo[phase];
 
   // S-curve dimensions
-  const curveWidth = isMobile ? 260 : 500;
-  const curveHeight = isMobile ? 130 : 170;
+  const curveWidth = isMobile ? 380 : 740;
+  const curveHeight = isMobile ? 190 : 250;
 
   // Generate S-curve path
   const generateSCurvePath = (progress: number) => {
@@ -89,14 +89,7 @@ export function AdoptionCurveScene({
   });
 
   return (
-    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
-      {/* Cinematic letterbox */}
-      {!isMobile && (
-        <>
-          <div className="absolute top-0 left-0 right-0 bg-black z-10" style={{ height: '6%', opacity: headerProgress * 0.9 }} />
-          <div className="absolute bottom-0 left-0 right-0 bg-black z-10" style={{ height: '6%', opacity: headerProgress * 0.9 }} />
-        </>
-      )}
+    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
 
       {/* Background gradient */}
       <div
@@ -124,16 +117,16 @@ export function AdoptionCurveScene({
               className={`relative flex items-center justify-center rounded-xl backdrop-blur-sm ${
                 isRadar ? 'bg-cyan-500/30 border border-cyan-400/30' : 'bg-cyan-100/80 border border-cyan-200'
               }`}
-              style={{ width: isMobile ? 42 : 50, height: isMobile ? 42 : 50 }}
+              style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72 }}
             >
-              <TrendUpIcon size={isMobile ? 22 : 26} color={accentColor} />
+              <TrendUpIcon size={isMobile ? 30 : 36} color={accentColor} />
             </div>
           </div>
           <div>
-            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               Adoption Curve
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               {technology}
             </p>
           </div>
@@ -290,10 +283,10 @@ export function AdoptionCurveScene({
           </g>
 
           {/* X-axis labels */}
-          <text x={30} y={curveHeight + 40} className="text-[10px] font-medium" fill={isRadar ? '#64748b' : '#a8a29e'}>
+          <text x={30} y={curveHeight + 40} className="text-[13px] font-medium" fill={isRadar ? '#64748b' : '#a8a29e'}>
             Early
           </text>
-          <text x={curveWidth + 20} y={curveHeight + 40} className="text-[10px] font-medium" fill={isRadar ? '#64748b' : '#a8a29e'} textAnchor="end">
+          <text x={curveWidth + 20} y={curveHeight + 40} className="text-[13px] font-medium" fill={isRadar ? '#64748b' : '#a8a29e'} textAnchor="end">
             Mature
           </text>
         </svg>
@@ -320,10 +313,10 @@ export function AdoptionCurveScene({
               className="w-3 h-3 rounded-full"
               style={{ backgroundColor: currentPhase.color, boxShadow: `0 0 8px ${currentPhase.color}60` }}
             />
-            <span className="text-sm font-bold" style={{ color: currentPhase.color }}>
+            <span className="text-base font-bold" style={{ color: currentPhase.color }}>
               {currentPhase.label}
             </span>
-            <span className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <span className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               ({currentPhase.range})
             </span>
           </div>
@@ -349,10 +342,10 @@ export function AdoptionCurveScene({
                 : `radial-gradient(ellipse at center, rgba(239, 68, 68, ${0.1 + pulse * 0.05}) 0%, transparent 70%)`,
             }}
           />
-          <p className={`relative text-2xl font-bold tabular-nums ${growthRate > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+          <p className={`relative text-3xl font-bold tabular-nums ${growthRate > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
             {growthRate > 0 ? '+' : ''}{growthRate}%
           </p>
-          <p className={`relative text-[10px] font-medium ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>YoY Growth</p>
+          <p className={`relative text-[13px] font-medium ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>YoY Growth</p>
         </div>
         {timeToMainstream && (
           <div
@@ -367,10 +360,10 @@ export function AdoptionCurveScene({
                 background: `radial-gradient(ellipse at center, rgba(6, 182, 212, ${0.1 + pulse * 0.05}) 0%, transparent 70%)`,
               }}
             />
-            <p className={`relative text-2xl font-bold ${isRadar ? 'text-cyan-400' : 'text-cyan-600'}`}>
+            <p className={`relative text-3xl font-bold ${isRadar ? 'text-cyan-400' : 'text-cyan-600'}`}>
               {timeToMainstream}
             </p>
-            <p className={`relative text-[10px] font-medium ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>To Mainstream</p>
+            <p className={`relative text-[13px] font-medium ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>To Mainstream</p>
           </div>
         )}
       </div>
@@ -378,17 +371,17 @@ export function AdoptionCurveScene({
       {/* Premium corner accents */}
       {!isMobile && (
         <>
-          <svg className="absolute top-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 0 32 L 0 6 Q 0 0 6 0 L 32 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute top-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 0 40 L 0 8 Q 0 0 8 0 L 40 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute top-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 48 32 L 48 6 Q 48 0 42 0 L 16 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute top-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 64 40 L 64 8 Q 64 0 56 0 L 24 0" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute bottom-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 0 16 L 0 42 Q 0 48 6 48 L 32 48" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute bottom-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 0 24 L 0 56 Q 0 64 8 64 L 40 64" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
-          <svg className="absolute bottom-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
-            <path d="M 48 16 L 48 42 Q 48 48 42 48 L 16 48" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={60} strokeDashoffset={60 - 60 * headerProgress} />
+          <svg className="absolute bottom-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
+            <path d="M 64 24 L 64 56 Q 64 64 56 64 L 24 64" fill="none" stroke={accentColor} strokeWidth={1.5} strokeDasharray={80} strokeDashoffset={80 - 80 * headerProgress} />
           </svg>
         </>
       )}

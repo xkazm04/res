@@ -3,6 +3,7 @@
 import { spring, easeOutCubic, easeOutQuart, easeOutExpo } from '../useVideoPlayback';
 import { PersonIcon, WarningIcon, DueDiligenceIcon, CheckIcon } from '../icons';
 import type { BaseSceneProps } from '../configs/types';
+import { spreadEntrance } from '@/src/lib/animation/motion';
 
 interface LeaderProfile {
   name: string;
@@ -27,6 +28,7 @@ export function LeadershipHistoryScene({
   isRadar,
   format,
   sceneFrame,
+  sceneDuration,
   leaders,
   title = 'Leadership History',
   accentColor,
@@ -37,6 +39,9 @@ export function LeadershipHistoryScene({
   const headerProgress = spring({ frame: sceneFrame, fps, delay: 0, durationFrames: 25, easing: easeOutQuart });
   const warningProgress = spring({ frame: sceneFrame, fps, delay: 8, durationFrames: 22, easing: easeOutCubic });
   const statsProgress = spring({ frame: sceneFrame, fps, delay: 12, durationFrames: 25, easing: easeOutQuart });
+
+  // Proportional stagger delays for leader cards
+  const getLeaderDelay = spreadEntrance(sceneDuration, isMobile ? 2 : 3, { startPct: 0.05, endPct: 0.65 });
 
   // Animated pulse
   const pulse = Math.sin((sceneFrame / fps) * Math.PI * 2) * 0.5 + 0.5;
@@ -81,20 +86,7 @@ export function LeadershipHistoryScene({
   };
 
   return (
-    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
-      {/* Cinematic letterbox for desktop */}
-      {!isMobile && (
-        <>
-          <div
-            className="absolute top-0 left-0 right-0 bg-black z-10"
-            style={{ height: '6%', opacity: headerProgress * 0.9 }}
-          />
-          <div
-            className="absolute bottom-0 left-0 right-0 bg-black z-10"
-            style={{ height: '6%', opacity: headerProgress * 0.9 }}
-          />
-        </>
-      )}
+    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
 
       {/* Background gradient */}
       <div
@@ -149,16 +141,16 @@ export function LeadershipHistoryScene({
               className={`relative flex items-center justify-center rounded-xl backdrop-blur-sm ${
                 isRadar ? 'bg-rose-500/30 border border-rose-400/30' : 'bg-rose-100/80 border border-rose-200'
               }`}
-              style={{ width: isMobile ? 42 : 50, height: isMobile ? 42 : 50 }}
+              style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72 }}
             >
-              <DueDiligenceIcon size={isMobile ? 22 : 26} color={accentColor} />
+              <DueDiligenceIcon size={isMobile ? 30 : 36} color={accentColor} />
             </div>
           </div>
           <div>
-            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               {title}
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               {leaders.length} executives • {totalExperience}+ years combined
             </p>
           </div>
@@ -192,16 +184,16 @@ export function LeadershipHistoryScene({
           >
             <div className="flex items-center gap-2">
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                className="w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: 'rgba(34, 197, 94, 0.2)' }}
               >
-                <CheckIcon size={16} color="#22c55e" />
+                <CheckIcon size={20} color="#22c55e" />
               </div>
               <div>
-                <span className={`text-lg font-bold ${isRadar ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                <span className={`text-xl font-bold ${isRadar ? 'text-emerald-400' : 'text-emerald-600'}`}>
                   {cleanLeaders}
                 </span>
-                <span className={`text-xs ml-1 ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+                <span className={`text-sm ml-1 ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
                   Clean Records
                 </span>
               </div>
@@ -220,16 +212,16 @@ export function LeadershipHistoryScene({
             >
               <div className="flex items-center gap-2">
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
                   style={{ backgroundColor: 'rgba(245, 158, 11, 0.2)' }}
                 >
-                  <WarningIcon size={16} color="#f59e0b" />
+                  <WarningIcon size={20} color="#f59e0b" />
                 </div>
                 <div>
-                  <span className={`text-lg font-bold ${isRadar ? 'text-amber-400' : 'text-amber-600'}`}>
+                  <span className={`text-xl font-bold ${isRadar ? 'text-amber-400' : 'text-amber-600'}`}>
                     {leadersWithIssues}
                   </span>
-                  <span className={`text-xs ml-1 ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+                  <span className={`text-sm ml-1 ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
                     With Concerns
                   </span>
                 </div>
@@ -269,7 +261,7 @@ export function LeadershipHistoryScene({
       {/* Leader profiles - glassmorphism cards */}
       <div className={`relative z-20 space-y-3`}>
         {leaders.slice(0, isMobile ? 2 : 3).map((leader, i) => {
-          const delay = 18 + i * 10;
+          const delay = getLeaderDelay(i);
           const cardProgress = spring({ frame: sceneFrame, fps, delay, durationFrames: 28, easing: easeOutQuart });
           const hasIssues = leader.issues && leader.issues.length > 0;
 
@@ -323,16 +315,16 @@ export function LeadershipHistoryScene({
                   )}
                   <div
                     className={`
-                      relative w-14 h-14 rounded-full flex items-center justify-center
+                      relative w-[72px] h-[72px] rounded-full flex items-center justify-center
                       ${hasIssues
                         ? (isRadar ? 'bg-amber-500/25 border-2 border-amber-400/40' : 'bg-amber-100 border-2 border-amber-200')
                         : (isRadar ? 'bg-slate-700/80 border-2 border-slate-600/40' : 'bg-stone-100 border-2 border-stone-200')}
                     `}
                   >
                     {hasIssues ? (
-                      <WarningIcon size={24} color="#f59e0b" />
+                      <WarningIcon size={32} color="#f59e0b" />
                     ) : (
-                      <PersonIcon size={24} color={isRadar ? '#94a3b8' : '#78716c'} />
+                      <PersonIcon size={32} color={isRadar ? '#94a3b8' : '#78716c'} />
                     )}
                   </div>
 
@@ -340,7 +332,7 @@ export function LeadershipHistoryScene({
                   {leader.yearsExperience && (
                     <div
                       className={`
-                        absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded text-[9px] font-bold
+                        absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded text-xs font-bold
                         ${isRadar ? 'bg-slate-700 text-slate-300 border border-slate-600' : 'bg-white text-stone-600 border border-stone-200'}
                       `}
                       style={{
@@ -355,10 +347,10 @@ export function LeadershipHistoryScene({
                 <div className="flex-1 min-w-0">
                   {/* Name and role */}
                   <div className="mb-2">
-                    <span className={`text-base font-bold ${isRadar ? 'text-white' : 'text-stone-800'}`}>
+                    <span className={`text-lg font-bold ${isRadar ? 'text-white' : 'text-stone-800'}`}>
                       {animateWords(leader.name, delay + 5)}
                     </span>
-                    <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+                    <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
                       {leader.role}
                     </p>
                   </div>
@@ -371,7 +363,7 @@ export function LeadershipHistoryScene({
                       return (
                         <span
                           key={j}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-medium ${
+                          className={`px-2.5 py-1 rounded-lg text-[13px] font-medium ${
                             isRadar ? 'bg-slate-700/80 text-slate-300' : 'bg-stone-100 text-stone-600'
                           }`}
                           style={{
@@ -384,7 +376,7 @@ export function LeadershipHistoryScene({
                       );
                     })}
                     {leader.previousCompanies.length > 4 && (
-                      <span className={`text-[10px] self-center ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
+                      <span className={`text-[13px] self-center ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
                         +{leader.previousCompanies.length - 4}
                       </span>
                     )}
@@ -404,7 +396,7 @@ export function LeadershipHistoryScene({
                           className="flex items-start gap-2 mb-1.5 last:mb-0"
                         >
                           <WarningIcon size={12} color="#f59e0b" />
-                          <p className={`text-[10px] leading-relaxed ${isRadar ? 'text-amber-400' : 'text-amber-700'}`}>
+                          <p className={`text-[13px] leading-relaxed ${isRadar ? 'text-amber-400' : 'text-amber-700'}`}>
                             {issue.length > 55 ? issue.slice(0, 52) + '...' : issue}
                           </p>
                         </div>
@@ -428,7 +420,7 @@ export function LeadershipHistoryScene({
         >
           <span
             className={`
-              inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm
+              inline-flex items-center gap-2 px-4 py-2 rounded-full text-base
               ${isRadar ? 'bg-slate-800/60 text-slate-400 border border-slate-700/50' : 'bg-stone-100 text-stone-500 border border-stone-200'}
             `}
           >
@@ -441,44 +433,44 @@ export function LeadershipHistoryScene({
       {/* Premium corner accents */}
       {!isMobile && (
         <>
-          <svg className="absolute top-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute top-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 0 32 L 0 6 Q 0 0 6 0 L 32 0"
+              d="M 0 40 L 0 8 Q 0 0 8 0 L 40 0"
               fill="none"
               stroke={accentColor}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute top-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute top-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 48 32 L 48 6 Q 48 0 42 0 L 16 0"
+              d="M 64 40 L 64 8 Q 64 0 56 0 L 24 0"
               fill="none"
               stroke={accentColor}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute bottom-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute bottom-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 0 16 L 0 42 Q 0 48 6 48 L 32 48"
+              d="M 0 24 L 0 56 Q 0 64 8 64 L 40 64"
               fill="none"
               stroke={accentColor}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute bottom-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute bottom-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 48 16 L 48 42 Q 48 48 42 48 L 16 48"
+              d="M 64 24 L 64 56 Q 64 64 56 64 L 24 64"
               fill="none"
               stroke={accentColor}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
         </>

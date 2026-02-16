@@ -27,13 +27,14 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { name, selection, enrichments, rewrites } = body;
+    const { name, selection, enrichments, rewrites, scene_composition } = body;
 
     const draft = await updateDraft(draftId, {
       name,
       selection,
       enrichments,
       rewrites,
+      scene_composition,
     });
 
     if (!draft) {

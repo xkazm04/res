@@ -252,6 +252,80 @@ export class SessionIndex {
   }
 
   // ============================================================================
+  // Multi-Faceted Filtering
+  // ============================================================================
+
+  /**
+   * Filter sessions by multiple criteria simultaneously.
+   * Returns session IDs matching ALL specified criteria (AND logic).
+   */
+  filterByCriteria(criteria: {
+    templates?: string[];
+    statuses?: string[];
+    query?: string;
+    minFindings?: number;
+  }): Set<string> {
+    // Start with candidate sets per criteria, then intersect
+    const sets: Set<string>[] = [];
+
+    // Template filter
+    if (criteria.templates && criteria.templates.length > 0) {
+      const templateIds = new Set<string>();
+      for (const t of criteria.templates) {
+        const ids = this.byTemplate.get(t);
+        if (ids) {
+          for (const id of ids) templateIds.add(id);
+        }
+      }
+      sets.push(templateIds);
+    }
+
+    // Status filter
+    if (criteria.statuses && criteria.statuses.length > 0) {
+      const statusIds = new Set<string>();
+      for (const s of criteria.statuses) {
+        const ids = this.byStatus.get(s);
+        if (ids) {
+          for (const id of ids) statusIds.add(id);
+        }
+      }
+      sets.push(statusIds);
+    }
+
+    // Text search filter
+    if (criteria.query?.trim()) {
+      const results = this.search(criteria.query);
+      sets.push(new Set(results.map(r => r.id)));
+    }
+
+    // Min findings filter
+    if (criteria.minFindings !== undefined && criteria.minFindings > 0) {
+      const min = criteria.minFindings;
+      const findingIds = new Set<string>();
+      for (const [id, session] of this.byId) {
+        if (session.claim_count >= min) findingIds.add(id);
+      }
+      sets.push(findingIds);
+    }
+
+    // If no criteria, return all IDs
+    if (sets.length === 0) {
+      return new Set(this.byId.keys());
+    }
+
+    // Intersect all sets - start with smallest for efficiency
+    sets.sort((a, b) => a.size - b.size);
+    const result = new Set(sets[0]);
+    for (let i = 1; i < sets.length; i++) {
+      for (const id of result) {
+        if (!sets[i].has(id)) result.delete(id);
+      }
+    }
+
+    return result;
+  }
+
+  // ============================================================================
   // Stats
   // ============================================================================
 

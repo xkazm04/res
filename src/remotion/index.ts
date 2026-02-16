@@ -11,7 +11,6 @@
 export {
   COMPOSITION_IDS,
   DIMENSIONS,
-  PREVIEW_DIMENSIONS,
   TEMPLATE_TYPES,
   getCompositionId,
   getCompositionMetadata,

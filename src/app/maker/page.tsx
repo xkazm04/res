@@ -83,53 +83,38 @@ export default function MakerPage() {
         </div>
       ) : currentSession && selectedSessionId ? (
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Tab Header */}
-          <header className="flex-shrink-0 border-b border-slate-800/60 bg-slate-900/30 backdrop-blur-sm">
-            <div className="flex items-center px-6 py-3">
-              {/* Session title */}
-              <div className="flex-1 min-w-0 mr-6">
-                <h1 className="text-sm font-semibold text-white truncate">
-                  {currentSession.title}
-                </h1>
-                <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                  {currentSession.query}
-                </p>
-              </div>
-
-              {/* Tab Switcher */}
-              <div className="flex items-center gap-1 p-1 bg-slate-800/50 rounded-xl border border-slate-700/40">
-                {TAB_CONFIG.map(tab => {
-                  const isActive = activeTab === tab.key;
-                  const TabIcon = tab.Icon;
-                  return (
-                    <button
-                      key={tab.key}
-                      onClick={() => handleTabChange(tab.key)}
-                      className={`
-                        relative flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-colors
-                        ${isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200'}
-                      `}
-                    >
-                      {isActive && (
-                        <motion.div
-                          layoutId="makerTabIndicator"
-                          className="absolute inset-0 bg-slate-700/80 rounded-lg border border-slate-600/40"
-                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                        />
-                      )}
-                      <span className="relative z-10 flex items-center gap-2">
-                        <TabIcon className="w-3.5 h-3.5" />
-                        {tab.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </header>
-
           {/* Tab Content */}
           <div className="flex-1 overflow-hidden relative">
+            {/* Compose / Preview toggle — top-right of content area */}
+            <div className="absolute top-3 right-4 z-20 flex items-center gap-1 p-1 bg-slate-800/70 backdrop-blur-md rounded-xl border border-slate-700/40">
+              {TAB_CONFIG.map(tab => {
+                const isActive = activeTab === tab.key;
+                const TabIcon = tab.Icon;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => handleTabChange(tab.key)}
+                    className={`
+                      relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
+                      ${isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200'}
+                    `}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="makerTabIndicator"
+                        className="absolute inset-0 bg-slate-700/80 rounded-lg border border-slate-600/40"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-2">
+                      <TabIcon className="w-3.5 h-3.5" />
+                      {tab.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
             <AnimatePresence mode="wait" custom={direction}>
               {activeTab === 'compose' ? (
                 <motion.div
@@ -160,6 +145,10 @@ export default function MakerPage() {
                   <VideoPreviewPanel
                     session={currentSession}
                     selectionState={selectionState}
+                    sceneComposition={draftState.sceneComposition}
+                    keywords={draftState.keywords}
+                    preGeneratedAudio={draftState.audioData}
+                    preGeneratedAudioDuration={draftState.audioDuration}
                   />
                 </motion.div>
               )}

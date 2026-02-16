@@ -2,6 +2,7 @@
 
 import { memo } from 'react';
 import { spring, easeOutCubic, easeOutQuart, easeInOutCubic } from '../useVideoPlayback';
+import { spreadEntrance } from '@/src/lib/animation/motion';
 import { AnimatedBarChart, AnimatedLineChart, AnimatedPieChart } from '../AnimatedCharts';
 import { SceneHeader, SceneContainer, BackgroundOrb, type SceneProps } from './primitives';
 
@@ -15,12 +16,15 @@ interface ChartsSceneProps extends SceneProps {
  * Charts scene with animated bar, line, and pie charts.
  * Adapts layout between mobile (vertical stack) and desktop (horizontal grid).
  */
-export const ChartsScene = memo(function ChartsScene({ frame, fps, isRadar, format, barData, lineData, pieData }: ChartsSceneProps) {
+export const ChartsScene = memo(function ChartsScene({ frame, fps, isRadar, format, barData, lineData, pieData, sceneFrame, sceneDuration }: ChartsSceneProps) {
   const isMobile = format === 'mobile';
-  const headerProgress = spring({ frame, fps, delay: 0, durationFrames: 18, easing: easeOutCubic });
-  const chart1Progress = spring({ frame, fps, delay: 6, durationFrames: 20, easing: easeOutQuart });
-  const chart2Progress = spring({ frame, fps, delay: 12, durationFrames: 20, easing: easeOutQuart });
-  const chart3Progress = spring({ frame, fps, delay: 18, durationFrames: 20, easing: easeOutQuart });
+  const f = sceneFrame ?? frame;
+  const dur = sceneDuration ?? 120;
+  const getDelay = spreadEntrance(dur, 4, { startPct: 0.03, endPct: 0.50 });
+  const headerProgress = spring({ frame: f, fps, delay: getDelay(0), durationFrames: 18, easing: easeOutCubic });
+  const chart1Progress = spring({ frame: f, fps, delay: getDelay(1), durationFrames: 20, easing: easeOutQuart });
+  const chart2Progress = spring({ frame: f, fps, delay: getDelay(2), durationFrames: 20, easing: easeOutQuart });
+  const chart3Progress = spring({ frame: f, fps, delay: getDelay(3), durationFrames: 20, easing: easeOutQuart });
 
   // Mobile layout: vertical stack
   if (isMobile) {
@@ -36,9 +40,9 @@ export const ChartsScene = memo(function ChartsScene({ frame, fps, isRadar, form
         />
 
         {/* Charts - vertical stack for mobile */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Bar + Pie row */}
-          <div className="flex gap-3">
+          <div className="flex gap-4">
             <ChartCard
               title="Distribution"
               progress={chart1Progress}
@@ -46,7 +50,7 @@ export const ChartsScene = memo(function ChartsScene({ frame, fps, isRadar, form
               borderColor="border-cyan-500/15"
               isMobile
             >
-              <AnimatedBarChart data={barData} frame={frame - 10} fps={fps} width={100} height={70} isRadar={isRadar} />
+              <AnimatedBarChart data={barData} frame={f - 10} fps={fps} width={150} height={100} isRadar={isRadar} />
             </ChartCard>
 
             <ChartCard
@@ -57,7 +61,7 @@ export const ChartsScene = memo(function ChartsScene({ frame, fps, isRadar, form
               isMobile
               centered
             >
-              <AnimatedPieChart data={pieData} frame={frame - 24} fps={fps} size={70} isRadar={isRadar} />
+              <AnimatedPieChart data={pieData} frame={f - 24} fps={fps} size={100} isRadar={isRadar} />
             </ChartCard>
           </div>
 
@@ -69,7 +73,7 @@ export const ChartsScene = memo(function ChartsScene({ frame, fps, isRadar, form
             borderColor="border-emerald-500/15"
             isMobile
           >
-            <AnimatedLineChart data={lineData} frame={frame - 18} fps={fps} width={230} height={80} isRadar={isRadar} />
+            <AnimatedLineChart data={lineData} frame={f - 18} fps={fps} width={340} height={120} isRadar={isRadar} />
           </ChartCard>
         </div>
       </SceneContainer>
@@ -94,7 +98,7 @@ export const ChartsScene = memo(function ChartsScene({ frame, fps, isRadar, form
         accentGradient="from-blue-400 to-cyan-600"
       />
 
-      <div className="grid grid-cols-3 gap-3" style={{ height: 170 }}>
+      <div className="grid grid-cols-3 gap-3" style={{ height: 250 }}>
         {/* Bar Chart */}
         <div className="relative">
           <div
@@ -109,7 +113,7 @@ export const ChartsScene = memo(function ChartsScene({ frame, fps, isRadar, form
             titleColor={isRadar ? 'text-cyan-400/80' : 'text-stone-500'}
             fullHeight
           >
-            <AnimatedBarChart data={barData} frame={frame - 10} fps={fps} width={165} height={120} isRadar={isRadar} />
+            <AnimatedBarChart data={barData} frame={f - 10} fps={fps} width={245} height={180} isRadar={isRadar} />
           </ChartCard>
         </div>
 
@@ -127,7 +131,7 @@ export const ChartsScene = memo(function ChartsScene({ frame, fps, isRadar, form
             titleColor={isRadar ? 'text-emerald-400/80' : 'text-stone-500'}
             fullHeight
           >
-            <AnimatedLineChart data={lineData} frame={frame - 18} fps={fps} width={165} height={120} isRadar={isRadar} />
+            <AnimatedLineChart data={lineData} frame={f - 18} fps={fps} width={245} height={180} isRadar={isRadar} />
           </ChartCard>
         </div>
 
@@ -146,7 +150,7 @@ export const ChartsScene = memo(function ChartsScene({ frame, fps, isRadar, form
             fullHeight
             centered
           >
-            <AnimatedPieChart data={pieData} frame={frame - 26} fps={fps} size={100} isRadar={isRadar} />
+            <AnimatedPieChart data={pieData} frame={f - 26} fps={fps} size={140} isRadar={isRadar} />
           </ChartCard>
         </div>
       </div>
@@ -193,7 +197,7 @@ function ChartCard({
         transform: `translateY(${(1 - progress) * 10}px)${fullHeight ? ` scale(${0.96 + progress * 0.04})` : ''}`,
       }}
     >
-      <div className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} font-medium mb-2 ${centered ? 'self-start' : ''} ${titleClass}`}>
+      <div className={`${isMobile ? 'text-xs' : 'text-[13px]'} font-medium mb-2 ${centered ? 'self-start' : ''} ${titleClass}`}>
         {title}
       </div>
       {centered && !isMobile ? (

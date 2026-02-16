@@ -2,12 +2,14 @@
 
 import { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, RotateCcw, Maximize2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Maximize2, Smartphone } from 'lucide-react';
 
 interface PlayerControlsProps {
   isPlaying: boolean;
   onPlayPause: () => void;
   onReset: () => void;
+  onFullscreen?: () => void;
+  onMobilePreview?: () => void;
   duration: string;
   fps: number;
   sceneCount: number;
@@ -17,6 +19,8 @@ export const PlayerControls = memo(function PlayerControls({
   isPlaying,
   onPlayPause,
   onReset,
+  onFullscreen,
+  onMobilePreview,
   duration,
   fps,
   sceneCount,
@@ -74,12 +78,34 @@ export const PlayerControls = memo(function PlayerControls({
           </AnimatePresence>
         </motion.button>
 
-        {/* Fullscreen (placeholder) */}
+        {/* Mobile Preview */}
         <motion.button
           whileHover={{ scale: 1.05 }}
-          className="p-2.5 rounded-xl bg-slate-800/60 text-slate-500
-                     border border-slate-700/40 cursor-not-allowed opacity-50"
-          title="Fullscreen (coming soon)"
+          whileTap={{ scale: 0.92 }}
+          onClick={onMobilePreview}
+          className={`p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/40 transition-colors ${
+            onMobilePreview
+              ? 'text-slate-400 hover:text-white hover:bg-slate-700/60 cursor-pointer'
+              : 'text-slate-500 cursor-not-allowed opacity-50'
+          }`}
+          title="Mobile preview"
+          disabled={!onMobilePreview}
+        >
+          <Smartphone className="w-4 h-4" />
+        </motion.button>
+
+        {/* Fullscreen */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.92 }}
+          onClick={onFullscreen}
+          className={`p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/40 transition-colors ${
+            onFullscreen
+              ? 'text-slate-400 hover:text-white hover:bg-slate-700/60 cursor-pointer'
+              : 'text-slate-500 cursor-not-allowed opacity-50'
+          }`}
+          title="Fullscreen"
+          disabled={!onFullscreen}
         >
           <Maximize2 className="w-4 h-4" />
         </motion.button>

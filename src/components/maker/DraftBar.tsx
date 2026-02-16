@@ -2,14 +2,24 @@
 
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2, FileText, Sparkles } from 'lucide-react';
+import { Loader2, FileText, Sparkles, Film } from 'lucide-react';
 import type { VideoDraftState } from '@/src/hooks/useVideoDrafts';
 
 interface DraftBarProps {
   draftState: VideoDraftState;
+  onShorts?: () => void;
+  onFull?: () => void;
+  isComposing?: boolean;
+  lastError?: string | null;
 }
 
-export const DraftBar = memo(function DraftBar({ draftState }: DraftBarProps) {
+export const DraftBar = memo(function DraftBar({
+  draftState,
+  onShorts,
+  onFull,
+  isComposing = false,
+  lastError,
+}: DraftBarProps) {
   const { mode, hasDraft, isSaving } = draftState;
 
   return (
@@ -67,6 +77,57 @@ export const DraftBar = memo(function DraftBar({ draftState }: DraftBarProps) {
           v{draftState.draft!.version}
         </span>
       )}
+
+      {/* Compose Buttons — pushed right */}
+      <div className="flex items-center gap-2 ml-auto">
+        {lastError && (
+          <span className="text-[11px] text-red-400 max-w-[200px] truncate">
+            {lastError}
+          </span>
+        )}
+
+        {onShorts && (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onShorts}
+            disabled={isComposing}
+            className={`
+              flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+              ${isComposing
+                ? 'opacity-50 cursor-not-allowed'
+                : 'hover:shadow-lg hover:shadow-violet-500/10'
+              }
+              bg-gradient-to-r from-violet-500/80 to-purple-500/80 text-white
+              border border-violet-400/30
+            `}
+          >
+            <Sparkles className="w-3 h-3" />
+            {isComposing ? 'Composing...' : 'Shorts'}
+          </motion.button>
+        )}
+
+        {onFull && (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onFull}
+            disabled={isComposing}
+            className={`
+              flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+              ${isComposing
+                ? 'opacity-50 cursor-not-allowed'
+                : 'hover:shadow-lg hover:shadow-cyan-500/10'
+              }
+              bg-gradient-to-r from-cyan-500/80 to-teal-500/80 text-white
+              border border-cyan-400/30
+            `}
+          >
+            <Film className="w-3 h-3" />
+            Full
+          </motion.button>
+        )}
+      </div>
     </motion.div>
   );
 });

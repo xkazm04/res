@@ -2,22 +2,32 @@
 
 import { useState, useCallback, useRef } from 'react';
 import type { VideoRenderStatus, VideoFormat } from '@/src/types/research';
+import type { ComposedScene } from '@/src/components/maker/cli/types';
+import type { VideoContent } from '@/src/lib/videoShowcaseMockData';
 
 interface ExportOptions {
   sessionId: string;
   templateType: string;
   format: VideoFormat;
-  playerRef: React.RefObject<HTMLDivElement | null>;
-  durationInFrames: number;
-  fps: number;
+  compositionId: string;
+  inputProps: {
+    templateType: string;
+    format: string;
+    videoContent: VideoContent;
+    sceneComposition?: ComposedScene[] | null;
+  };
+  audioData?: string | null;
 }
+
+type ExportPhase = VideoRenderStatus | 'muxing' | 'bundling';
 
 interface ExportState {
   isExporting: boolean;
   progress: number;
-  status: VideoRenderStatus;
+  status: ExportPhase;
   error: string | null;
   downloadUrl: string | null;
+  muxedBlob: Blob | null;
 }
 
 // API helpers
@@ -39,18 +49,82 @@ async function updateRenderStatus(renderId: string, updates: Record<string, unkn
   }).catch(() => {}); // Non-critical
 }
 
-function getBestMimeType(): string {
-  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) return 'video/webm;codecs=vp9';
-  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) return 'video/webm;codecs=vp8';
-  return 'video/webm';
+/**
+ * Convert a base64 data URL to an ArrayBuffer.
+ */
+function dataUrlToArrayBuffer(dataUrl: string): ArrayBuffer {
+  const base64 = dataUrl.split(',')[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
 }
 
 /**
- * Hook for client-side video export using MediaRecorder.
- * Captures the Remotion Player's canvas output and encodes to WebM.
+ * Mux video MP4 + audio MP3 into final MP4 using FFmpeg WASM.
+ */
+async function muxVideoAudio(
+  videoBlob: Blob,
+  audioDataUrl: string,
+  onProgress?: (msg: string) => void,
+): Promise<Blob> {
+  const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+  const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
+
+  const ffmpeg = new FFmpeg();
+
+  onProgress?.('Loading FFmpeg...');
+
+  // Load FFmpeg WASM from CDN
+  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+  });
+
+  onProgress?.('Preparing files...');
+
+  // Write video file
+  const videoData = await fetchFile(videoBlob);
+  await ffmpeg.writeFile('input.mp4', videoData);
+
+  // Write audio file
+  const audioBuffer = dataUrlToArrayBuffer(audioDataUrl);
+  await ffmpeg.writeFile('audio.mp3', new Uint8Array(audioBuffer));
+
+  onProgress?.('Muxing video + audio...');
+
+  // Mux: copy video stream, encode audio to AAC, use shorter stream
+  await ffmpeg.exec([
+    '-i', 'input.mp4',
+    '-i', 'audio.mp3',
+    '-c:v', 'copy',
+    '-c:a', 'aac',
+    '-b:a', '128k',
+    '-shortest',
+    '-movflags', '+faststart',
+    'output.mp4',
+  ]);
+
+  onProgress?.('Finalizing...');
+
+  const outputData = await ffmpeg.readFile('output.mp4');
+  const outputBlob = new Blob([outputData as unknown as BlobPart], { type: 'video/mp4' });
+
+  ffmpeg.terminate();
+
+  return outputBlob;
+}
+
+/**
+ * Hook for video export using server-side Remotion rendering.
+ * Sends composition data to /api/video/export, receives rendered MP4.
+ * Optionally muxes with audio via FFmpeg WASM.
  */
 export function useVideoExport(options: ExportOptions) {
-  const { sessionId, templateType, format, playerRef, durationInFrames, fps } = options;
+  const { sessionId, templateType, format, compositionId, inputProps, audioData } = options;
 
   const [state, setState] = useState<ExportState>({
     isExporting: false,
@@ -58,84 +132,100 @@ export function useVideoExport(options: ExportOptions) {
     status: 'pending',
     error: null,
     downloadUrl: null,
+    muxedBlob: null,
   });
 
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const abortedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
   const renderIdRef = useRef<string | null>(null);
 
   const startExport = useCallback(async () => {
-    if (state.isExporting || !playerRef.current) return;
+    if (state.isExporting) return;
 
-    abortedRef.current = false;
-    chunksRef.current = [];
-    setState({ isExporting: true, progress: 0, status: 'pending', error: null, downloadUrl: null });
+    abortRef.current = new AbortController();
+    setState({ isExporting: true, progress: 0, status: 'pending', error: null, downloadUrl: null, muxedBlob: null });
 
     try {
-      // Create server-side tracking
+      // Create server-side tracking record
       const render = await createRenderJob(sessionId, templateType, format);
       renderIdRef.current = render.id;
 
-      // Find canvas
-      const canvas = playerRef.current.querySelector('canvas');
-      if (!canvas) throw new Error('No canvas found. Ensure the video is loaded.');
-
-      // Setup MediaRecorder
-      const mimeType = getBestMimeType();
-      const stream = canvas.captureStream(fps);
-      recorderRef.current = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
-
-      recorderRef.current.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
-
-      recorderRef.current.onstop = async () => {
-        if (abortedRef.current) {
-          setState((s) => ({ ...s, isExporting: false, status: 'failed', error: 'Cancelled' }));
-          return;
-        }
-
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        const downloadUrl = URL.createObjectURL(blob);
-        await updateRenderStatus(render.id, { status: 'complete', signed_url: downloadUrl });
-        setState((s) => ({ ...s, isExporting: false, progress: 100, status: 'complete', downloadUrl }));
-      };
-
-      recorderRef.current.onerror = () => {
-        setState((s) => ({ ...s, isExporting: false, status: 'failed', error: 'Recording failed' }));
-      };
-
-      // Start recording
-      recorderRef.current.start(1000);
+      // Phase 1: Server-side rendering (bundling + rendering)
+      setState((s) => ({ ...s, progress: 5, status: 'bundling' }));
       await updateRenderStatus(render.id, { status: 'rendering' });
 
-      // Track progress
-      const durationMs = (durationInFrames / fps) * 1000;
-      const startTime = Date.now();
+      // Simulate progress while waiting for server render
+      let progressInterval: ReturnType<typeof setInterval> | null = null;
+      progressInterval = setInterval(() => {
+        setState((s) => {
+          if (!s.isExporting || s.progress >= 80) return s;
+          return { ...s, progress: Math.min(80, s.progress + 2), status: 'rendering' };
+        });
+      }, 2000);
 
-      const trackProgress = () => {
-        if (abortedRef.current) return;
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(99, Math.round((elapsed / durationMs) * 100));
-        setState((s) => ({ ...s, progress, status: progress > 90 ? 'encoding' : 'rendering' }));
-        if (elapsed < durationMs) requestAnimationFrame(trackProgress);
-      };
-      requestAnimationFrame(trackProgress);
+      const res = await fetch('/api/video/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ compositionId, inputProps }),
+        signal: abortRef.current.signal,
+      });
 
-      // Stop after duration
-      await new Promise((r) => setTimeout(r, durationMs + 500));
-      if (!abortedRef.current && recorderRef.current?.state === 'recording') {
-        recorderRef.current.stop();
+      if (progressInterval) clearInterval(progressInterval);
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Server render failed' }));
+        throw new Error(errData.error || `Server render failed (${res.status})`);
+      }
+
+      // Get video blob from response
+      const videoBlob = await res.blob();
+      setState((s) => ({ ...s, progress: 85, status: 'encoding' }));
+
+      // Phase 2: Mux with audio if available
+      if (audioData) {
+        setState((s) => ({ ...s, progress: 90, status: 'muxing' }));
+        try {
+          const mp4Blob = await muxVideoAudio(videoBlob, audioData, (msg) => {
+            console.log('[export]', msg);
+          });
+          const downloadUrl = URL.createObjectURL(mp4Blob);
+          await updateRenderStatus(render.id, { status: 'complete' });
+          setState({
+            isExporting: false, progress: 100, status: 'complete',
+            error: null, downloadUrl, muxedBlob: mp4Blob,
+          });
+        } catch (muxErr) {
+          console.warn('[export] Muxing failed, falling back to video-only:', muxErr);
+          const downloadUrl = URL.createObjectURL(videoBlob);
+          await updateRenderStatus(render.id, { status: 'complete' });
+          setState({
+            isExporting: false, progress: 100, status: 'complete',
+            error: null, downloadUrl, muxedBlob: videoBlob,
+          });
+        }
+      } else {
+        // No audio — just the rendered video
+        const downloadUrl = URL.createObjectURL(videoBlob);
+        await updateRenderStatus(render.id, { status: 'complete' });
+        setState({
+          isExporting: false, progress: 100, status: 'complete',
+          error: null, downloadUrl, muxedBlob: videoBlob,
+        });
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setState((s) => ({ ...s, isExporting: false, status: 'failed', error: 'Cancelled' }));
+        return;
+      }
       const msg = error instanceof Error ? error.message : 'Export failed';
-      if (renderIdRef.current) await updateRenderStatus(renderIdRef.current, { status: 'failed', error_message: msg });
+      if (renderIdRef.current) {
+        await updateRenderStatus(renderIdRef.current, { status: 'failed', error_message: msg });
+      }
       setState((s) => ({ ...s, isExporting: false, status: 'failed', error: msg }));
     }
-  }, [state.isExporting, sessionId, templateType, format, playerRef, durationInFrames, fps]);
+  }, [state.isExporting, sessionId, templateType, format, compositionId, inputProps, audioData]);
 
   const cancelExport = useCallback(() => {
-    abortedRef.current = true;
-    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+    abortRef.current?.abort();
     setState((s) => ({ ...s, isExporting: false, status: 'failed', error: 'Cancelled' }));
   }, []);
 
@@ -143,7 +233,7 @@ export function useVideoExport(options: ExportOptions) {
     if (!state.downloadUrl) return;
     const a = document.createElement('a');
     a.href = state.downloadUrl;
-    a.download = `${sessionId}-${templateType}-${format.replace(':', 'x')}.webm`;
+    a.download = `${sessionId}-${templateType}-${format.replace(':', 'x')}.mp4`;
     a.click();
   }, [state.downloadUrl, sessionId, templateType, format]);
 

@@ -3,8 +3,9 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Twitter, Globe, Newspaper, Cpu, TrendingUp,
-  Shield, Zap, MessageCircle, RefreshCw, List
+  Shield, Zap, MessageCircle, RefreshCw, List, Film
 } from 'lucide-react';
+import Link from 'next/link';
 import { SourceColumn } from '@/src/components/initiate/SourceColumn';
 import { ScrollIndicator } from '@/src/components/initiate/ScrollIndicator';
 import { QueueDashboard } from '@/src/components/initiate/QueueDashboard';
@@ -278,6 +279,21 @@ function InitiatePageContent() {
           <h1 className={`text-sm font-medium ${initiateTheme.text}`}>
             Initiate
           </h1>
+          <Link
+            href="/maker"
+            className={`
+              flex items-center gap-1 px-2 py-1
+              text-xs rounded
+              ${initiateTheme.textMuted}
+              hover:text-slate-100
+              ${initiateTheme.bgHover}
+              transition-colors
+            `}
+            title="Video Maker"
+          >
+            <Film size={12} />
+            Maker
+          </Link>
           {totalToReview > 0 && (
             <span className={`text-xs ${initiateTheme.textMuted}`}>
               {totalToReview} to review

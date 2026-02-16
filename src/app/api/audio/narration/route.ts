@@ -5,18 +5,67 @@ interface NarrationRequest {
   voiceId?: string;
 }
 
+export interface WordTimestamp {
+  word: string;
+  start: number; // seconds from audio start
+  end: number;   // seconds from audio start
+}
+
 interface NarrationResponse {
   audioData: string; // base64 data URL
   duration: number;
   wordCount: number;
+  wordTimestamps: WordTimestamp[];
 }
 
 // Voice presets
 const VOICE_PRESETS = {
+  default: '3DR8c2yd30eztg65o4jV', // Primary narration voice (~2.35 WPS)
   professional: 'pNInz6obpgDQGcFmaJgB', // Adam
   conversational: '21m00Tcm4TlvDq8ikWAM', // Rachel
   authoritative: 'yoZ06aMxZJJ28mfd3POQ', // Sam
 } as const;
+
+/**
+ * Convert ElevenLabs character-level alignment data to word-level timestamps.
+ */
+function charAlignmentToWords(
+  characters: string[],
+  startTimes: number[],
+  endTimes: number[],
+): WordTimestamp[] {
+  const words: WordTimestamp[] = [];
+  let currentWord = '';
+  let wordStart = -1;
+  let wordEnd = -1;
+
+  for (let i = 0; i < characters.length; i++) {
+    const ch = characters[i];
+
+    if (ch === ' ' || ch === '\n' || ch === '\t') {
+      // Whitespace — flush current word
+      if (currentWord.length > 0) {
+        words.push({ word: currentWord, start: wordStart, end: wordEnd });
+        currentWord = '';
+        wordStart = -1;
+      }
+    } else {
+      // Non-whitespace — accumulate
+      if (currentWord.length === 0) {
+        wordStart = startTimes[i];
+      }
+      currentWord += ch;
+      wordEnd = endTimes[i];
+    }
+  }
+
+  // Flush last word
+  if (currentWord.length > 0) {
+    words.push({ word: currentWord, start: wordStart, end: wordEnd });
+  }
+
+  return words;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,12 +86,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use provided voiceId or default to professional
-    const voiceId = body.voiceId || VOICE_PRESETS.professional;
+    // Use provided voiceId or default narration voice
+    const voiceId = body.voiceId || VOICE_PRESETS.default;
 
-    // Call ElevenLabs API
+    // Use the with-timestamps endpoint for precise word-level timing
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`,
       {
         method: 'POST',
         headers: {
@@ -51,7 +100,7 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           text: body.text,
-          model_id: 'eleven_flash_v2_5', // Fast model with ~75ms latency
+          model_id: 'eleven_flash_v2_5',
           voice_settings: {
             stability: 0.5,
             similarity_boost: 0.75,
@@ -70,18 +119,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get audio data as array buffer
-    const audioBuffer = await response.arrayBuffer();
-    const base64Audio = Buffer.from(audioBuffer).toString('base64');
+    const data = await response.json();
 
-    // Estimate duration: ~150 words per minute for narration
-    const wordCount = body.text.split(/\s+/).length;
-    const estimatedDuration = Math.round((wordCount / 150) * 60); // seconds
+    // Decode audio from base64
+    const audioBuffer = Buffer.from(data.audio_base64, 'base64');
+    const base64Audio = data.audio_base64;
+
+    // Calculate duration from CBR MP3 (128 kbps)
+    const actualDuration = (audioBuffer.byteLength * 8) / 128000;
+
+    // Convert character-level alignment to word-level timestamps
+    let wordTimestamps: WordTimestamp[] = [];
+    if (data.alignment) {
+      wordTimestamps = charAlignmentToWords(
+        data.alignment.characters,
+        data.alignment.character_start_times_seconds,
+        data.alignment.character_end_times_seconds,
+      );
+    }
+
+    const wordCount = body.text.split(/\s+/).filter(Boolean).length;
 
     const result: NarrationResponse = {
       audioData: `data:audio/mp3;base64,${base64Audio}`,
-      duration: estimatedDuration,
+      duration: Math.round(actualDuration * 10) / 10,
       wordCount,
+      wordTimestamps,
     };
 
     return NextResponse.json(result);
@@ -98,6 +161,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     voices: [
+      { id: VOICE_PRESETS.default, name: 'Default', style: 'Narration' },
       { id: VOICE_PRESETS.professional, name: 'Adam', style: 'Professional' },
       { id: VOICE_PRESETS.conversational, name: 'Rachel', style: 'Conversational' },
       { id: VOICE_PRESETS.authoritative, name: 'Sam', style: 'Authoritative' },

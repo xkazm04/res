@@ -1,6 +1,8 @@
 'use client';
 
 import { spring, easeOutCubic, easeOutQuart, easeOutExpo } from '../useVideoPlayback';
+import { impactShake, scalePunch, bounceIn, spreadEntrance } from '@/src/lib/animation/motion';
+import { KineticText } from '../primitives/KineticText';
 import type { BaseSceneProps } from '../configs/types';
 import type { TemplateType } from '@/src/lib/videoShowcaseMockData';
 import { getTemplateIcon } from '../icons';
@@ -11,6 +13,7 @@ interface HookSceneProps extends BaseSceneProps {
   templateType: TemplateType;
   accentColor: string;
   icon: string;
+  variant?: 'centered' | 'editorial' | 'cinematic';
 }
 
 /**
@@ -22,23 +25,31 @@ export function HookScene({
   isRadar,
   format,
   sceneFrame,
+  sceneDuration,
   hook,
   title,
   templateType,
   accentColor,
+  variant = 'centered',
 }: HookSceneProps) {
   const isMobile = format === 'mobile';
 
-  // Animation timings - carefully orchestrated reveals
-  const flashProgress = spring({ frame: sceneFrame, fps, delay: 0, durationFrames: 8, easing: easeOutExpo });
-  const particleProgress = spring({ frame: sceneFrame, fps, delay: 0, durationFrames: 45, easing: easeOutQuart });
-  const ringProgress = spring({ frame: sceneFrame, fps, delay: 2, durationFrames: 35, easing: easeOutQuart });
-  const iconProgress = spring({ frame: sceneFrame, fps, delay: 5, durationFrames: 25, easing: easeOutExpo });
-  const badgeProgress = spring({ frame: sceneFrame, fps, delay: 12, durationFrames: 20, easing: easeOutCubic });
-  const hookProgress = spring({ frame: sceneFrame, fps, delay: 18, durationFrames: 35, easing: easeOutCubic });
-  const lineProgress = spring({ frame: sceneFrame, fps, delay: 35, durationFrames: 25, easing: easeOutCubic });
-  const titleProgress = spring({ frame: sceneFrame, fps, delay: 45, durationFrames: 22, easing: easeOutCubic });
-  const glowPulse = spring({ frame: sceneFrame, fps, delay: 50, durationFrames: 30, easing: easeOutCubic });
+  // Proportional delays for main elements (flash, ring, icon, badge, hookText, line, title, glow)
+  const getDelay = spreadEntrance(sceneDuration, 8, { startPct: 0.05, endPct: 0.65 });
+
+  // Animation timings — carefully orchestrated reveals
+  const flashProgress = spring({ frame: sceneFrame, fps, delay: getDelay(0), durationFrames: 8, easing: easeOutExpo });
+  const ringProgress = spring({ frame: sceneFrame, fps, delay: getDelay(1), durationFrames: 35, easing: easeOutQuart });
+  const lineProgress = spring({ frame: sceneFrame, fps, delay: getDelay(5), durationFrames: 25, easing: easeOutCubic });
+  const glowPulse = spring({ frame: sceneFrame, fps, delay: getDelay(7), durationFrames: 30, easing: easeOutCubic });
+
+  // New motion primitives for punch
+  const iconScale = scalePunch(sceneFrame, getDelay(2), { overshoot: 1.22, durationFrames: 18 });
+  const iconOpacity = spring({ frame: sceneFrame, fps, delay: getDelay(2), durationFrames: 10, easing: easeOutExpo });
+  const badgeBounce = bounceIn(sceneFrame, fps, { delay: getDelay(3), durationFrames: 18, overshoot: 0.18 });
+
+  // Camera shake on entry
+  const shake = impactShake(sceneFrame, 0, { intensity: 3, decayFrames: 10, frequency: 8 });
 
   // Dynamic effects
   const time = sceneFrame / fps;
@@ -64,48 +75,184 @@ export function HookScene({
     return emphases[templateType] || 'ANALYSIS';
   };
 
-  // Generate particle positions
-  const particles = Array.from({ length: 20 }, (_, i) => {
-    const angle = (i / 20) * Math.PI * 2 + time * 0.3;
-    const radius = 150 + Math.sin(i * 1.5 + time * 2) * 50;
-    const size = 2 + Math.sin(i * 2 + time * 3) * 1.5;
-    return {
-      x: Math.cos(angle) * radius * (isMobile ? 0.6 : 1),
-      y: Math.sin(angle) * radius * (isMobile ? 0.6 : 1),
-      size,
-      opacity: 0.3 + Math.sin(i + time * 2) * 0.2,
-    };
-  });
+  // ── Editorial variant ──
+  if (variant === 'editorial') {
+    return (
+      <div
+        className={`absolute inset-0 flex flex-col overflow-hidden ${isMobile ? 'p-6 pt-14' : 'p-10'}`}
+        style={{ transform: `translate(${shake.x}px, ${shake.y}px) rotate(${shake.rotate}deg)` }}
+      >
+        {/* Flash */}
+        <div
+          className="absolute inset-0 pointer-events-none z-30"
+          style={{
+            background: `radial-gradient(circle at 20% 30%, ${accentColor} 0%, transparent 50%)`,
+            opacity: (1 - flashProgress) * 0.5,
+            mixBlendMode: 'screen',
+          }}
+        />
 
-  // Split hook text for animated reveal
-  const hookWords = hook.split(' ');
-  const wordsPerLine = isMobile ? 4 : 6;
-  const lines: string[][] = [];
-  for (let i = 0; i < hookWords.length; i += wordsPerLine) {
-    lines.push(hookWords.slice(i, i + wordsPerLine));
+        {/* Left accent line */}
+        <div
+          className="absolute left-0 top-0 bottom-0 z-10"
+          style={{
+            width: 4,
+            background: `linear-gradient(to bottom, transparent, ${accentColor}, transparent)`,
+            opacity: lineProgress,
+          }}
+        />
+
+        {/* Small icon top-right */}
+        <div
+          className="absolute z-10"
+          style={{
+            top: isMobile ? 14 : 24,
+            right: isMobile ? 16 : 28,
+            opacity: iconOpacity,
+            transform: `scale(${iconScale * 0.6})`,
+          }}
+        >
+          <div
+            className="flex items-center justify-center rounded-xl"
+            style={{
+              width: 56,
+              height: 56,
+              background: isRadar
+                ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8))'
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 250, 249, 0.9))',
+              border: `1px solid ${accentColor}40`,
+              boxShadow: `0 0 20px ${accentColor}30`,
+            }}
+          >
+            <TemplateIcon size={28} color={accentColor} />
+          </div>
+        </div>
+
+        {/* Hook text — left-aligned, large */}
+        <div className="flex-1 flex flex-col justify-center z-10 max-w-[85%]">
+          <KineticText
+            text={hook}
+            mode="letter-burst"
+            frame={sceneFrame}
+            fps={fps}
+            startFrame={18}
+            accentColor={accentColor}
+            staggerFrames={1}
+            className={`
+              font-black leading-tight
+              ${isMobile ? 'text-[3rem]' : 'text-[4.5rem]'}
+              ${isRadar ? 'text-white' : 'text-stone-900'}
+            `}
+          />
+
+          {/* Title as smaller caption */}
+          <div className="mt-4">
+            <KineticText
+              text={title}
+              mode="gradient-sweep"
+              frame={sceneFrame}
+              fps={fps}
+              startFrame={45}
+              accentColor={accentColor}
+              className={`
+                font-medium tracking-wide ${isMobile ? 'text-sm' : 'text-base'}
+                ${isRadar ? 'text-slate-500' : 'text-stone-400'}
+              `}
+            />
+          </div>
+        </div>
+
+        {/* Scanline */}
+        <div
+          className="absolute inset-0 pointer-events-none z-10"
+          style={{
+            backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 2px, ${isRadar ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)'} 2px, ${isRadar ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)'} 4px)`,
+            opacity: 0.5,
+          }}
+        />
+      </div>
+    );
   }
 
+  // ── Cinematic variant ──
+  if (variant === 'cinematic') {
+    return (
+      <div
+        className={`absolute inset-0 flex flex-col items-center justify-center overflow-hidden ${isMobile ? 'px-6' : 'px-10'}`}
+        style={{ transform: `translate(${shake.x}px, ${shake.y}px) rotate(${shake.rotate}deg)` }}
+      >
+        {/* Stronger flash on enter */}
+        <div
+          className="absolute inset-0 pointer-events-none z-30"
+          style={{
+            background: `radial-gradient(circle at 50% 50%, white 0%, ${accentColor} 20%, transparent 50%)`,
+            opacity: (1 - flashProgress) * 0.9,
+            mixBlendMode: 'screen',
+          }}
+        />
+
+        {/* Hook text — massive centered */}
+        <div className="text-center max-w-full z-10">
+          <KineticText
+            text={hook}
+            mode="letter-burst"
+            frame={sceneFrame}
+            fps={fps}
+            startFrame={14}
+            accentColor={accentColor}
+            staggerFrames={1}
+            className={`
+              font-black leading-none
+              ${isMobile ? 'text-[3.5rem]' : 'text-[5rem]'}
+              ${isRadar ? 'text-white' : 'text-stone-900'}
+            `}
+          />
+        </div>
+
+        {/* Tiny title overlay bottom-left */}
+        <div
+          className="absolute z-10"
+          style={{
+            bottom: isMobile ? 20 : 28,
+            left: isMobile ? 20 : 32,
+            opacity: lineProgress,
+          }}
+        >
+          <KineticText
+            text={title}
+            mode="gradient-sweep"
+            frame={sceneFrame}
+            fps={fps}
+            startFrame={45}
+            accentColor={accentColor}
+            className={`
+              font-medium tracking-widest uppercase
+              ${isMobile ? 'text-xs' : 'text-sm'}
+              ${isRadar ? 'text-slate-500' : 'text-stone-400'}
+            `}
+          />
+        </div>
+
+        {/* Scanline */}
+        <div
+          className="absolute inset-0 pointer-events-none z-10"
+          style={{
+            backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 2px, ${isRadar ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)'} 2px, ${isRadar ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)'} 4px)`,
+            opacity: 0.5,
+          }}
+        />
+      </div>
+    );
+  }
+
+  // ── Centered variant (default) ──
   return (
-    <div className={`absolute inset-0 flex flex-col items-center overflow-hidden ${isMobile ? 'justify-start pt-16' : 'justify-center'}`}>
-      {/* Cinematic letterbox bars for desktop */}
-      {!isMobile && (
-        <>
-          <div
-            className="absolute top-0 left-0 right-0 z-20"
-            style={{
-              height: 40,
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)',
-            }}
-          />
-          <div
-            className="absolute bottom-0 left-0 right-0 z-20"
-            style={{
-              height: 40,
-              background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
-            }}
-          />
-        </>
-      )}
+    <div
+      className={`absolute inset-0 flex flex-col items-center overflow-hidden ${isMobile ? 'justify-start pt-16' : 'justify-center'}`}
+      style={{
+        transform: `translate(${shake.x}px, ${shake.y}px) rotate(${shake.rotate}deg)`,
+      }}
+    >
 
       {/* Initial dramatic flash */}
       <div
@@ -116,47 +263,6 @@ export function HookScene({
           mixBlendMode: 'screen',
         }}
       />
-
-      {/* Dynamic gradient background */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: isRadar
-            ? `radial-gradient(ellipse 80% 50% at 50% ${isMobile ? '30%' : '50%'}, ${accentColor}20 0%, transparent 50%),
-               radial-gradient(ellipse 60% 80% at 20% 80%, ${accentColor}10 0%, transparent 40%),
-               radial-gradient(ellipse 60% 80% at 80% 20%, ${accentColor}08 0%, transparent 40%)`
-            : `radial-gradient(ellipse 80% 50% at 50% ${isMobile ? '30%' : '50%'}, ${accentColor}15 0%, transparent 50%)`,
-          opacity: ringProgress,
-        }}
-      />
-
-      {/* Animated particle field */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div
-          className="absolute"
-          style={{
-            left: '50%',
-            top: isMobile ? '25%' : '50%',
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
-          {particles.map((p, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                width: p.size,
-                height: p.size,
-                backgroundColor: accentColor,
-                left: p.x,
-                top: p.y,
-                opacity: p.opacity * particleProgress,
-                boxShadow: `0 0 ${p.size * 2}px ${accentColor}`,
-              }}
-            />
-          ))}
-        </div>
-      </div>
 
       {/* Orbital rings with glow */}
       <div
@@ -172,8 +278,8 @@ export function HookScene({
             key={i}
             className="absolute rounded-full"
             style={{
-              width: (isMobile ? 80 : 120) * scale,
-              height: (isMobile ? 80 : 120) * scale,
+              width: (isMobile ? 120 : 180) * scale,
+              height: (isMobile ? 120 : 180) * scale,
               left: '50%',
               top: '50%',
               transform: `translate(-50%, -50%) scale(${0.8 + ringProgress * 0.3}) rotate(${time * (15 - i * 3)}deg)`,
@@ -186,27 +292,27 @@ export function HookScene({
         ))}
       </div>
 
-      {/* Central icon with dramatic reveal */}
+      {/* Central icon with dramatic punch entrance */}
       <div className="relative z-10">
         {/* Multi-layer glow */}
         <div
           className="absolute rounded-full"
           style={{
-            width: isMobile ? 140 : 200,
-            height: isMobile ? 140 : 200,
+            width: isMobile ? 200 : 280,
+            height: isMobile ? 200 : 280,
             left: '50%',
             top: '50%',
             transform: `translate(-50%, -50%) scale(${breathe})`,
             background: `radial-gradient(circle, ${accentColor}60 0%, ${accentColor}20 40%, transparent 70%)`,
-            opacity: iconProgress * 0.8,
+            opacity: iconOpacity * 0.8,
             filter: 'blur(30px)',
           }}
         />
         <div
           className="absolute rounded-full"
           style={{
-            width: isMobile ? 100 : 140,
-            height: isMobile ? 100 : 140,
+            width: isMobile ? 140 : 200,
+            height: isMobile ? 140 : 200,
             left: '50%',
             top: '50%',
             transform: `translate(-50%, -50%) scale(${1 + pulse * 0.05})`,
@@ -216,14 +322,14 @@ export function HookScene({
           }}
         />
 
-        {/* Icon container with glassmorphism */}
+        {/* Icon container with glassmorphism — uses scalePunch for overshoot */}
         <div
           className="relative flex items-center justify-center rounded-full"
           style={{
-            width: isMobile ? 80 : 110,
-            height: isMobile ? 80 : 110,
-            opacity: iconProgress,
-            transform: `scale(${0.3 + iconProgress * 0.7})`,
+            width: isMobile ? 110 : 150,
+            height: isMobile ? 110 : 150,
+            opacity: iconOpacity,
+            transform: `scale(${iconScale})`,
             background: isRadar
               ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8))'
               : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(250, 250, 249, 0.9))',
@@ -236,24 +342,24 @@ export function HookScene({
             border: `2px solid ${accentColor}60`,
           }}
         >
-          <TemplateIcon size={isMobile ? 40 : 54} color={accentColor} />
+          <TemplateIcon size={isMobile ? 56 : 72} color={accentColor} />
         </div>
       </div>
 
-      {/* Template type badge with premium styling */}
+      {/* Template type badge with bounce entrance */}
       <div
         className="relative mt-5 z-10"
         style={{
-          opacity: badgeProgress,
-          transform: `translateY(${(1 - badgeProgress) * 20}px) scale(${0.8 + badgeProgress * 0.2})`,
+          opacity: Math.min(badgeBounce * 2, 1),
+          transform: `translateY(${(1 - Math.min(badgeBounce, 1)) * 20}px) scale(${0.8 + Math.min(badgeBounce, 1) * 0.2 + (badgeBounce > 1 ? (badgeBounce - 1) * 0.5 : 0)})`,
         }}
       >
         <div
-          className="px-5 py-2 rounded-full font-black tracking-[0.2em] text-xs"
+          className="px-5 py-2 rounded-full font-black tracking-[0.2em] text-sm"
           style={{
             background: isRadar
-              ? `linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8))`
-              : `linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(245, 245, 244, 0.9))`,
+              ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.8))'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(245, 245, 244, 0.9))',
             color: accentColor,
             border: `1px solid ${accentColor}40`,
             boxShadow: `0 4px 20px ${accentColor}30, inset 0 1px 0 rgba(255,255,255,0.1)`,
@@ -263,46 +369,25 @@ export function HookScene({
         </div>
       </div>
 
-      {/* Hook text with word-by-word animation */}
-      <div className={`${isMobile ? 'mt-8 px-5' : 'mt-10 px-8'} text-center max-w-3xl z-10`}>
-        <div className="space-y-1">
-          {lines.map((lineWords, lineIdx) => (
-            <p
-              key={lineIdx}
-              className={`
-                font-black leading-tight
-                ${isMobile ? 'text-[1.6rem]' : 'text-[2.5rem]'}
-                ${isRadar ? 'text-white' : 'text-stone-900'}
-              `}
-              style={{
-                letterSpacing: '-0.02em',
-              }}
-            >
-              {lineWords.map((word, wordIdx) => {
-                const globalIdx = lineIdx * wordsPerLine + wordIdx;
-                const wordDelay = 18 + globalIdx * 2;
-                const wordProgress = spring({ frame: sceneFrame, fps, delay: wordDelay, durationFrames: 20, easing: easeOutCubic });
-
-                return (
-                  <span
-                    key={wordIdx}
-                    className="inline-block mr-2"
-                    style={{
-                      opacity: wordProgress,
-                      transform: `translateY(${(1 - wordProgress) * 20}px)`,
-                      textShadow: isRadar ? `0 0 40px ${accentColor}40` : 'none',
-                    }}
-                  >
-                    {word}
-                  </span>
-                );
-              })}
-            </p>
-          ))}
-        </div>
+      {/* Hook text — letter-burst kinetic animation */}
+      <div className={`${isMobile ? 'mt-10 px-6' : 'mt-12 px-10'} text-center max-w-3xl z-10`}>
+        <KineticText
+          text={hook}
+          mode="letter-burst"
+          frame={sceneFrame}
+          fps={fps}
+          startFrame={getDelay(4)}
+          accentColor={accentColor}
+          staggerFrames={1}
+          className={`
+            font-black leading-tight
+            ${isMobile ? 'text-[2.2rem]' : 'text-[3.5rem]'}
+            ${isRadar ? 'text-white' : 'text-stone-900'}
+          `}
+        />
 
         {/* Animated accent line with gradient */}
-        <div className="relative mx-auto mt-8 overflow-hidden" style={{ width: isMobile ? 120 : 200, height: 3 }}>
+        <div className="relative mx-auto mt-8 overflow-hidden" style={{ width: isMobile ? 160 : 280, height: 3 }}>
           <div
             className="absolute inset-y-0"
             style={{
@@ -315,88 +400,52 @@ export function HookScene({
           />
         </div>
 
-        {/* Title with subtle animation */}
-        <h2
-          className={`
-            mt-6 font-medium tracking-wide
-            ${isMobile ? 'text-sm' : 'text-lg'}
-            ${isRadar ? 'text-slate-400' : 'text-stone-500'}
-          `}
-          style={{
-            opacity: titleProgress,
-            transform: `translateY(${(1 - titleProgress) * 15}px)`,
-            letterSpacing: '0.05em',
-          }}
-        >
-          {title}
-        </h2>
+        {/* Title with gradient-sweep */}
+        <div className={`mt-8 ${isMobile ? 'text-base' : 'text-xl'}`}>
+          <KineticText
+            text={title}
+            mode="gradient-sweep"
+            frame={sceneFrame}
+            fps={fps}
+            startFrame={getDelay(6)}
+            accentColor={accentColor}
+            className={`
+              font-medium tracking-wide
+              ${isRadar ? 'text-slate-400' : 'text-stone-500'}
+            `}
+          />
+        </div>
       </div>
 
-      {/* Premium corner accents - desktop */}
+      {/* Premium corner accents — desktop */}
       {!isMobile && (
         <>
-          {/* Top left */}
-          <div className="absolute top-8 left-8" style={{ opacity: lineProgress * 0.6 }}>
-            <svg width="60" height="60" viewBox="0 0 60 60">
-              <path
-                d="M0 30 L0 0 L30 0"
-                fill="none"
-                stroke={accentColor}
-                strokeWidth="2"
-                style={{
-                  strokeDasharray: 60,
-                  strokeDashoffset: 60 - lineProgress * 60,
-                }}
-              />
-              <circle cx="0" cy="0" r="3" fill={accentColor} />
+          <div className="absolute top-10 left-10" style={{ opacity: lineProgress * 0.6 }}>
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <path d="M0 40 L0 0 L40 0" fill="none" stroke={accentColor} strokeWidth="2"
+                style={{ strokeDasharray: 80, strokeDashoffset: 80 - lineProgress * 80 }} />
+              <circle cx="0" cy="0" r="4" fill={accentColor} />
             </svg>
           </div>
-          {/* Top right */}
-          <div className="absolute top-8 right-8" style={{ opacity: lineProgress * 0.6 }}>
-            <svg width="60" height="60" viewBox="0 0 60 60">
-              <path
-                d="M30 0 L60 0 L60 30"
-                fill="none"
-                stroke={accentColor}
-                strokeWidth="2"
-                style={{
-                  strokeDasharray: 60,
-                  strokeDashoffset: 60 - lineProgress * 60,
-                }}
-              />
-              <circle cx="60" cy="0" r="3" fill={accentColor} />
+          <div className="absolute top-10 right-10" style={{ opacity: lineProgress * 0.6 }}>
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <path d="M40 0 L80 0 L80 40" fill="none" stroke={accentColor} strokeWidth="2"
+                style={{ strokeDasharray: 80, strokeDashoffset: 80 - lineProgress * 80 }} />
+              <circle cx="80" cy="0" r="4" fill={accentColor} />
             </svg>
           </div>
-          {/* Bottom left */}
-          <div className="absolute bottom-8 left-8" style={{ opacity: lineProgress * 0.6 }}>
-            <svg width="60" height="60" viewBox="0 0 60 60">
-              <path
-                d="M0 30 L0 60 L30 60"
-                fill="none"
-                stroke={accentColor}
-                strokeWidth="2"
-                style={{
-                  strokeDasharray: 60,
-                  strokeDashoffset: 60 - lineProgress * 60,
-                }}
-              />
-              <circle cx="0" cy="60" r="3" fill={accentColor} />
+          <div className="absolute bottom-10 left-10" style={{ opacity: lineProgress * 0.6 }}>
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <path d="M0 40 L0 80 L40 80" fill="none" stroke={accentColor} strokeWidth="2"
+                style={{ strokeDasharray: 80, strokeDashoffset: 80 - lineProgress * 80 }} />
+              <circle cx="0" cy="80" r="4" fill={accentColor} />
             </svg>
           </div>
-          {/* Bottom right */}
-          <div className="absolute bottom-8 right-8" style={{ opacity: lineProgress * 0.6 }}>
-            <svg width="60" height="60" viewBox="0 0 60 60">
-              <path
-                d="M60 30 L60 60 L30 60"
-                fill="none"
-                stroke={accentColor}
-                strokeWidth="2"
-                style={{
-                  strokeDasharray: 60,
-                  strokeDashoffset: 60 - lineProgress * 60,
-                }}
-              />
-              <circle cx="60" cy="60" r="3" fill={accentColor} />
+          <div className="absolute bottom-10 right-10" style={{ opacity: lineProgress * 0.6 }}>
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <path d="M80 40 L80 80 L40 80" fill="none" stroke={accentColor} strokeWidth="2"
+                style={{ strokeDasharray: 80, strokeDashoffset: 80 - lineProgress * 80 }} />
+              <circle cx="80" cy="80" r="4" fill={accentColor} />
             </svg>
           </div>
         </>
@@ -416,31 +465,6 @@ export function HookScene({
           opacity: 0.5,
         }}
       />
-
-      {/* Mobile scroll indicator */}
-      {isMobile && (
-        <div
-          className="absolute bottom-16 left-0 right-0 flex flex-col items-center z-10"
-          style={{ opacity: titleProgress * 0.4 }}
-        >
-          <div
-            className="w-1 h-8 rounded-full overflow-hidden"
-            style={{
-              backgroundColor: isRadar ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-            }}
-          >
-            <div
-              className="w-full rounded-full"
-              style={{
-                height: '40%',
-                backgroundColor: accentColor,
-                animation: 'bounce 1.5s ease-in-out infinite',
-                transform: `translateY(${Math.sin(time * 4) * 100}%)`,
-              }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

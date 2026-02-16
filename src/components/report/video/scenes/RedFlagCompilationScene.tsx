@@ -3,6 +3,7 @@
 import { spring, easeOutCubic, easeOutQuart } from '../useVideoPlayback';
 import { DueDiligenceIcon, CriticalIcon, WarningIcon, InfoIcon } from '../icons';
 import type { BaseSceneProps } from '../configs/types';
+import { spreadEntrance } from '@/src/lib/animation/motion';
 
 interface RedFlag {
   flag: string;
@@ -26,6 +27,7 @@ export function RedFlagCompilationScene({
   isRadar,
   format,
   sceneFrame,
+  sceneDuration,
   flags,
   title = 'Red Flags Identified',
   accentColor,
@@ -36,6 +38,10 @@ export function RedFlagCompilationScene({
   const headerProgress = spring({ frame: sceneFrame, fps, delay: 0, durationFrames: 20, easing: easeOutCubic });
   const radarProgress = spring({ frame: sceneFrame, fps, delay: 5, durationFrames: 35, easing: easeOutQuart });
   const cardsProgress = spring({ frame: sceneFrame, fps, delay: 15, durationFrames: 25, easing: easeOutCubic });
+
+  // Proportional stagger delays for dots and cards
+  const getDotDelay = spreadEntrance(sceneDuration, Math.min(8, flags.length), { startPct: 0.05, endPct: 0.65 });
+  const getCardDelay = spreadEntrance(sceneDuration, isMobile ? 3 : 4, { startPct: 0.05, endPct: 0.65 });
 
   // Sort flags by severity
   const severityOrder = ['critical', 'high', 'medium', 'low'] as const;
@@ -79,11 +85,11 @@ export function RedFlagCompilationScene({
   const pulse = Math.sin((sceneFrame / fps) * Math.PI * 2) * 0.5 + 0.5;
 
   // SVG dimensions for radar
-  const radarSize = isMobile ? 140 : 180;
+  const radarSize = isMobile ? 200 : 260;
   const radarCenter = radarSize / 2;
 
   return (
-    <div className={`absolute inset-0 ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
+    <div className={`absolute inset-0 ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
       {/* Header */}
       <div
         className="mb-4"
@@ -97,15 +103,15 @@ export function RedFlagCompilationScene({
             className={`flex items-center justify-center rounded-lg ${
               isRadar ? 'bg-rose-500/20' : 'bg-rose-100'
             }`}
-            style={{ width: isMobile ? 36 : 44, height: isMobile ? 36 : 44 }}
+            style={{ width: isMobile ? 52 : 64, height: isMobile ? 52 : 64 }}
           >
-            <DueDiligenceIcon size={isMobile ? 20 : 24} color="#f43f5e" />
+            <DueDiligenceIcon size={isMobile ? 28 : 34} color="#f43f5e" />
           </div>
           <div>
-            <h2 className={`${isMobile ? 'text-base' : 'text-xl'} font-bold ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               {title}
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-500' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-500' : 'text-stone-500'}`}>
               {flags.length} issues detected
             </p>
           </div>
@@ -116,7 +122,7 @@ export function RedFlagCompilationScene({
       <div className={`flex ${isMobile ? 'flex-col gap-4' : 'gap-6'}`}>
         {/* Risk Radar Visualization */}
         <div
-          className={`flex-shrink-0 flex flex-col items-center ${isMobile ? '' : 'w-[200px]'}`}
+          className={`flex-shrink-0 flex flex-col items-center ${isMobile ? '' : 'w-[280px]'}`}
           style={{ opacity: radarProgress }}
         >
           <svg
@@ -200,7 +206,7 @@ export function RedFlagCompilationScene({
               const distance = radarCenter * distanceRatio;
               const x = radarCenter + Math.cos(angle) * distance;
               const y = radarCenter + Math.sin(angle) * distance;
-              const dotDelay = 20 + i * 5;
+              const dotDelay = getDotDelay(i);
               const dotProgress = spring({ frame: sceneFrame, fps, delay: dotDelay, durationFrames: 20, easing: easeOutQuart });
               const color = severityColors[flag.severity].main;
 
@@ -232,14 +238,14 @@ export function RedFlagCompilationScene({
             <div className="flex items-center justify-center gap-2">
               <riskLevel.Icon size={18} color={riskLevel.color} />
               <span
-                className="text-2xl font-bold tabular-nums"
+                className="text-3xl font-bold tabular-nums"
                 style={{ color: riskLevel.color }}
               >
                 {Math.round(riskScore * radarProgress)}
               </span>
             </div>
             <span
-              className="text-[10px] font-bold tracking-wider"
+              className="text-[13px] font-bold tracking-wider"
               style={{ color: riskLevel.color }}
             >
               {riskLevel.label}
@@ -255,7 +261,7 @@ export function RedFlagCompilationScene({
                     className="w-2.5 h-2.5 rounded-full"
                     style={{ backgroundColor: severityColors[sev].main }}
                   />
-                  <span className={`text-[9px] capitalize ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+                  <span className={`text-xs capitalize ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
                     {sev}: {severityCounts[sev]}
                   </span>
                 </div>
@@ -270,7 +276,7 @@ export function RedFlagCompilationScene({
           style={{ opacity: cardsProgress }}
         >
           {sortedFlags.slice(0, isMobile ? 3 : 4).map((flag, i) => {
-            const cardDelay = 18 + i * 8;
+            const cardDelay = getCardDelay(i);
             const cardProgress = spring({ frame: sceneFrame, fps, delay: cardDelay, durationFrames: 25, easing: easeOutQuart });
             const colors = severityColors[flag.severity];
 
@@ -307,32 +313,32 @@ export function RedFlagCompilationScene({
                 <div className="flex items-start gap-3 pl-2">
                   {/* Severity icon */}
                   <div
-                    className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                    className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
                     style={{ backgroundColor: `${colors.main}20` }}
                   >
                     {flag.severity === 'critical' ? (
-                      <CriticalIcon size={16} color={colors.main} />
+                      <CriticalIcon size={20} color={colors.main} />
                     ) : flag.severity === 'high' ? (
-                      <WarningIcon size={16} color={colors.main} />
+                      <WarningIcon size={20} color={colors.main} />
                     ) : (
-                      <InfoIcon size={16} color={colors.main} />
+                      <InfoIcon size={20} color={colors.main} />
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <h4 className={`text-sm font-semibold ${colors.text}`}>
+                      <h4 className={`text-base font-semibold ${colors.text}`}>
                         {flag.flag.length > 35 ? flag.flag.slice(0, 32) + '...' : flag.flag}
                       </h4>
                       <span
-                        className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide text-white"
+                        className="px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide text-white"
                         style={{ backgroundColor: colors.main }}
                       >
                         {flag.severity}
                       </span>
                     </div>
                     {flag.evidence && (
-                      <p className={`text-[11px] ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+                      <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
                         {flag.evidence.length > 60 ? flag.evidence.slice(0, 57) + '...' : flag.evidence}
                       </p>
                     )}
@@ -345,7 +351,7 @@ export function RedFlagCompilationScene({
           {/* More indicator */}
           {flags.length > (isMobile ? 3 : 4) && (
             <div
-              className={`text-center py-2 text-xs ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}
+              className={`text-center py-2 text-sm ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}
               style={{
                 opacity: spring({ frame: sceneFrame, fps, delay: 55, durationFrames: 20, easing: easeOutCubic }),
               }}

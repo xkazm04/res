@@ -2,7 +2,6 @@
 
 import { memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Globe, Wand2 } from 'lucide-react';
 import { ContentSelector } from '@/src/components/report/video/ContentSelector';
 import type { ContentSelectionState } from '@/src/components/report/video/useContentSelection';
 import type { SessionWithDetails } from '@/src/types/research';
@@ -25,7 +24,13 @@ export const ContentSelectionArea = memo(function ContentSelectionArea({
   selectionState,
   draftState,
 }: ContentSelectionAreaProps) {
-  const aiCompose = useAICompose({ session, selectionState });
+  const aiCompose = useAICompose({
+    session,
+    selectionState,
+    onComposition: draftState.setSceneComposition,
+    onKeywords: draftState.setKeywords,
+    onAudio: draftState.setAudio,
+  });
 
   // Wrap handleResult to auto-save draft after AI compose
   const handleResultWithAutoSave = useCallback((result: Parameters<typeof aiCompose.handleResult>[0]) => {
@@ -36,64 +41,14 @@ export const ContentSelectionArea = memo(function ContentSelectionArea({
 
   return (
     <div className="h-full flex flex-col p-6">
-      {/* Draft Bar */}
-      <DraftBar draftState={draftState} />
-
-      {/* AI Compose Controls */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="flex items-center gap-3 mb-4"
-      >
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={aiCompose.startCompose}
-          disabled={aiCompose.isComposing}
-          className={`
-            flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all
-            ${aiCompose.isComposing
-              ? 'opacity-50 cursor-not-allowed'
-              : 'hover:shadow-lg hover:shadow-violet-500/10'
-            }
-            bg-gradient-to-r from-violet-500/80 to-purple-500/80 text-white
-            border border-violet-400/30
-          `}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          {aiCompose.isComposing ? 'Composing...' : 'AI Compose'}
-        </motion.button>
-
-        {/* Option toggles */}
-        <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none group">
-          <input
-            type="checkbox"
-            checked={aiCompose.composeOptions.enableResearch || false}
-            onChange={(e) => aiCompose.setComposeOptions(prev => ({ ...prev, enableResearch: e.target.checked }))}
-            className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-violet-500 focus:ring-violet-500/30 focus:ring-offset-0"
-          />
-          <Globe className="w-3 h-3 group-hover:text-slate-300 transition-colors" />
-          <span className="group-hover:text-slate-300 transition-colors">Web Research</span>
-        </label>
-
-        <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none group">
-          <input
-            type="checkbox"
-            checked={aiCompose.composeOptions.enableRewriting || false}
-            onChange={(e) => aiCompose.setComposeOptions(prev => ({ ...prev, enableRewriting: e.target.checked }))}
-            className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-violet-500 focus:ring-violet-500/30 focus:ring-offset-0"
-          />
-          <Wand2 className="w-3 h-3 group-hover:text-slate-300 transition-colors" />
-          <span className="group-hover:text-slate-300 transition-colors">Optimize Copy</span>
-        </label>
-
-        {aiCompose.lastError && (
-          <span className="text-[11px] text-red-400 ml-auto">
-            {aiCompose.lastError}
-          </span>
-        )}
-      </motion.div>
+      {/* Draft Bar + Compose Buttons */}
+      <DraftBar
+        draftState={draftState}
+        onShorts={aiCompose.startCompose}
+        onFull={aiCompose.startCompose}
+        isComposing={aiCompose.isComposing}
+        lastError={aiCompose.lastError}
+      />
 
       {/* Main content area - split when terminal is open */}
       <div className="flex-1 flex gap-4 overflow-hidden min-h-0">

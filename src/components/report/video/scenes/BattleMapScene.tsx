@@ -53,7 +53,7 @@ export function BattleMapScene({
   const winMargin = Math.abs(score1Total - score2Total);
 
   return (
-    <div className={`absolute inset-0 flex flex-col ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
+    <div className={`absolute inset-0 flex flex-col ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
       {/* Header */}
       <div
         className="mb-4"
@@ -67,11 +67,11 @@ export function BattleMapScene({
             className={`flex items-center justify-center rounded-lg ${
               isRadar ? 'bg-purple-500/20' : 'bg-purple-100'
             }`}
-            style={{ width: isMobile ? 36 : 44, height: isMobile ? 36 : 44 }}
+            style={{ width: isMobile ? 52 : 64, height: isMobile ? 52 : 64 }}
           >
-            <CompetitiveIcon size={isMobile ? 20 : 24} color="#a855f7" />
+            <CompetitiveIcon size={isMobile ? 28 : 34} color="#a855f7" />
           </div>
-          <h2 className={`${isMobile ? 'text-base' : 'text-xl'} font-bold ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+          <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold ${isRadar ? 'text-white' : 'text-stone-900'}`}>
             Head to Head
           </h2>
         </div>
@@ -89,11 +89,11 @@ export function BattleMapScene({
         <div className="flex-1 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <TrendUpIcon size={16} color="#22c55e" />
-            <span className={`text-sm font-bold ${isRadar ? 'text-emerald-400' : 'text-emerald-600'}`}>
+            <span className={`text-base font-bold ${isRadar ? 'text-emerald-400' : 'text-emerald-600'}`}>
               {competitor1.name}
             </span>
           </div>
-          <span className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+          <span className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
             Score: {score1Total}
           </span>
         </div>
@@ -101,7 +101,7 @@ export function BattleMapScene({
         {/* VS badge */}
         <div
           className={`
-            w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold
+            w-14 h-14 rounded-full flex items-center justify-center text-base font-bold
             ${isRadar ? 'bg-slate-700 text-slate-300' : 'bg-stone-200 text-stone-600'}
           `}
         >
@@ -112,11 +112,11 @@ export function BattleMapScene({
         <div className="flex-1 text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <TrendDownIcon size={16} color="#ef4444" />
-            <span className={`text-sm font-bold ${isRadar ? 'text-red-400' : 'text-red-600'}`}>
+            <span className={`text-base font-bold ${isRadar ? 'text-red-400' : 'text-red-600'}`}>
               {competitor2.name}
             </span>
           </div>
-          <span className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+          <span className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
             Score: {score2Total}
           </span>
         </div>
@@ -132,7 +132,7 @@ export function BattleMapScene({
           frame={sceneFrame - 15}
           fps={fps}
           isRadar={isRadar}
-          width={isMobile ? 300 : 800}
+          width={isMobile ? 440 : 840}
           leftHeader={competitor1.name}
           rightHeader={competitor2.name}
           leftColor="#22c55e"
@@ -157,8 +157,8 @@ export function BattleMapScene({
           opacity: spring({ frame: sceneFrame, fps, delay: 50, durationFrames: 22, easing: easeOutCubic }),
         }}
       >
-        <span className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>Overall Winner: </span>
-        <span className={`text-lg font-bold ${
+        <span className={`text-base ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>Overall Winner: </span>
+        <span className={`text-xl font-bold ${
           winner === competitor1.name
             ? (isRadar ? 'text-emerald-400' : 'text-emerald-600')
             : winner === competitor2.name
@@ -168,7 +168,7 @@ export function BattleMapScene({
           {winner === 'Tie' ? 'Too close to call' : winner}
         </span>
         {winner !== 'Tie' && (
-          <span className={`text-xs ml-2 ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
+          <span className={`text-sm ml-2 ${isRadar ? 'text-slate-500' : 'text-stone-400'}`}>
             (+{winMargin} points)
           </span>
         )}

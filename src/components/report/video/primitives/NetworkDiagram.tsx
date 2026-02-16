@@ -190,7 +190,7 @@ export function NetworkDiagram({
           const dx = toPos.x - fromPos.x;
           const dy = toPos.y - fromPos.y;
           const length = Math.sqrt(dx * dx + dy * dy);
-          const nodeRadius = 26;
+          const nodeRadius = 32;
           const startX = fromPos.x + (dx / length) * nodeRadius;
           const startY = fromPos.y + (dy / length) * nodeRadius;
           const endX = toPos.x - (dx / length) * nodeRadius;
@@ -270,10 +270,10 @@ export function NetworkDiagram({
                   opacity={(edgeProgress - 0.75) * 4}
                 >
                   <rect
-                    x={-35}
-                    y={-8}
-                    width={70}
-                    height={16}
+                    x={-45}
+                    y={-10}
+                    width={90}
+                    height={20}
                     rx={4}
                     fill={isRadar ? '#1e293b' : '#ffffff'}
                     opacity={0.9}
@@ -281,7 +281,7 @@ export function NetworkDiagram({
                   <text
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    className={`text-[9px] font-medium`}
+                    className={`text-[12px] font-medium`}
                     fill={isRadar ? '#94a3b8' : '#78716c'}
                   >
                     {edge.label.length > 12 ? edge.label.slice(0, 10) + '…' : edge.label}
@@ -313,14 +313,14 @@ export function NetworkDiagram({
               {isPrimary && (
                 <>
                   <circle
-                    r={38}
+                    r={48}
                     fill="none"
                     stroke={colors.glow}
                     strokeWidth={1}
                     opacity={0.3 * (1 + Math.sin((frame / fps) * Math.PI * 2))}
                   />
                   <circle
-                    r={46}
+                    r={56}
                     fill="none"
                     stroke={colors.glow}
                     strokeWidth={0.5}
@@ -332,7 +332,7 @@ export function NetworkDiagram({
               {/* Glow effect for special nodes */}
               {isSpecial && (
                 <circle
-                  r={32}
+                  r={40}
                   fill={colors.glow}
                   opacity={0.3}
                   style={{ filter: 'blur(12px)' }}
@@ -341,7 +341,7 @@ export function NetworkDiagram({
 
               {/* Outer ring */}
               <circle
-                r={isPrimary ? 28 : 24}
+                r={isPrimary ? 36 : 30}
                 fill="none"
                 stroke={colors.stroke}
                 strokeWidth={isPrimary ? 3 : 2}
@@ -350,7 +350,7 @@ export function NetworkDiagram({
 
               {/* Node circle */}
               <circle
-                r={isPrimary ? 24 : 20}
+                r={isPrimary ? 30 : 26}
                 fill={colors.fill}
                 stroke={colors.stroke}
                 strokeWidth={2}
@@ -358,7 +358,7 @@ export function NetworkDiagram({
 
               {/* Inner highlight */}
               <circle
-                r={isPrimary ? 18 : 14}
+                r={isPrimary ? 24 : 18}
                 fill="none"
                 stroke="white"
                 strokeWidth={1}
@@ -371,7 +371,7 @@ export function NetworkDiagram({
                 textAnchor="middle"
                 dominantBaseline="middle"
                 className="font-bold"
-                fontSize={isPrimary ? 12 : 11}
+                fontSize={isPrimary ? 16 : 14}
                 fill={colors.text}
               >
                 {node.label.length > 6 ? node.label.slice(0, 5) + '…' : node.label}
@@ -379,10 +379,10 @@ export function NetworkDiagram({
 
               {/* Full label below node */}
               <text
-                y={isPrimary ? 40 : 34}
+                y={isPrimary ? 48 : 42}
                 textAnchor="middle"
                 className="font-medium"
-                fontSize={9}
+                fontSize={12}
                 fill={isRadar ? '#94a3b8' : '#78716c'}
                 opacity={nodeProgress}
               >

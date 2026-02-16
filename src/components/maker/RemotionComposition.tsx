@@ -8,31 +8,48 @@ import {
   type BaseSceneProps,
 } from '@/src/components/report/video/configs';
 import type { TemplateType, VideoContent } from '@/src/lib/videoShowcaseMockData';
-import { renderScene } from './sceneRegistry';
+import type { ComposedScene } from './cli/types';
+import { renderScene, renderComposedScene } from './sceneRegistry';
+import { compositionToSceneDefinitions } from './compositionUtils';
+import { PACING_CONFIG } from './cli/sceneCatalog';
+import { VideoAtmosphere } from '@/src/components/report/video/primitives/VideoAtmosphere';
+import { SceneTransition } from '@/src/components/report/video/primitives/SceneTransition';
+import { NarrationSubtitle } from '@/src/components/report/video/primitives/NarrationSubtitle';
 
 export type VideoFormat = 'standard' | 'mobile';
 
-interface RemotionCompositionProps {
+export interface RemotionCompositionProps {
   templateType: TemplateType;
   videoContent: VideoContent;
   format: VideoFormat;
+  sceneComposition?: ComposedScene[] | null;
 }
 
 /**
  * Remotion Composition Component
  *
- * Main composition that renders video scenes using Remotion's frame system.
- * Delegates scene rendering to the scene registry for cleaner separation.
+ * Dual-mode rendering:
+ * - When sceneComposition is provided: uses AI-composed scene sequence with per-scene data
+ * - When null/empty: falls back to static template config with global VideoContent
  */
 export function RemotionComposition({
   templateType,
   videoContent,
   format,
+  sceneComposition,
 }: RemotionCompositionProps) {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
   const config = getTemplateConfig(templateType);
-  const currentScene = getCurrentScene(frame, config.scenes);
+
+  const useComposition = sceneComposition && sceneComposition.length > 0;
+
+  // Determine scenes based on mode
+  const scenes = useComposition
+    ? compositionToSceneDefinitions(sceneComposition, fps)
+    : config.scenes;
+
+  const currentScene = getCurrentScene(frame, scenes);
 
   // Build base props for scene rendering
   const baseProps: BaseSceneProps | null = currentScene
@@ -45,28 +62,73 @@ export function RemotionComposition({
       }
     : null;
 
+  // Find the composed scene data for the current scene (composition mode only)
+  const currentComposedScene = useComposition && currentScene
+    ? sceneComposition.find(s => s.sceneId === currentScene.id)
+    : null;
+
+  // Scene index for zoom drift alternation
+  const sceneIndex = currentScene
+    ? scenes.indexOf(currentScene)
+    : 0;
+
+  // Resolve per-scene styling from composed scene (defaults for fallback path)
+  const sceneMood = currentComposedScene?.mood ?? 'neutral';
+  const sceneEnter = currentComposedScene?.transition?.enter ?? 'flash-cut';
+  const sceneExit = currentComposedScene?.transition?.exit ?? 'fade';
+  const pacingCfg = PACING_CONFIG[currentComposedScene?.pacing ?? 'normal'];
+
   return (
     <AbsoluteFill className="bg-slate-950">
-      {/* Background gradient */}
-      <div
-        className="absolute inset-0 opacity-30"
-        style={{
-          background: `radial-gradient(circle at 50% 50%, ${config.visuals.accentColor}40 0%, transparent 70%)`,
-        }}
+      {/* Animated atmosphere background */}
+      <VideoAtmosphere
+        frame={frame}
+        fps={fps}
+        accentColor={config.visuals.accentColor}
+        width={width}
+        height={height}
+        mood={sceneMood}
       />
 
-      {/* Scene content */}
+      {/* Scene content with enter/exit transitions */}
       {currentScene && baseProps && (
-        renderScene(currentScene.component, {
-          baseProps,
-          videoContent,
-          templateType,
-          accentColor: config.visuals.accentColor,
-          config: {
-            visuals: { icon: config.visuals.icon },
-            hooks: { closingPattern: config.hooks.closingPattern },
-          },
-        })
+        <>
+          <SceneTransition
+            frame={baseProps.sceneFrame}
+            fps={fps}
+            sceneDuration={baseProps.sceneDuration}
+            enterType={sceneEnter}
+            exitType={sceneExit}
+            enterFrames={pacingCfg.enterFrames}
+            exitFrames={pacingCfg.exitFrames}
+            sceneIndex={sceneIndex}
+          >
+            {currentComposedScene
+              ? renderComposedScene(currentComposedScene, baseProps, config.visuals.accentColor)
+              : renderScene(currentScene.component, {
+                  baseProps,
+                  videoContent,
+                  templateType,
+                  accentColor: config.visuals.accentColor,
+                  config: {
+                    visuals: { icon: config.visuals.icon },
+                    hooks: { closingPattern: config.hooks.closingPattern },
+                  },
+                })}
+          </SceneTransition>
+
+          {/* Narration burn-in subtitles (composition mode only) */}
+          {currentComposedScene?.narration && baseProps && (
+            <NarrationSubtitle
+              text={currentComposedScene.narration}
+              sceneFrame={baseProps.sceneFrame}
+              sceneDuration={baseProps.sceneDuration}
+              fps={fps}
+              accentColor={config.visuals.accentColor}
+              wordTimestamps={currentComposedScene.narrationTimestamps}
+            />
+          )}
+        </>
       )}
     </AbsoluteFill>
   );

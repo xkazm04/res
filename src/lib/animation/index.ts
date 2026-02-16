@@ -167,3 +167,16 @@ export {
   // Presets
   transitionPresets,
 } from './transitions';
+
+// ============================================================================
+// Motion Primitives (punchy video effects)
+// ============================================================================
+
+export {
+  impactShake,
+  flashIntensity,
+  scalePunch,
+  bounceIn,
+  slamIn,
+  spreadEntrance,
+} from './motion';

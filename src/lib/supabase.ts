@@ -974,6 +974,7 @@ export async function createDraft(
     selection: VideoDraftSelection;
     enrichments?: VideoDraftEnrichment[];
     rewrites?: VideoDraftRewrite[];
+    scene_composition?: unknown[] | null;
   }
 ): Promise<VideoDraft | null> {
   const { data, error } = await supabase
@@ -984,6 +985,7 @@ export async function createDraft(
       selection: draft.selection,
       enrichments: draft.enrichments || [],
       rewrites: draft.rewrites || [],
+      scene_composition: draft.scene_composition || null,
     })
     .select()
     .single();
@@ -1002,6 +1004,7 @@ export async function updateDraft(
     selection?: VideoDraftSelection;
     enrichments?: VideoDraftEnrichment[];
     rewrites?: VideoDraftRewrite[];
+    scene_composition?: unknown[] | null;
   }
 ): Promise<VideoDraft | null> {
   const updateData: Record<string, unknown> = {};
@@ -1009,6 +1012,7 @@ export async function updateDraft(
   if (updates.selection !== undefined) updateData.selection = updates.selection;
   if (updates.enrichments !== undefined) updateData.enrichments = updates.enrichments;
   if (updates.rewrites !== undefined) updateData.rewrites = updates.rewrites;
+  if (updates.scene_composition !== undefined) updateData.scene_composition = updates.scene_composition;
 
   // Get current version for increment
   const { data: current } = await supabase

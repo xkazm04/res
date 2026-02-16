@@ -664,6 +664,14 @@ export interface VideoDraftSelection {
   sectionAssignments: Record<string, string[]>;
 }
 
+export interface ComposedScene {
+  sceneId: string;
+  component: string;
+  durationSeconds: number;
+  data: Record<string, unknown>;
+  narration?: string;  // Longer explanatory text for audio narration (2-3 sentences)
+}
+
 export interface VideoDraft {
   id: string;
   session_id: string;
@@ -671,6 +679,7 @@ export interface VideoDraft {
   selection: VideoDraftSelection;
   enrichments: VideoDraftEnrichment[];
   rewrites: VideoDraftRewrite[];
+  scene_composition: ComposedScene[] | null;
   version: number;
   created_at: string;
   updated_at: string;

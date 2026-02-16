@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { VideoDraft } from '@/src/types/research';
+import type { VideoDraft, ComposedScene } from '@/src/types/research';
 import type { ContentSelectionState, VideoContentSelection } from '@/src/components/report/video/useContentSelection';
 
 export type DraftMode = 'original' | 'draft';
@@ -12,6 +12,13 @@ export interface VideoDraftState {
   hasDraft: boolean;
   isSaving: boolean;
   isLoading: boolean;
+  sceneComposition: ComposedScene[] | null;
+  setSceneComposition: (scenes: ComposedScene[] | null) => void;
+  keywords: string[];
+  setKeywords: (keywords: string[]) => void;
+  audioData: string | null;
+  audioDuration: number | null;
+  setAudio: (data: string | null, duration: number | null) => void;
   switchToOriginal: () => void;
   switchToDraft: () => void;
   autoSave: () => Promise<void>;
@@ -25,6 +32,22 @@ export function useVideoDrafts(
   const [mode, setMode] = useState<DraftMode>('original');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [sceneComposition, _setSceneComposition] = useState<ComposedScene[] | null>(null);
+  const sceneCompositionRef = useRef<ComposedScene[] | null>(null);
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [audioData, setAudioData] = useState<string | null>(null);
+  const [audioDuration, setAudioDuration] = useState<number | null>(null);
+
+  const setAudio = useCallback((data: string | null, duration: number | null) => {
+    setAudioData(data);
+    setAudioDuration(duration);
+  }, []);
+
+  // Wrapper that keeps both state and ref in sync
+  const setSceneComposition = useCallback((scenes: ComposedScene[] | null) => {
+    sceneCompositionRef.current = scenes;
+    _setSceneComposition(scenes);
+  }, []);
 
   // Snapshot of original selection to restore when switching back
   const originalSelectionRef = useRef<VideoContentSelection | null>(null);
@@ -41,6 +64,9 @@ export function useVideoDrafts(
     if (!sessionId) {
       setDraft(null);
       setMode('original');
+      setSceneComposition(null);
+      setKeywords([]);
+      setAudio(null, null);
       return;
     }
 
@@ -52,8 +78,12 @@ export function useVideoDrafts(
         const res = await fetch(`/api/sessions/${sessionId}/drafts`);
         if (res.ok && !cancelled) {
           const data: VideoDraft[] = await res.json();
-          // Take the latest draft (sorted by updated_at DESC from API)
-          setDraft(data.length > 0 ? data[0] : null);
+          const latestDraft = data.length > 0 ? data[0] : null;
+          setDraft(latestDraft);
+          // Pre-hydrate scene composition from saved draft
+          if (latestDraft?.scene_composition) {
+            setSceneComposition(latestDraft.scene_composition);
+          }
         }
       } catch (error) {
         console.error('Failed to load draft:', error);
@@ -63,12 +93,13 @@ export function useVideoDrafts(
     })();
 
     return () => { cancelled = true; };
-  }, [sessionId]);
+  }, [sessionId, setSceneComposition]);
 
-  // Reset mode on session change
+  // Reset mode and composition on session change
   useEffect(() => {
     setMode('original');
-  }, [sessionId]);
+    setSceneComposition(null);
+  }, [sessionId, setSceneComposition]);
 
   const switchToOriginal = useCallback(() => {
     if (!selectionState) return;
@@ -77,7 +108,8 @@ export function useVideoDrafts(
     selectionState.resetToDefaults();
     selectionState.setEnrichments([]);
     selectionState.setRewrites([]);
-  }, [selectionState]);
+    setSceneComposition(null);
+  }, [selectionState, setSceneComposition]);
 
   const switchToDraft = useCallback(() => {
     if (!selectionState || !draft) return;
@@ -92,7 +124,9 @@ export function useVideoDrafts(
     selectionState.setSelection(draft.selection as unknown as VideoContentSelection);
     selectionState.setEnrichments(draft.enrichments);
     selectionState.setRewrites(draft.rewrites);
-  }, [selectionState, draft, mode]);
+    // Load scene composition from draft
+    setSceneComposition(draft.scene_composition || null);
+  }, [selectionState, draft, mode, setSceneComposition]);
 
   const buildDraftPayload = useCallback(() => {
     if (!selectionState) return null;
@@ -109,10 +143,12 @@ export function useVideoDrafts(
       rewrites.push({ itemId, originalContent: rw.original, optimizedContent: rw.optimized });
     });
 
+    // Read from ref to avoid stale closure (composition is set before autoSave fires)
     return {
       selection: selectionState.selection,
       enrichments,
       rewrites,
+      scene_composition: sceneCompositionRef.current,
     };
   }, [selectionState]);
 
@@ -162,6 +198,13 @@ export function useVideoDrafts(
     hasDraft: draft !== null,
     isSaving,
     isLoading,
+    sceneComposition,
+    setSceneComposition,
+    keywords,
+    setKeywords,
+    audioData,
+    audioDuration,
+    setAudio,
     switchToOriginal,
     switchToDraft,
     autoSave,

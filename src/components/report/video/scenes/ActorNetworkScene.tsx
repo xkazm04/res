@@ -1,6 +1,7 @@
 'use client';
 
 import { spring, easeOutCubic, easeOutQuart, easeOutExpo } from '../useVideoPlayback';
+import { spreadEntrance } from '@/src/lib/animation/motion';
 import { NetworkDiagram, type NetworkNode, type NetworkEdge } from '../primitives';
 import { NetworkIcon, PersonIcon } from '../icons';
 import type { BaseSceneProps } from '../configs/types';
@@ -26,16 +27,23 @@ export function ActorNetworkScene({
   isRadar,
   format,
   sceneFrame,
+  sceneDuration,
   actors,
   title = 'Key Players',
   accentColor,
 }: ActorNetworkSceneProps) {
   const isMobile = format === 'mobile';
 
+  // Proportional delays for main elements (header, network, list)
+  const getMainDelay = spreadEntrance(sceneDuration, 3, { startPct: 0.05, endPct: 0.35 });
+
+  // Proportional delays for actor items
+  const getActorDelay = spreadEntrance(sceneDuration, actors.length, { startPct: 0.25, endPct: 0.6 });
+
   // Animation timings
-  const headerProgress = spring({ frame: sceneFrame, fps, delay: 0, durationFrames: 25, easing: easeOutQuart });
-  const networkProgress = spring({ frame: sceneFrame, fps, delay: 5, durationFrames: 35, easing: easeOutExpo });
-  const listProgress = spring({ frame: sceneFrame, fps, delay: 15, durationFrames: 30, easing: easeOutCubic });
+  const headerProgress = spring({ frame: sceneFrame, fps, delay: getMainDelay(0), durationFrames: 25, easing: easeOutQuart });
+  const networkProgress = spring({ frame: sceneFrame, fps, delay: getMainDelay(1), durationFrames: 35, easing: easeOutExpo });
+  const listProgress = spring({ frame: sceneFrame, fps, delay: getMainDelay(2), durationFrames: 30, easing: easeOutCubic });
 
   // Animated pulse for dramatic effect
   const pulse = Math.sin((sceneFrame / fps) * Math.PI * 2) * 0.5 + 0.5;
@@ -72,8 +80,8 @@ export function ActorNetworkScene({
   }));
 
   // Network dimensions
-  const networkWidth = isMobile ? 300 : 700;
-  const networkHeight = isMobile ? 240 : 320;
+  const networkWidth = isMobile ? 420 : 840;
+  const networkHeight = isMobile ? 320 : 400;
 
   // Word animation helper
   const animateWords = (text: string, baseDelay: number) => {
@@ -98,20 +106,7 @@ export function ActorNetworkScene({
   };
 
   return (
-    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
-      {/* Cinematic letterbox for desktop */}
-      {!isMobile && (
-        <>
-          <div
-            className="absolute top-0 left-0 right-0 bg-black z-10"
-            style={{ height: '6%', opacity: headerProgress * 0.9 }}
-          />
-          <div
-            className="absolute bottom-0 left-0 right-0 bg-black z-10"
-            style={{ height: '6%', opacity: headerProgress * 0.9 }}
-          />
-        </>
-      )}
+    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
 
       {/* Background effects */}
       <div
@@ -177,16 +172,16 @@ export function ActorNetworkScene({
               className={`relative flex items-center justify-center rounded-xl backdrop-blur-sm ${
                 isRadar ? 'bg-cyan-500/30 border border-cyan-400/30' : 'bg-cyan-100/80 border border-cyan-200'
               }`}
-              style={{ width: isMobile ? 42 : 50, height: isMobile ? 42 : 50 }}
+              style={{ width: isMobile ? 60 : 72, height: isMobile ? 60 : 72 }}
             >
-              <NetworkIcon size={isMobile ? 22 : 26} color={accentColor} />
+              <NetworkIcon size={isMobile ? 30 : 36} color={accentColor} />
             </div>
           </div>
           <div>
-            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               {title}
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               {actors.length} actors • {edges.length} connections identified
             </p>
           </div>
@@ -240,8 +235,7 @@ export function ActorNetworkScene({
         style={{ opacity: listProgress }}
       >
         {actors.slice(0, isMobile ? 3 : 4).map((actor, i) => {
-          const delay = 25 + i * 6;
-          const itemProgress = spring({ frame: sceneFrame, fps, delay, durationFrames: 22, easing: easeOutQuart });
+          const itemProgress = spring({ frame: sceneFrame, fps, delay: getActorDelay(i), durationFrames: 22, easing: easeOutQuart });
           const isMain = i === 0;
 
           return (
@@ -299,10 +293,10 @@ export function ActorNetworkScene({
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <span className={`text-sm font-semibold ${isRadar ? 'text-white' : 'text-stone-800'}`}>
-                    {animateWords(actor.name, delay + 5)}
+                  <span className={`text-base font-semibold ${isRadar ? 'text-white' : 'text-stone-800'}`}>
+                    {animateWords(actor.name, getActorDelay(i) + 5)}
                   </span>
-                  <p className={`text-[11px] ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+                  <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
                     {actor.role}
                   </p>
                 </div>
@@ -311,11 +305,11 @@ export function ActorNetworkScene({
               {/* Connection badge */}
               <div
                 className={`
-                  mt-2 px-2 py-1 rounded-lg text-[9px] font-medium
+                  mt-2 px-2 py-1 rounded-lg text-xs font-medium
                   ${isRadar ? 'bg-slate-700/80 text-slate-300' : 'bg-stone-100 text-stone-600'}
                 `}
                 style={{
-                  opacity: spring({ frame: sceneFrame, fps, delay: delay + 10, durationFrames: 15, easing: easeOutCubic }),
+                  opacity: spring({ frame: sceneFrame, fps, delay: getActorDelay(i) + 10, durationFrames: 15, easing: easeOutCubic }),
                 }}
               >
                 {actor.connection.length > 20 ? actor.connection.slice(0, 17) + '...' : actor.connection}
@@ -335,7 +329,7 @@ export function ActorNetworkScene({
         >
           <span
             className={`
-              inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm
+              inline-flex items-center gap-2 px-4 py-2 rounded-full text-base
               ${isRadar ? 'bg-slate-800/60 text-slate-400 border border-slate-700/50' : 'bg-stone-100 text-stone-500 border border-stone-200'}
             `}
           >
@@ -348,44 +342,44 @@ export function ActorNetworkScene({
       {/* Premium corner accents */}
       {!isMobile && (
         <>
-          <svg className="absolute top-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute top-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 0 32 L 0 6 Q 0 0 6 0 L 32 0"
+              d="M 0 42 L 0 8 Q 0 0 8 0 L 42 0"
               fill="none"
               stroke={accentColor}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute top-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute top-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 48 32 L 48 6 Q 48 0 42 0 L 16 0"
+              d="M 64 42 L 64 8 Q 64 0 56 0 L 22 0"
               fill="none"
               stroke={accentColor}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute bottom-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute bottom-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 0 16 L 0 42 Q 0 48 6 48 L 32 48"
+              d="M 0 22 L 0 56 Q 0 64 8 64 L 42 64"
               fill="none"
               stroke={accentColor}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute bottom-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute bottom-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 48 16 L 48 42 Q 48 48 42 48 L 16 48"
+              d="M 64 22 L 64 56 Q 64 64 56 64 L 22 64"
               fill="none"
               stroke={accentColor}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
         </>

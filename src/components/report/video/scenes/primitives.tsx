@@ -18,6 +18,10 @@ export interface SceneProps {
   fps: number;
   isRadar: boolean;
   format: VideoFormat;
+  /** Frame relative to scene start (passed via baseProps in composed mode) */
+  sceneFrame?: number;
+  /** Total scene duration in frames (passed via baseProps in composed mode) */
+  sceneDuration?: number;
 }
 
 /**
@@ -56,18 +60,18 @@ export function SceneHeader({
   const lineProgress = spring({ frame, fps, delay: delay + 3, durationFrames: 22, easing: easeInOutCubic });
 
   return (
-    <div className={isMobile ? 'mb-3' : 'mb-4'}>
+    <div className={isMobile ? 'mb-4' : 'mb-5'}>
       <div
         className="flex items-center gap-2"
         style={{ opacity: headerProgress, transform: `translateX(${(1 - headerProgress) * -12}px)` }}
       >
-        <div className={`w-1 ${isMobile ? 'h-6' : 'h-7'} rounded-full bg-gradient-to-b ${accentGradient}`} />
-        <h2 className={`${isMobile ? 'text-base' : 'text-lg'} font-bold ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+        <div className={`w-1 ${isMobile ? 'h-7' : 'h-9'} rounded-full bg-gradient-to-b ${accentGradient}`} />
+        <h2 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold ${isRadar ? 'text-white' : 'text-stone-900'}`}>
           {title}
         </h2>
       </div>
       <div
-        className={`h-px ${isMobile ? 'mt-2' : 'mt-3'} ${isRadar ? 'bg-cyan-500/20' : 'bg-stone-300'}`}
+        className={`h-px ${isMobile ? 'mt-2.5' : 'mt-3.5'} ${isRadar ? 'bg-cyan-500/20' : 'bg-stone-300'}`}
         style={{ transform: `scaleX(${lineProgress})`, transformOrigin: 'left' }}
       />
     </div>
@@ -88,7 +92,7 @@ interface SceneContainerProps {
  */
 export function SceneContainer({ children, isMobile, className = '' }: SceneContainerProps) {
   return (
-    <div className={`absolute inset-0 ${isMobile ? 'p-4 pt-8' : 'p-5'} ${className}`}>
+    <div className={`absolute inset-0 ${isMobile ? 'p-5 pt-10' : 'p-7'} ${className}`}>
       {children}
     </div>
   );
@@ -120,9 +124,9 @@ export function BackgroundOrb({
   };
 
   const sizeClasses: Record<string, string> = {
-    sm: 'w-32 h-32',
-    md: 'w-48 h-48',
-    lg: 'w-64 h-64',
+    sm: 'w-48 h-48',
+    md: 'w-64 h-64',
+    lg: 'w-80 h-80',
   };
 
   return (

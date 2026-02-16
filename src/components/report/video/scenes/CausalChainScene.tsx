@@ -3,6 +3,7 @@
 import { spring, easeOutCubic, easeOutQuart, easeOutExpo } from '../useVideoPlayback';
 import { ChainIcon, ArrowDownIcon, LockIcon, InfoIcon } from '../icons';
 import type { BaseSceneProps } from '../configs/types';
+import { spreadEntrance } from '@/src/lib/animation/motion';
 
 interface CausalEvent {
   event: string;
@@ -26,6 +27,7 @@ export function CausalChainScene({
   isRadar,
   format,
   sceneFrame,
+  sceneDuration,
   events,
   title = 'Cause & Effect',
   accentColor,
@@ -36,6 +38,9 @@ export function CausalChainScene({
   const headerProgress = spring({ frame: sceneFrame, fps, delay: 0, durationFrames: 25, easing: easeOutQuart });
   const legendProgress = spring({ frame: sceneFrame, fps, delay: 5, durationFrames: 20, easing: easeOutCubic });
   const lineProgress = spring({ frame: sceneFrame, fps, delay: 8, durationFrames: 50, easing: easeOutExpo });
+
+  // Proportional stagger delays for event cards
+  const getEventDelay = spreadEntrance(sceneDuration, isMobile ? 4 : 5, { startPct: 0.05, endPct: 0.65 });
 
   // Animated pulse
   const pulse = Math.sin((sceneFrame / fps) * Math.PI * 2) * 0.5 + 0.5;
@@ -102,20 +107,7 @@ export function CausalChainScene({
   };
 
   return (
-    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
-      {/* Cinematic letterbox for desktop */}
-      {!isMobile && (
-        <>
-          <div
-            className="absolute top-0 left-0 right-0 bg-black z-10"
-            style={{ height: '6%', opacity: headerProgress * 0.9 }}
-          />
-          <div
-            className="absolute bottom-0 left-0 right-0 bg-black z-10"
-            style={{ height: '6%', opacity: headerProgress * 0.9 }}
-          />
-        </>
-      )}
+    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
 
       {/* Background gradient */}
       <div
@@ -152,16 +144,16 @@ export function CausalChainScene({
               className={`relative flex items-center justify-center rounded-xl backdrop-blur-sm ${
                 isRadar ? 'bg-purple-500/30 border border-purple-400/30' : 'bg-purple-100/80 border border-purple-200'
               }`}
-              style={{ width: isMobile ? 40 : 48, height: isMobile ? 40 : 48 }}
+              style={{ width: isMobile ? 58 : 68, height: isMobile ? 58 : 68 }}
             >
-              <ChainIcon size={isMobile ? 22 : 26} color="#a855f7" />
+              <ChainIcon size={isMobile ? 30 : 36} color="#a855f7" />
             </div>
           </div>
           <div>
-            <h2 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               {title}
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               {events.length} connected events revealed
             </p>
           </div>
@@ -202,7 +194,7 @@ export function CausalChainScene({
                   style={{ backgroundColor: style.color }}
                 />
               </div>
-              <span className={`text-[11px] font-medium capitalize ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>
+              <span className={`text-sm font-medium capitalize ${isRadar ? 'text-slate-300' : 'text-stone-600'}`}>
                 {type}
               </span>
             </div>
@@ -261,7 +253,7 @@ export function CausalChainScene({
         {/* Event cards */}
         <div className={`space-y-4 ${isMobile ? 'pl-12' : 'pl-14'}`}>
           {events.slice(0, isMobile ? 4 : 5).map((event, i) => {
-            const delay = 15 + i * 10;
+            const delay = getEventDelay(i);
             const cardProgress = spring({ frame: sceneFrame, fps, delay, durationFrames: 28, easing: easeOutQuart });
             const style = typeStyles[event.type];
 
@@ -357,12 +349,12 @@ export function CausalChainScene({
                       {/* Event title with icon */}
                       <div className="flex items-center gap-2 mb-2">
                         <div
-                          className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                           style={{ backgroundColor: `${style.color}25` }}
                         >
-                          <style.Icon size={14} color={style.color} />
+                          <style.Icon size={18} color={style.color} />
                         </div>
-                        <span className={`text-sm font-bold ${style.text}`}>
+                        <span className={`text-base font-bold ${style.text}`}>
                           {animateWords(
                             event.event.length > 35 ? event.event.slice(0, 32) + '...' : event.event,
                             delay + 5
@@ -371,7 +363,7 @@ export function CausalChainScene({
                       </div>
 
                       {/* Impact description */}
-                      <p className={`text-xs leading-relaxed ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+                      <p className={`text-sm leading-relaxed ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
                         {animateWords(
                           event.impact.length > 65 ? event.impact.slice(0, 62) + '...' : event.impact,
                           delay + 10
@@ -383,7 +375,7 @@ export function CausalChainScene({
                     {event.date && (
                       <div
                         className={`
-                          flex-shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-bold
+                          flex-shrink-0 px-2.5 py-1.5 rounded-lg text-[13px] font-bold
                           ${isRadar ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-white text-stone-600 border border-stone-200'}
                         `}
                         style={{
@@ -421,7 +413,7 @@ export function CausalChainScene({
         >
           <span
             className={`
-              inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm
+              inline-flex items-center gap-2 px-4 py-2 rounded-full text-base
               ${isRadar ? 'bg-slate-800/60 text-slate-400 border border-slate-700/50' : 'bg-stone-100 text-stone-500 border border-stone-200'}
             `}
           >
@@ -434,44 +426,44 @@ export function CausalChainScene({
       {/* Premium corner accents */}
       {!isMobile && (
         <>
-          <svg className="absolute top-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute top-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 0 32 L 0 6 Q 0 0 6 0 L 32 0"
+              d="M 0 40 L 0 8 Q 0 0 8 0 L 40 0"
               fill="none"
               stroke={isRadar ? '#6366f1' : '#a855f7'}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute top-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute top-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 48 32 L 48 6 Q 48 0 42 0 L 16 0"
+              d="M 64 40 L 64 8 Q 64 0 56 0 L 24 0"
               fill="none"
               stroke={isRadar ? '#6366f1' : '#a855f7'}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute bottom-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute bottom-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 0 16 L 0 42 Q 0 48 6 48 L 32 48"
+              d="M 0 24 L 0 56 Q 0 64 8 64 L 40 64"
               fill="none"
               stroke={isRadar ? '#6366f1' : '#a855f7'}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute bottom-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute bottom-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 48 16 L 48 42 Q 48 48 42 48 L 16 48"
+              d="M 64 24 L 64 56 Q 64 64 56 64 L 24 64"
               fill="none"
               stroke={isRadar ? '#6366f1' : '#a855f7'}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
         </>

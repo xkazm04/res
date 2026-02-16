@@ -3,7 +3,8 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, Radar } from 'lucide-react';
+import Link from 'next/link';
 import { useAppStore } from '@/src/stores/appStore';
 import { getSessionIndex } from '@/src/lib/sessionIndex';
 import { useDebouncedValue } from '@/src/hooks/useDebouncedValue';
@@ -99,9 +100,18 @@ export function SessionBrowser({ onSelectSession, selectedId }: SessionBrowserPr
     <div className="h-full flex flex-col">
       {/* Header */}
       <header className="p-4 border-b border-slate-800/80">
-        <h2 className="text-sm font-semibold text-white tracking-tight mb-3">
-          Research Sessions
-        </h2>
+        <div className="flex items-center gap-2 mb-3">
+          <Link
+            href="/initiate"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-800/60 transition-colors"
+            title="Go to Initiate"
+          >
+            <Radar className="w-4 h-4" />
+          </Link>
+          <h2 className="text-sm font-semibold text-white tracking-tight">
+            Research Sessions
+          </h2>
+        </div>
         <SessionSearch value={searchQuery} onChange={setSearchQuery} />
       </header>
 

@@ -65,24 +65,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    // Check for existing pending/rendering job for this session
-    const { data: existingRender } = await supabaseServer
+    // Cancel any existing pending/rendering jobs for this session+format
+    await supabaseServer
       .from('video_renders')
-      .select('id, status')
+      .update({ status: 'failed', error_message: 'Superseded by new render' })
       .eq('session_id', session_id)
       .eq('format', format)
-      .in('status', ['pending', 'rendering', 'encoding'])
-      .maybeSingle();
-
-    if (existingRender) {
-      return NextResponse.json(
-        {
-          error: 'A render is already in progress for this session and format',
-          existing_render_id: existingRender.id,
-        },
-        { status: 409 }
-      );
-    }
+      .in('status', ['pending', 'rendering', 'encoding']);
 
     // Get composition metadata for duration estimate
     const metadata = getCompositionMetadata(

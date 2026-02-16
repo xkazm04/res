@@ -95,6 +95,7 @@ export const MakerTerminal = memo(function MakerTerminal({
   const eventSourceRef = useRef<EventSource | null>(null);
   const hasStartedRef = useRef(false);
   const lastAssistantTextRef = useRef<string>('');
+  const allAssistantTextRef = useRef<string>('');
 
   // Auto-scroll
   useEffect(() => {
@@ -153,6 +154,7 @@ export const MakerTerminal = memo(function MakerTerminal({
           },
           enrichments: parsed.enrichments,
           rewrites: parsed.rewrites,
+          sceneComposition: parsed.sceneComposition,
         } as AIComposeResult;
       }
       return null;
@@ -174,6 +176,7 @@ export const MakerTerminal = memo(function MakerTerminal({
         const data = event.data as { type: string; content: string; model?: string };
         if (data.type === 'assistant' && data.content) {
           lastAssistantTextRef.current = data.content;
+          allAssistantTextRef.current += '\n' + data.content;
           addLog({
             id: `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             type: 'assistant',
@@ -211,8 +214,9 @@ export const MakerTerminal = memo(function MakerTerminal({
         setLastResult(data);
         setIsStreaming(false);
 
-        // Try to parse AI compose result from last assistant message
-        const result = tryParseResult(lastAssistantTextRef.current);
+        // Try to parse AI compose result - try last message first, then all accumulated text
+        const result = tryParseResult(lastAssistantTextRef.current)
+          || tryParseResult(allAssistantTextRef.current);
         if (result) {
           addLog({
             id: `parsed-${Date.now()}`,
@@ -282,6 +286,7 @@ export const MakerTerminal = memo(function MakerTerminal({
     setIsStreaming(true);
     setError(null);
     lastAssistantTextRef.current = '';
+    allAssistantTextRef.current = '';
 
     addLog({
       id: `start-${Date.now()}`,

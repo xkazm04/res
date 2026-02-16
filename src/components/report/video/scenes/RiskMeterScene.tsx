@@ -1,6 +1,7 @@
 'use client';
 
 import { spring, easeOutCubic, easeOutQuart, easeOutExpo } from '../useVideoPlayback';
+import { spreadEntrance } from '@/src/lib/animation/motion';
 import { GaugeMeter, type GaugeFactor } from '../primitives';
 import { WarningIcon, SuccessIcon, CriticalIcon } from '../icons';
 import type { BaseSceneProps } from '../configs/types';
@@ -21,6 +22,7 @@ export function RiskMeterScene({
   isRadar,
   format,
   sceneFrame,
+  sceneDuration,
   riskScore,
   riskFactors,
   title = 'Risk Assessment',
@@ -28,11 +30,17 @@ export function RiskMeterScene({
 }: RiskMeterSceneProps) {
   const isMobile = format === 'mobile';
 
+  // Proportional delays for main elements (header, gauge, factors panel, interpretation)
+  const getMainDelay = spreadEntrance(sceneDuration, 4, { startPct: 0.05, endPct: 0.65 });
+
+  // Proportional delays for factor items
+  const getFactorDelay = spreadEntrance(sceneDuration, riskFactors.length, { startPct: 0.3, endPct: 0.6 });
+
   // Animation timings
-  const headerProgress = spring({ frame: sceneFrame, fps, delay: 0, durationFrames: 25, easing: easeOutQuart });
-  const gaugeProgress = spring({ frame: sceneFrame, fps, delay: 8, durationFrames: 40, easing: easeOutExpo });
-  const factorsProgress = spring({ frame: sceneFrame, fps, delay: 30, durationFrames: 28, easing: easeOutCubic });
-  const interpretProgress = spring({ frame: sceneFrame, fps, delay: 50, durationFrames: 25, easing: easeOutQuart });
+  const headerProgress = spring({ frame: sceneFrame, fps, delay: getMainDelay(0), durationFrames: 25, easing: easeOutQuart });
+  const gaugeProgress = spring({ frame: sceneFrame, fps, delay: getMainDelay(1), durationFrames: 40, easing: easeOutExpo });
+  const factorsProgress = spring({ frame: sceneFrame, fps, delay: getMainDelay(2), durationFrames: 28, easing: easeOutCubic });
+  const interpretProgress = spring({ frame: sceneFrame, fps, delay: getMainDelay(3), durationFrames: 25, easing: easeOutQuart });
 
   // Animated pulse based on risk level
   const pulse = Math.sin((sceneFrame / fps) * Math.PI * 2) * 0.5 + 0.5;
@@ -94,20 +102,7 @@ export function RiskMeterScene({
   const negativeCount = riskFactors.filter(f => f.type === 'negative').length;
 
   return (
-    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-4 pt-8' : 'p-6'}`}>
-      {/* Cinematic letterbox for desktop */}
-      {!isMobile && (
-        <>
-          <div
-            className="absolute top-0 left-0 right-0 bg-black z-10"
-            style={{ height: '6%', opacity: headerProgress * 0.9 }}
-          />
-          <div
-            className="absolute bottom-0 left-0 right-0 bg-black z-10"
-            style={{ height: '6%', opacity: headerProgress * 0.9 }}
-          />
-        </>
-      )}
+    <div className={`absolute inset-0 overflow-hidden ${isMobile ? 'p-5 pt-10' : 'p-7'}`}>
 
       {/* Background gradient - varies by risk */}
       <div
@@ -146,8 +141,8 @@ export function RiskMeterScene({
         <div
           className="rounded-full"
           style={{
-            width: isMobile ? 250 : 350,
-            height: isMobile ? 250 : 350,
+            width: isMobile ? 350 : 480,
+            height: isMobile ? 350 : 480,
             border: `2px solid ${riskLevel.color}`,
             opacity: 0.2 + pulse * 0.3,
             transform: `scale(${1 + pulse * 0.05})`,
@@ -178,20 +173,20 @@ export function RiskMeterScene({
             <div
               className={`relative flex items-center justify-center rounded-xl backdrop-blur-sm border`}
               style={{
-                width: isMobile ? 42 : 50,
-                height: isMobile ? 42 : 50,
+                width: isMobile ? 60 : 72,
+                height: isMobile ? 60 : 72,
                 backgroundColor: `${riskLevel.color}20`,
                 borderColor: `${riskLevel.color}40`,
               }}
             >
-              <riskLevel.Icon size={isMobile ? 22 : 26} color={riskLevel.color} />
+              <riskLevel.Icon size={isMobile ? 30 : 36} color={riskLevel.color} />
             </div>
           </div>
           <div className="text-left">
-            <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
+            <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold tracking-tight ${isRadar ? 'text-white' : 'text-stone-900'}`}>
               {title}
             </h2>
-            <p className={`text-xs ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
+            <p className={`text-sm ${isRadar ? 'text-slate-400' : 'text-stone-500'}`}>
               {riskFactors.length} factors analyzed
             </p>
           </div>
@@ -215,7 +210,7 @@ export function RiskMeterScene({
             frame={sceneFrame}
             fps={fps}
             isRadar={isRadar}
-            size={isMobile ? 200 : 260}
+            size={isMobile ? 280 : 380}
             colorMode="risk"
             showValue={true}
             showFactors={false}
@@ -227,18 +222,17 @@ export function RiskMeterScene({
           <div
             className="flex-shrink-0"
             style={{
-              width: 280,
+              width: 400,
               opacity: factorsProgress,
               transform: `translateX(${(1 - factorsProgress) * 30}px)`,
             }}
           >
-            <h3 className={`text-sm font-bold mb-3 ${isRadar ? 'text-slate-300' : 'text-stone-700'}`}>
+            <h3 className={`text-base font-bold mb-3 ${isRadar ? 'text-slate-300' : 'text-stone-700'}`}>
               Risk Factors
             </h3>
             <div className="space-y-2">
               {riskFactors.slice(0, 5).map((factor, i) => {
-                const itemDelay = 35 + i * 5;
-                const itemProgress = spring({ frame: sceneFrame, fps, delay: itemDelay, durationFrames: 18, easing: easeOutCubic });
+                const itemProgress = spring({ frame: sceneFrame, fps, delay: getFactorDelay(i), durationFrames: 18, easing: easeOutCubic });
                 const factorColor = factor.type === 'positive' ? '#22c55e' : factor.type === 'negative' ? '#ef4444' : '#64748b';
 
                 return (
@@ -261,12 +255,12 @@ export function RiskMeterScene({
                           className="w-2 h-2 rounded-full flex-shrink-0"
                           style={{ backgroundColor: factorColor }}
                         />
-                        <span className={`text-xs truncate ${isRadar ? 'text-slate-300' : 'text-stone-700'}`}>
+                        <span className={`text-sm truncate ${isRadar ? 'text-slate-300' : 'text-stone-700'}`}>
                           {factor.label}
                         </span>
                       </div>
                       <div
-                        className="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold"
+                        className="flex-shrink-0 px-2 py-0.5 rounded text-xs font-bold"
                         style={{
                           backgroundColor: `${factorColor}20`,
                           color: factorColor,
@@ -331,27 +325,27 @@ export function RiskMeterScene({
                 }}
               />
               <div
-                className="relative w-12 h-12 rounded-full flex items-center justify-center"
+                className="relative w-14 h-14 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: `${riskLevel.color}25` }}
               >
-                <riskLevel.Icon size={24} color={riskLevel.color} />
+                <riskLevel.Icon size={28} color={riskLevel.color} />
               </div>
             </div>
 
             <div className="flex-1">
               <div
-                className="text-base font-bold mb-1"
+                className="text-lg font-bold mb-1"
                 style={{ color: riskLevel.color }}
               >
                 {riskLevel.text}
               </div>
-              <p className={`text-xs leading-relaxed ${isRadar ? 'text-slate-400' : 'text-stone-600'}`}>
+              <p className={`text-sm leading-relaxed ${isRadar ? 'text-slate-400' : 'text-stone-600'}`}>
                 {riskLevel.description}
               </p>
 
               {/* Factor summary */}
               <div className={`mt-3 pt-3 border-t ${isRadar ? 'border-slate-700/50' : 'border-stone-200/50'}`}>
-                <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-emerald-500" />
                     <span className={isRadar ? 'text-emerald-400' : 'text-emerald-600'}>
@@ -374,44 +368,44 @@ export function RiskMeterScene({
       {/* Premium corner accents */}
       {!isMobile && (
         <>
-          <svg className="absolute top-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute top-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 0 32 L 0 6 Q 0 0 6 0 L 32 0"
+              d="M 0 42 L 0 8 Q 0 0 8 0 L 42 0"
               fill="none"
               stroke={riskLevel.color}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute top-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute top-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 48 32 L 48 6 Q 48 0 42 0 L 16 0"
+              d="M 64 42 L 64 8 Q 64 0 56 0 L 22 0"
               fill="none"
               stroke={riskLevel.color}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute bottom-[8%] left-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute bottom-5 left-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 0 16 L 0 42 Q 0 48 6 48 L 32 48"
+              d="M 0 22 L 0 56 Q 0 64 8 64 L 42 64"
               fill="none"
               stroke={riskLevel.color}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
-          <svg className="absolute bottom-[8%] right-4 w-12 h-12 z-20" style={{ opacity: headerProgress * 0.5 }}>
+          <svg className="absolute bottom-5 right-5 w-16 h-16 z-20" style={{ opacity: headerProgress * 0.5 }}>
             <path
-              d="M 48 16 L 48 42 Q 48 48 42 48 L 16 48"
+              d="M 64 22 L 64 56 Q 64 64 56 64 L 22 64"
               fill="none"
               stroke={riskLevel.color}
               strokeWidth={1.5}
-              strokeDasharray={60}
-              strokeDashoffset={60 - 60 * headerProgress}
+              strokeDasharray={80}
+              strokeDashoffset={80 - 80 * headerProgress}
             />
           </svg>
         </>

@@ -44,6 +44,31 @@ export interface Rewrite {
   optimizedContent: string;
 }
 
+export type TransitionType = 'flash-cut' | 'wipe-right' | 'wipe-left' | 'zoom-through' | 'slide-up' | 'fade';
+export type Pacing = 'fast' | 'normal' | 'slow' | 'dramatic';
+export type Mood = 'neutral' | 'danger' | 'success' | 'dramatic';
+export type NarrativeBeat = 'question' | 'context' | 'mechanism' | 'evidence' | 'verdict';
+
+export interface WordTimestamp {
+  word: string;
+  start: number; // seconds relative to scene audio start
+  end: number;   // seconds relative to scene audio start
+}
+
+export interface ComposedScene {
+  sceneId: string;
+  component: string;
+  durationSeconds: number;
+  data: Record<string, unknown>;
+  narration?: string;  // Voiceover text for this scene
+  narrationTimestamps?: WordTimestamp[];  // Per-word timing from ElevenLabs
+  beat?: NarrativeBeat;  // Narrative arc position
+  transition?: { enter?: TransitionType; exit?: TransitionType };
+  pacing?: Pacing;
+  mood?: Mood;
+  variant?: string;
+}
+
 export interface AIComposeResult {
   selection: {
     selectedFindings: string[];
@@ -55,4 +80,6 @@ export interface AIComposeResult {
   };
   enrichments?: Enrichment[];
   rewrites?: Rewrite[];
+  sceneComposition?: ComposedScene[];
+  keywords?: string[];
 }

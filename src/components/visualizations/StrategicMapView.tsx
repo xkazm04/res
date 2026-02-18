@@ -83,6 +83,22 @@ export function StrategicMapView({
   const [searchHighlights, setSearchHighlights] = useState<Set<string>>(new Set());
   const [renderMode, setRenderMode] = useState<RenderMode>('default');
 
+  // Refs to break stale-closure cycles between requestRender and the init effect.
+  // Without these, changing searchHighlights/renderMode/drillState would cause the
+  // entire renderer + interaction manager to be re-created, losing view position.
+  const searchHighlightsRef = useRef<Set<string>>(new Set());
+  const renderModeRef = useRef<RenderMode>('default');
+  const drillStateRef = useRef<DrillDownState>({
+    level: 'overview',
+    focusedTemplateId: null,
+    focusedTopicId: null,
+    breadcrumbs: [],
+  });
+  // Keep refs in sync with state on every render
+  searchHighlightsRef.current = searchHighlights;
+  renderModeRef.current = renderMode;
+  drillStateRef.current = drillState;
+
   // Store
   const {
     topics,
@@ -139,29 +155,36 @@ export function StrategicMapView({
     return h;
   }, [sessions, topics]);
 
-  // Request render callback
+  // Request render callback — intentionally has NO state dependencies.
+  // All render options are read from mutable refs at call time, so this function
+  // never changes identity and does NOT cause the init effect to re-run.
   const requestRender = useCallback(() => {
     if (rendererRef.current && interactionRef.current) {
       const currentView = interactionRef.current.getView();
-      const nodeFilter = focusControllerRef.current
-        ? (nodes: StrategicMapNode[]) => focusControllerRef.current!.filterNodes(nodes)
+      const fc = focusControllerRef.current;
+      const nodeFilter = fc
+        ? (nodes: StrategicMapNode[]) => fc.filterNodes(nodes)
         : undefined;
 
       // Get parent node ID for grayed back-navigation node
-      const parentNodeId = focusControllerRef.current?.getParentNodeId() ?? null;
+      const parentNodeId = fc?.getParentNodeId() ?? null;
+      const drillLevel = drillStateRef.current.level;
 
       rendererRef.current.render(currentView, {
         hoveredNodeId: interactionRef.current.getHoveredNodeId(),
         focusedNodeId: interactionRef.current.getFocusedNodeId(),
         nodeFilter,
-        searchMatchIds: searchHighlights.size > 0 ? searchHighlights : undefined,
-        renderMode,
+        searchMatchIds: searchHighlightsRef.current.size > 0 ? searchHighlightsRef.current : undefined,
+        renderMode: renderModeRef.current,
         showAmbient: false,
         showConnections: true,
         parentNodeId,
+        // Skip label collision avoidance when drilled in — few nodes, all labels should show
+        skipLabelCollision: drillLevel !== 'overview',
       });
     }
-  }, [searchHighlights, renderMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — reads from refs
 
   // Initialize renderer and interactions
   useEffect(() => {
@@ -253,7 +276,16 @@ export function StrategicMapView({
           setHoveredNode(node);
         },
         onRenderNeeded: requestRender,
-        findNodeAt: (x, y, view) => renderer.findNodeAt(x, y, view),
+        findNodeAt: (x, y, view) => {
+          // Apply the same FocusController node filter used in rendering so that
+          // hit detection only considers currently-visible nodes.  Without this,
+          // hidden nodes from other templates could intercept clicks when drilled in.
+          const fc = focusControllerRef.current;
+          if (fc && fc.getLevel() !== 'overview') {
+            return renderer.findNodeAt(x, y, view, (nodes) => fc.filterNodes(nodes));
+          }
+          return renderer.findNodeAt(x, y, view);
+        },
         onEscape: () => {
           // Handle Escape for drill-back navigation
           if (focusControllerRef.current?.getLevel() !== 'overview') {
@@ -316,7 +348,9 @@ export function StrategicMapView({
       renderer.dispose();
       animator.clear();
     };
-  }, [reducedMotion, requestRender, onSessionSelect]);
+  // requestRender is intentionally omitted from deps — it never changes (empty useCallback)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reducedMotion, onSessionSelect]);
 
   // Update renderer and focus controller when hierarchy changes
   useEffect(() => {

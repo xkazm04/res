@@ -22,6 +22,7 @@ import { understandingConfig } from '../research/understanding';
 import { legalConfig } from '../research/legal';
 import { contractConfig } from '../research/contract';
 import { reputationConfig } from '../research/reputation';
+import { debunkClaimConfig } from '../research/debunk_claim';
 
 // Feed templates
 import { newsFeedConfig } from '../feed/news_feed';
@@ -45,7 +46,20 @@ export const templates: Record<string, TemplateConfig> = {
   legal: legalConfig,
   contract: contractConfig,
   reputation: reputationConfig,
+  debunk_claim: debunkClaimConfig,
   news_feed: newsFeedConfig,
+};
+
+/**
+ * Alias map for discovery-suggested template names → registered template IDs.
+ * The discovery prompt suggests template names that may not match registry keys exactly.
+ */
+const TEMPLATE_ALIASES: Record<string, string> = {
+  actor_investigation: 'investigative',
+  event_timeline: 'investigative',
+  policy_analysis: 'legal',
+  financial_investigation: 'financial',
+  controversy_analysis: 'investigative',
 };
 
 // ============================================
@@ -65,7 +79,7 @@ export const templates: Record<string, TemplateConfig> = {
  * }
  */
 export function getTemplate(templateId: string): TemplateConfig | undefined {
-  return templates[templateId];
+  return templates[templateId] ?? templates[TEMPLATE_ALIASES[templateId]];
 }
 
 /**
@@ -107,6 +121,7 @@ export { understandingConfig } from '../research/understanding';
 export { legalConfig } from '../research/legal';
 export { contractConfig } from '../research/contract';
 export { reputationConfig } from '../research/reputation';
+export { debunkClaimConfig } from '../research/debunk_claim';
 
 // Feed templates
 export { newsFeedConfig } from '../feed/news_feed';

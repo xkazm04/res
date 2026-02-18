@@ -12,7 +12,7 @@ interface EmptyStateProps {
 
 export function EmptyState({
   title = 'No topics yet',
-  description = 'Click Discover to find trending topics from this source.',
+  description = 'Use Discover News in the header to find topics across all sources.',
   action
 }: EmptyStateProps) {
   return (

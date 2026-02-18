@@ -439,13 +439,20 @@ export function shouldShowLabel(
     return false;
   }
 
-  // Clusters always show labels (categories should be visible)
-  if (node.type === 'cluster') {
+  // Clusters and templates are primary navigation anchors — always label them
+  // so the user can orient themselves regardless of viewport position.
+  if (node.type === 'cluster' || node.type === 'template') {
     return true;
   }
 
-  // Only detailed LOD nodes get labels at lower zoom levels (except clusters)
+  // Topics/thematic-groups are secondary — only label them when zoomed in enough
+  // or when they are in the detailed LOD zone near the viewport centre.
   if (scale < 0.7 && lod !== 'detailed') {
+    return false;
+  }
+
+  // Session nodes only get labels at high zoom
+  if (node.type === 'session' && scale < 1.2) {
     return false;
   }
 

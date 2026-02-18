@@ -38,6 +38,8 @@ interface FilterPanelProps {
   onSortChange: (sort: SortOption) => void;
   /** Whether the panel is in radar (dark) mode */
   isRadar?: boolean;
+  /** Suppress the own border-b and background when embedded in a parent header */
+  embedded?: boolean;
 }
 
 // ============================================================================
@@ -78,6 +80,7 @@ export const FilterPanel = memo(function FilterPanel({
   onChange,
   onSortChange,
   isRadar = false,
+  embedded = false,
 }: FilterPanelProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -152,7 +155,7 @@ export const FilterPanel = memo(function FilterPanel({
   const chipActiveText = isRadar ? 'text-cyan-300' : 'text-white';
 
   return (
-    <div className={`${bg} backdrop-blur-sm border-b ${border} px-3 py-1.5`}>
+    <div className={`${embedded ? '' : `${bg} backdrop-blur-sm border-b ${border}`} px-3 py-1.5`}>
       {/* Compact row */}
       <div className="flex items-center gap-2 min-h-[28px]">
         {/* Template dots */}

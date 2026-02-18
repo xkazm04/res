@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * DELETE /api/topics/[id]
- * Soft delete: updates topic status to 'deleted'
+ * Marks topic as rejected by setting user_verdict='rejected'.
+ * Topic stays in DB for the Learn system to analyze preferences.
  */
 export async function DELETE(
   request: NextRequest,
@@ -19,14 +20,16 @@ export async function DELETE(
       );
     }
 
-    // Soft delete: update status to 'deleted'
     const { error } = await supabaseServer
       .from('research_topics')
-      .update({ status: 'deleted', updated_at: new Date().toISOString() })
+      .update({
+        user_verdict: 'rejected',
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', id);
 
     if (error) {
-      console.error('Failed to delete topic:', error);
+      console.error('Failed to reject topic:', error);
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
@@ -35,7 +38,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Delete topic error:', error);
+    console.error('Reject topic error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

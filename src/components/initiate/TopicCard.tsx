@@ -6,7 +6,7 @@ import { formatRelativeTime } from '@/src/lib/utils';
 import { TopicStatus } from '@/src/types/research';
 import { initiateTheme } from './InitiateTheme';
 
-const REMOVE_ANIMATION_MS = 150;
+const EXIT_MS = 220;
 
 // Template type to subtle background tint mapping
 const TEMPLATE_TINTS: Record<string, string> = {
@@ -43,6 +43,7 @@ interface TopicCardProps {
     claim?: string;
     sourceBias?: string;
     debunkable?: number;
+    userVerdict?: 'accepted' | 'rejected';
   };
   focused?: boolean;
   onAccept: (id: string) => void;
@@ -52,10 +53,9 @@ interface TopicCardProps {
 
 export const TopicCard = forwardRef<HTMLDivElement, TopicCardProps>(
   function TopicCard({ topic, focused = false, onAccept, onReject, onFocus }, ref) {
-    // Optimistic removal state: 'none' | 'accepting' | 'rejecting'
-    const [removing, setRemoving] = useState<'none' | 'accepting' | 'rejecting'>('none');
+    // 'accepted' | 'rejected' while exit animation plays, null otherwise
+    const [exiting, setExiting] = useState<'accepted' | 'rejected' | null>(null);
 
-    // Get template-based styling
     const templateTint = topic.suggestedTemplate
       ? TEMPLATE_TINTS[topic.suggestedTemplate] || ''
       : '';
@@ -63,64 +63,67 @@ export const TopicCard = forwardRef<HTMLDivElement, TopicCardProps>(
       ? TEMPLATE_BORDERS[topic.suggestedTemplate] || 'border-l-slate-700/40'
       : 'border-l-slate-700/40';
 
-    // Accept: fire API first, then remove on success
+    // Accept: start exit animation + fire API in parallel.
+    // Only notify parent after both animation AND API succeed.
     const handleAccept = useCallback(async (e?: React.MouseEvent) => {
       e?.stopPropagation();
-      if (removing !== 'none') return;
+      if (exiting) return;
+      setExiting('accepted');
 
-      setRemoving('accepting');
-
+      const delay = new Promise(r => setTimeout(r, EXIT_MS));
       try {
-        const res = await fetch(`/api/topics/${topic.id}/accept`, { method: 'POST' });
+        const [res] = await Promise.all([
+          fetch(`/api/topics/${topic.id}/accept`, { method: 'POST' }),
+          delay,
+        ]);
         if (!res.ok) {
-          const data = await res.json();
-          console.error('Accept failed:', data.error);
-          setRemoving('none');
+          console.error('Accept failed');
+          setExiting(null);
           return;
         }
-        // Only remove from parent state after API confirms success
-        setTimeout(() => onAccept(topic.id), REMOVE_ANIMATION_MS);
+        onAccept(topic.id);
       } catch (error) {
         console.error('Accept error:', error);
-        setRemoving('none');
+        setExiting(null);
       }
-    }, [topic.id, onAccept, removing]);
+    }, [topic.id, onAccept, exiting]);
 
-    // Reject: fire API first, then remove on success
+    // Reject: same pattern
     const handleReject = useCallback(async (e?: React.MouseEvent) => {
       e?.stopPropagation();
-      if (removing !== 'none') return;
+      if (exiting) return;
+      setExiting('rejected');
 
-      setRemoving('rejecting');
-
+      const delay = new Promise(r => setTimeout(r, EXIT_MS));
       try {
-        const res = await fetch(`/api/topics/${topic.id}`, { method: 'DELETE' });
+        const [res] = await Promise.all([
+          fetch(`/api/topics/${topic.id}`, { method: 'DELETE' }),
+          delay,
+        ]);
         if (!res.ok) {
           console.error('Reject failed');
-          setRemoving('none');
+          setExiting(null);
           return;
         }
-        setTimeout(() => onReject(topic.id), REMOVE_ANIMATION_MS);
+        onReject(topic.id);
       } catch (error) {
         console.error('Reject error:', error);
-        setRemoving('none');
+        setExiting(null);
       }
-    }, [topic.id, onReject, removing]);
+    }, [topic.id, onReject, exiting]);
 
-    const handleClick = () => {
-      onFocus?.(topic.id);
-    };
+    const handleClick = () => onFocus?.(topic.id);
 
-    // Keyboard handler for focused card
+    // Keyboard handler
     useEffect(() => {
-      if (!focused || removing !== 'none') return;
+      if (!focused || exiting) return;
 
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'a' || e.key === 'A') {
           e.preventDefault();
           e.stopPropagation();
           handleAccept();
-        } else if (e.key === 'r' || e.key === 'R' || e.key === 'x' || e.key === 'X') {
+        } else if (e.key === 'd' || e.key === 'D') {
           e.preventDefault();
           e.stopPropagation();
           handleReject();
@@ -129,43 +132,43 @@ export const TopicCard = forwardRef<HTMLDivElement, TopicCardProps>(
 
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [focused, removing, handleAccept, handleReject]);
+    }, [focused, exiting, handleAccept, handleReject]);
 
     if (topic.status === 'deleted') return null;
 
     const isProcessing = topic.status === 'queued' || topic.status === 'researching';
     const isCompleted = topic.status === 'completed';
-    const canAct = !isProcessing && !isCompleted && removing === 'none';
-    const isRemoving = removing !== 'none';
+    const canAct = !isProcessing && !isCompleted && !exiting;
 
     return (
       <div
         ref={ref}
         onClick={handleClick}
         className={`
-          relative
-          px-4 py-3
-          border-l-2 ${templateBorder}
+          relative px-4 py-3
+          border-l-2
+          ${exiting === 'accepted' ? 'border-l-emerald-500/60' : ''}
+          ${exiting === 'rejected' ? 'border-l-rose-500/60' : ''}
+          ${!exiting ? templateBorder : ''}
           border-b ${initiateTheme.borderSubtle}
-          ${templateTint}
-          cursor-pointer
-          group
-          transition-all duration-150 ease-out
-          ${focused && !isRemoving
+          ${exiting === 'accepted' ? 'bg-emerald-500/15' : ''}
+          ${exiting === 'rejected' ? 'bg-rose-500/10' : ''}
+          ${!exiting ? templateTint : ''}
+          cursor-pointer group
+          transition-[opacity,transform] duration-200 ease-out
+          ${exiting
+            ? 'opacity-0 -translate-x-4 scale-[0.97]'
+            : 'opacity-100 translate-x-0 scale-100'
+          }
+          ${focused && canAct
             ? 'bg-cyan-500/[0.08] ring-1 ring-cyan-500/30 ring-inset'
-            : !isRemoving ? 'hover:bg-white/[0.02]' : ''
+            : canAct ? 'hover:bg-white/[0.02]' : ''
           }
-          ${isRemoving
-            ? 'opacity-0 scale-y-95 -translate-x-2 pointer-events-none'
-            : 'opacity-100 scale-y-100 translate-x-0'
-          }
-          ${removing === 'accepting' ? 'bg-emerald-500/10' : ''}
-          ${removing === 'rejecting' ? 'bg-rose-500/10' : ''}
         `}
         data-topic-id={topic.id}
         tabIndex={0}
       >
-        {/* Title - full width */}
+        {/* Title */}
         <h3 className={`
           text-sm font-medium leading-snug
           ${isCompleted ? 'text-slate-500' : initiateTheme.text}
@@ -174,7 +177,7 @@ export const TopicCard = forwardRef<HTMLDivElement, TopicCardProps>(
           {topic.title}
         </h3>
 
-        {/* Claim or description - full width */}
+        {/* Claim or description */}
         {(topic.claim || topic.description) && (
           <p className={`
             text-xs leading-relaxed mt-1
@@ -184,16 +187,13 @@ export const TopicCard = forwardRef<HTMLDivElement, TopicCardProps>(
           </p>
         )}
 
-        {/* Metadata row with actions on right */}
+        {/* Metadata row */}
         <div className="flex items-center justify-between mt-2">
-          {/* Left: metadata */}
           <div className="flex items-center gap-2">
-            {/* Time */}
             <span className={`text-[10px] ${initiateTheme.textMuted}`}>
               {formatRelativeTime(topic.discoveredAt)}
             </span>
 
-            {/* Bias indicator */}
             {topic.sourceBias && (
               <span className={`
                 text-[9px] font-medium
@@ -211,7 +211,6 @@ export const TopicCard = forwardRef<HTMLDivElement, TopicCardProps>(
               </span>
             )}
 
-            {/* Debunkability */}
             {topic.debunkable && (
               <span className={`
                 text-[9px] font-medium
@@ -223,7 +222,6 @@ export const TopicCard = forwardRef<HTMLDivElement, TopicCardProps>(
               </span>
             )}
 
-            {/* Processing indicator */}
             {isProcessing && (
               <span className="flex items-center gap-1 text-[10px] text-blue-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
@@ -231,13 +229,12 @@ export const TopicCard = forwardRef<HTMLDivElement, TopicCardProps>(
               </span>
             )}
 
-            {/* Completed indicator */}
             {isCompleted && (
               <span className="text-[10px] text-emerald-500/60">done</span>
             )}
           </div>
 
-          {/* Right: Accept/Reject buttons */}
+          {/* Accept/Reject buttons */}
           {canAct && (
             <div className={`
               flex items-center gap-1
@@ -268,7 +265,7 @@ export const TopicCard = forwardRef<HTMLDivElement, TopicCardProps>(
                   active:scale-95
                   transition-all duration-100
                 `}
-                title="Reject (R)"
+                title="Reject (D)"
                 aria-label="Reject"
               >
                 <X size={12} />

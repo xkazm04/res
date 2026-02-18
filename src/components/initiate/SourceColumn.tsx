@@ -1,8 +1,7 @@
 'use client';
 
-import { LucideIcon, Download } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 import { VirtualizedTopicList } from './VirtualizedTopicList';
-import { DiscoverButton } from './DiscoverButton';
 import { TopicStatus } from '@/src/types/research';
 import { initiateTheme } from './InitiateTheme';
 
@@ -26,15 +25,10 @@ interface SourceColumnProps {
     claim?: string;
     sourceBias?: string;
     debunkable?: number;
+    userVerdict?: 'accepted' | 'rejected';
   }>;
-  onDownload?: (slug: string) => void;
-  onDiscover?: () => void;
-  onTopicsDiscovered?: (slug: string, count: number) => void;
-  onDiscoveryError?: (slug: string, error: string) => void;
-  isDiscovering?: boolean;
   onTopicStatusChange?: (id: string, status: TopicStatus, sessionId?: string) => void;
-  onTopicRemoved?: (id: string) => void;
-  onAccept?: (id: string) => void;
+  onVerdictChange?: (id: string, verdict: 'accepted' | 'rejected') => void;
 }
 
 export function SourceColumn({
@@ -44,19 +38,12 @@ export function SourceColumn({
   color,
   isFirst = false,
   topics = [],
-  onDownload,
-  onDiscover,
-  onTopicsDiscovered,
-  onDiscoveryError,
-  isDiscovering = false,
   onTopicStatusChange,
-  onTopicRemoved,
-  onAccept,
+  onVerdictChange,
 }: SourceColumnProps) {
-  // Count topics by status (excluding deleted)
-  const visibleTopics = topics.filter(t => t.status !== 'deleted');
-  const newCount = visibleTopics.filter(t => t.status === 'new').length;
-  const activeCount = visibleTopics.filter(t => t.status === 'queued' || t.status === 'researching').length;
+  const undecided = topics.filter(t => !t.userVerdict && t.status !== 'deleted');
+  const newCount = undecided.filter(t => t.status === 'new').length;
+  const activeCount = undecided.filter(t => t.status === 'queued' || t.status === 'researching').length;
 
   return (
     <div
@@ -75,18 +62,13 @@ export function SourceColumn({
         ${initiateTheme.bgSecondary}
       `}>
         <div className="flex items-center gap-2">
-          {/* Icon with source color */}
           <div
             className="w-6 h-6 rounded flex items-center justify-center relative"
-            style={{
-              backgroundColor: `${color}15`,
-            }}
+            style={{ backgroundColor: `${color}15` }}
           >
             <Icon size={13} style={{ color }} />
             {activeCount > 0 && (
-              <span
-                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse"
-              />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
             )}
           </div>
           <div className="flex items-baseline gap-1.5">
@@ -94,47 +76,22 @@ export function SourceColumn({
               {name}
             </span>
             <span className={`text-[10px] ${initiateTheme.textMuted}`}>
-              {visibleTopics.length}
+              {undecided.length}
             </span>
           </div>
-        </div>
-
-        {/* Compact action buttons */}
-        <div className="flex items-center gap-0.5">
-          <DiscoverButton
-            sourceSlug={slug}
-            onDiscovered={(count) => onTopicsDiscovered?.(slug, count)}
-            onError={(error) => onDiscoveryError?.(slug, error)}
-            disabled={isDiscovering}
-          />
-          <button
-            onClick={() => onDownload?.(slug)}
-            className={`
-              p-1.5 rounded
-              ${initiateTheme.textMuted}
-              hover:text-slate-100
-              ${initiateTheme.bgHover}
-              transition-colors
-            `}
-            title="Download"
-          >
-            <Download size={12} />
-          </button>
         </div>
       </div>
 
       {/* Column Content */}
-      <div className={`flex-1 overflow-hidden`}>
+      <div className="flex-1 overflow-hidden">
         <VirtualizedTopicList
           items={topics}
-          onDiscover={onDiscover}
           onTopicStatusChange={onTopicStatusChange}
-          onTopicRemoved={onTopicRemoved}
-          onAccept={onAccept}
+          onVerdictChange={onVerdictChange}
         />
       </div>
 
-      {/* Minimal footer - only show if there are new items */}
+      {/* Minimal footer */}
       {newCount > 0 && (
         <div className={`
           px-3 py-1.5

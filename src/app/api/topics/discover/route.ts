@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Create GeminiClient with gemini-2.5-flash (not deprecated 2.0)
-    const apiKey = process.env.GOOGLE_GENAI_API_KEY;
+    const apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
         { error: 'Server configuration error: Missing API key' },

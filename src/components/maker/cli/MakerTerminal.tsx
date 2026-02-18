@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Terminal, Bot, Wrench, CheckCircle, AlertCircle,
   Square, Loader2, ChevronDown, FileEdit, FilePlus, Eye,
-  Sparkles, X,
+  Sparkles, X, Send,
 } from 'lucide-react';
 import type { LogEntry, ExecutionInfo, ExecutionResult, CLISSEEvent, AIComposeResult } from './types';
 
@@ -70,9 +70,16 @@ interface MakerTerminalProps {
   projectPath: string;
   prompt: string;
   autoStart?: boolean;
-  onResult: (result: AIComposeResult) => void;
+  onResult?: (result: AIComposeResult) => void;
+  onComplete?: () => void;
   onClose: () => void;
   onError?: (error: string) => void;
+  title?: string;
+  composingLabel?: string;
+  /** Show input textarea for follow-up prompts after completion */
+  enableInput?: boolean;
+  /** Called when user submits a follow-up prompt */
+  onSubmitFollowUp?: (prompt: string, sessionId: string) => void;
 }
 
 export const MakerTerminal = memo(function MakerTerminal({
@@ -81,8 +88,13 @@ export const MakerTerminal = memo(function MakerTerminal({
   prompt,
   autoStart = true,
   onResult,
+  onComplete,
   onClose,
   onError,
+  title = 'AI Composer',
+  composingLabel = 'Composing...',
+  enableInput = false,
+  onSubmitFollowUp,
 }: MakerTerminalProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -90,12 +102,14 @@ export const MakerTerminal = memo(function MakerTerminal({
   const [lastResult, setLastResult] = useState<ExecutionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isAutoScroll, setIsAutoScroll] = useState(true);
+  const [inputValue, setInputValue] = useState('');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const hasStartedRef = useRef(false);
   const lastAssistantTextRef = useRef<string>('');
   const allAssistantTextRef = useRef<string>('');
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-scroll
   useEffect(() => {
@@ -215,8 +229,9 @@ export const MakerTerminal = memo(function MakerTerminal({
         setIsStreaming(false);
 
         // Try to parse AI compose result - try last message first, then all accumulated text
-        const result = tryParseResult(lastAssistantTextRef.current)
-          || tryParseResult(allAssistantTextRef.current);
+        const result = onResult
+          ? (tryParseResult(lastAssistantTextRef.current) || tryParseResult(allAssistantTextRef.current))
+          : null;
         if (result) {
           addLog({
             id: `parsed-${Date.now()}`,
@@ -224,7 +239,7 @@ export const MakerTerminal = memo(function MakerTerminal({
             content: 'AI composition complete - applying selections',
             timestamp: Date.now(),
           });
-          onResult(result);
+          onResult!(result);
         } else {
           addLog({
             id: `no-parse-${Date.now()}`,
@@ -233,6 +248,7 @@ export const MakerTerminal = memo(function MakerTerminal({
             timestamp: Date.now(),
           });
         }
+        onComplete?.();
         break;
       }
       case 'error': {
@@ -249,7 +265,7 @@ export const MakerTerminal = memo(function MakerTerminal({
         break;
       }
     }
-  }, [addLog, onResult, onError, tryParseResult]);
+  }, [addLog, onResult, onComplete, onError, tryParseResult]);
 
   // Connect to SSE stream
   const connectToStream = useCallback((streamUrl: string) => {
@@ -344,6 +360,30 @@ export const MakerTerminal = memo(function MakerTerminal({
     setIsStreaming(false);
   }, []);
 
+  // Follow-up input submission
+  const handleInputSubmit = useCallback(() => {
+    const text = inputValue.trim();
+    if (!text || isStreaming) return;
+    const sid = executionInfo?.sessionId;
+    if (!sid) return;
+
+    addLog({
+      id: `user-${Date.now()}`,
+      type: 'user',
+      content: text,
+      timestamp: Date.now(),
+    });
+    setInputValue('');
+    onSubmitFollowUp?.(text, sid);
+  }, [inputValue, isStreaming, executionInfo, addLog, onSubmitFollowUp]);
+
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleInputSubmit();
+    }
+  }, [handleInputSubmit]);
+
   if (!isOpen) return null;
 
   return (
@@ -358,7 +398,7 @@ export const MakerTerminal = memo(function MakerTerminal({
       <div className="flex items-center justify-between px-3 py-2 bg-slate-800/50 border-b border-slate-700/40">
         <div className="flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-          <span className="text-xs font-medium text-slate-200">AI Composer</span>
+          <span className="text-xs font-medium text-slate-200">{title}</span>
           {executionInfo?.model && (
             <span className="text-[10px] text-slate-500 font-mono">
               {executionInfo.model.split('-').slice(-2).join('-')}
@@ -443,7 +483,7 @@ export const MakerTerminal = memo(function MakerTerminal({
         {isStreaming && (
           <div className="flex items-center gap-2 px-3 py-1 text-violet-400 text-xs">
             <Loader2 className="w-3 h-3 animate-spin" />
-            <span>Composing...</span>
+            <span>{composingLabel}</span>
           </div>
         )}
       </div>
@@ -459,6 +499,35 @@ export const MakerTerminal = memo(function MakerTerminal({
         >
           <ChevronDown className="w-3 h-3" />
         </button>
+      )}
+
+      {/* Follow-up input */}
+      {enableInput && !isStreaming && lastResult && executionInfo?.sessionId && (
+        <div className="flex items-start gap-2 px-3 py-2 border-t border-slate-700/40 bg-slate-800/50">
+          <span className="text-cyan-400 text-xs font-mono mt-[5px]">{'>'}</span>
+          <textarea
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              const el = e.target;
+              el.style.height = '20px';
+              el.style.height = `${Math.min(el.scrollHeight, 88)}px`;
+            }}
+            onKeyDown={handleInputKeyDown}
+            rows={1}
+            placeholder="Follow-up prompt... (Shift+Enter for newline)"
+            className="flex-1 bg-transparent text-xs text-slate-300 placeholder-slate-600 outline-none font-mono resize-none overflow-y-auto leading-[20px]"
+            style={{ height: '20px', maxHeight: '88px' }}
+          />
+          <button
+            onClick={handleInputSubmit}
+            disabled={!inputValue.trim()}
+            className="p-1 mt-[3px] text-cyan-400 hover:bg-cyan-500/20 rounded transition-colors disabled:opacity-30"
+          >
+            <Send className="w-3 h-3" />
+          </button>
+        </div>
       )}
     </motion.div>
   );

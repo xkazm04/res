@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
 import { useAppStore } from '@/src/stores/appStore';
 import { useThemeStore } from '@/src/stores/themeStore';
 import { useSessions } from '@/src/hooks/useSessions';
@@ -175,47 +176,85 @@ export function ResearchMap({ className }: ResearchMapProps) {
 
   return (
     <div className={`${className} relative`}>
-      {/* Loading progress bar (top) */}
+      {/* Loading progress bar — absolute, rendered above everything */}
       <LoadingProgress
         isLoading={isLoading}
         loadedCount={sessions.length}
         isRadar={isRadar}
       />
 
-      {/* Top bar: Filter + Theme switcher */}
-      <div className="absolute top-0 left-0 right-0 z-20">
-        <div className="flex items-stretch">
-          {/* Filter panel fills available width */}
-          <div className="flex-1 min-w-0">
-            <FilterPanel
-              templates={templates}
-              criteria={filterCriteria}
-              sort={sort}
-              matchCount={filteredSessions.length}
-              totalCount={sessions.length}
-              onChange={setFilterCriteria}
-              onSortChange={setSort}
-              isRadar={isRadar}
-            />
-          </div>
-
-          {/* Theme Switcher */}
-          <div
-            className={`flex items-center px-3 border-b ${
+      {/* ── Page header — normal flow so canvas starts BELOW it ─────────── */}
+      <div
+        className={`flex items-stretch flex-none z-20 border-b ${
+          isRadar
+            ? 'bg-[#0e0e10]/95 border-[#27272A] backdrop-blur-sm'
+            : 'bg-white/95 border-gray-200 backdrop-blur-sm'
+        }`}
+      >
+        {/* Navigation links */}
+        <nav
+          className={`flex items-center gap-0.5 px-2 border-r ${
+            isRadar ? 'border-[#27272A]' : 'border-gray-200'
+          }`}
+        >
+          <Link
+            href="/initiate"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
               isRadar
-                ? 'bg-slate-900/90 border-slate-700'
-                : 'bg-white/95 border-gray-200'
-            } backdrop-blur-sm`}
+                ? 'text-[#71717A] hover:text-[#E8E8E8] hover:bg-[#1A1A1E]'
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+            }`}
           >
-            <ThemeSwitcher />
-          </div>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+            </svg>
+            Initiate
+          </Link>
+          <Link
+            href="/maker"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
+              isRadar
+                ? 'text-[#71717A] hover:text-[#E8E8E8] hover:bg-[#1A1A1E]'
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            Maker
+          </Link>
+        </nav>
+
+        {/* Filter panel fills available width */}
+        <div className="flex-1 min-w-0">
+          <FilterPanel
+            templates={templates}
+            criteria={filterCriteria}
+            sort={sort}
+            matchCount={filteredSessions.length}
+            totalCount={sessions.length}
+            onChange={setFilterCriteria}
+            onSortChange={setSort}
+            isRadar={isRadar}
+            embedded={true}
+          />
+        </div>
+
+        {/* Theme Switcher */}
+        <div
+          className={`flex items-center px-3 border-l ${
+            isRadar ? 'border-[#27272A]' : 'border-gray-200'
+          }`}
+        >
+          <ThemeSwitcher />
         </div>
       </div>
+      {/* ────────────────────────────────────────────────────────────────── */}
 
-      {/* Visualization fills entire space with theme crossfade */}
+      {/* Visualization occupies remaining height (flex-1) */}
       <div
         key={theme}
-        className="w-full h-full"
+        className="flex-1 min-h-0 relative"
         style={{ animation: 'fade-in 300ms ease-out' }}
       >
         {renderVisualization()}

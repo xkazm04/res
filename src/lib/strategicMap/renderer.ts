@@ -67,6 +67,8 @@ export interface RenderOptions {
   timestamp?: number;
   /** Parent node ID (rendered grayed, clickable for back navigation) */
   parentNodeId?: string | null;
+  /** Skip label collision avoidance (show all visible-node labels, used when drilled in) */
+  skipLabelCollision?: boolean;
 }
 
 const DEFAULT_RENDER_OPTIONS: RenderOptions = {
@@ -1569,23 +1571,33 @@ export class StrategicMapRenderer {
 
     labelRects.sort((a, b) => b.priority - a.priority);
 
+    // When drilled into a template/topic we have very few nodes — skip collision
+    // avoidance entirely so every label is visible.
     const visibleRects: LabelRect[] = [];
 
-    for (const rect of labelRects) {
-      let hasCollision = false;
-
-      for (const visible of visibleRects) {
-        if (this.rectsOverlap(rect, visible)) {
-          hasCollision = true;
-          break;
-        }
-      }
-
-      if (!hasCollision) {
-        visibleRects.push(rect);
+    if (opts.skipLabelCollision) {
+      // All labels are shown — mark them all visible
+      for (const rect of labelRects) {
         rect.visible = true;
-      } else {
-        rect.visible = false;
+        visibleRects.push(rect);
+      }
+    } else {
+      for (const rect of labelRects) {
+        let hasCollision = false;
+
+        for (const visible of visibleRects) {
+          if (this.rectsOverlap(rect, visible)) {
+            hasCollision = true;
+            break;
+          }
+        }
+
+        if (!hasCollision) {
+          visibleRects.push(rect);
+          rect.visible = true;
+        } else {
+          rect.visible = false;
+        }
       }
     }
 
@@ -1759,9 +1771,16 @@ export class StrategicMapRenderer {
 
   /**
    * Find node at screen coordinates
-   * Uses direct screen-space hit testing for accuracy
+   * Uses direct screen-space hit testing for accuracy.
+   * @param nodeFilter - Optional filter matching the render filter (e.g. FocusController.filterNodes)
+   *                     so hit detection only considers nodes that are actually visible.
    */
-  findNodeAt(screenX: number, screenY: number, view: ViewState): StrategicMapNode | null {
+  findNodeAt(
+    screenX: number,
+    screenY: number,
+    view: ViewState,
+    nodeFilter?: (nodes: StrategicMapNode[]) => StrategicMapNode[]
+  ): StrategicMapNode | null {
     if (!this.hierarchy) return null;
 
     const { width, height } = this;
@@ -1772,10 +1791,18 @@ export class StrategicMapRenderer {
     let closestNode: StrategicMapNode | null = null;
     let closestDist = Infinity;
 
-    const minClickRadius = 25;
-    const hitMultiplier = 1.5;
+    // Tight hit detection: match visual bounds exactly.
+    // Only a small minimum ensures tiny nodes (at extreme zoom-out) remain clickable.
+    const minClickRadius = 8;
 
-    for (const node of this.hierarchy.allNodes) {
+    // Use the same node filter as the renderer so we only hit-test visible nodes.
+    // This is critical when drilled into a template/topic — other nodes should not
+    // intercept clicks even if their screen-space position happens to overlap.
+    const candidates = nodeFilter
+      ? nodeFilter(this.hierarchy.allNodes)
+      : this.hierarchy.allNodes;
+
+    for (const node of candidates) {
       if (!zoomConfig.visibleNodeTypes.includes(node.type)) {
         continue;
       }
@@ -1794,12 +1821,11 @@ export class StrategicMapRenderer {
         const cardH = nodeScreenRadius * 1.6;
         const cardX = nodeScreenX - cardW / 2;
         const cardY = nodeScreenY - cardH / 2;
-        const hitPad = 5;
         if (
-          screenX >= cardX - hitPad &&
-          screenX <= cardX + cardW + hitPad &&
-          screenY >= cardY - hitPad &&
-          screenY <= cardY + cardH + hitPad
+          screenX >= cardX &&
+          screenX <= cardX + cardW &&
+          screenY >= cardY &&
+          screenY <= cardY + cardH
         ) {
           if (dist < closestDist) {
             closestDist = dist;
@@ -1809,7 +1835,7 @@ export class StrategicMapRenderer {
         continue;
       }
 
-      const hitRadius = Math.max(nodeScreenRadius * hitMultiplier, minClickRadius);
+      const hitRadius = Math.max(nodeScreenRadius, minClickRadius);
 
       if (dist <= hitRadius && dist < closestDist) {
         closestDist = dist;
